@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: PHP 8.3 · MariaDB · tests
+    runs-on: ubuntu-latest
+
+    services:
+      mariadb:
+        image: mariadb:11
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: arteuction_test
+          MARIADB_USER: arteuction_test
+          MARIADB_PASSWORD: arteuction_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=10
+
+    env:
+      APP_ENV: testing
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, xml, curl, gd, zip, bcmath, intl, pdo_mysql
+          coverage: none
+          tools: composer:v2
+
+      - name: Lock DB user privileges to arteuction_test.*
+        run: |
+          mysql -h127.0.0.1 -uroot -proot -e "
+            REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'arteuction_test'@'%';
+            GRANT ALL PRIVILEGES ON arteuction_test.* TO 'arteuction_test'@'%';
+            FLUSH PRIVILEGES;"
+
+      - name: composer validate --strict
+        run: composer validate --strict
+
+      - name: composer install
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          cp .env.testing.example .env.testing
+          php artisan key:generate
+          php artisan key:generate --env=testing
+          php artisan config:clear --env=testing
+
+      - name: migrate:fresh (testing)
+        run: php artisan migrate:fresh --force --env=testing
+
+      - name: composer test
+        run: php artisan test --env=testing
+
+      - name: composer audit
+        run: composer audit
