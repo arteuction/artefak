@@ -21,7 +21,7 @@ class WebhookInboxTest extends TestCase
         return "t={$t},v1={$sig}";
     }
 
-    private function post(string $payload, string $signature): \Illuminate\Testing\TestResponse
+    private function webhook(string $payload, string $signature): \Illuminate\Testing\TestResponse
     {
         return $this->call(
             method: 'POST',
@@ -49,7 +49,7 @@ class WebhookInboxTest extends TestCase
         Queue::fake();
         $payload = $this->event('payment_intent.payment_failed', 'evt_001');
 
-        $this->post($payload, $this->sign($payload))->assertStatus(200);
+        $this->webhook($payload, $this->sign($payload))->assertStatus(200);
 
         $this->assertDatabaseHas('webhook_events', [
             'stripe_event_id' => 'evt_001',
@@ -64,7 +64,7 @@ class WebhookInboxTest extends TestCase
         Queue::fake();
         $payload = $this->event('payment_intent.payment_failed', 'evt_002');
 
-        $this->post($payload, 't=1234567890,v1=badsignature')->assertStatus(400);
+        $this->webhook($payload, 't=1234567890,v1=badsignature')->assertStatus(400);
 
         $this->assertDatabaseMissing('webhook_events', ['stripe_event_id' => 'evt_002']);
         Queue::assertNothingPushed();
@@ -78,8 +78,8 @@ class WebhookInboxTest extends TestCase
         $payload = $this->event('payment_intent.payment_failed', 'evt_003');
         $sig     = $this->sign($payload);
 
-        $this->post($payload, $sig)->assertStatus(200);
-        $this->post($payload, $sig)->assertStatus(200);
+        $this->webhook($payload, $sig)->assertStatus(200);
+        $this->webhook($payload, $sig)->assertStatus(200);
 
         $this->assertSame(
             1,
@@ -110,7 +110,7 @@ class WebhookInboxTest extends TestCase
             ],
         ]);
 
-        $this->post($payload, $this->sign($payload))->assertStatus(200);
+        $this->webhook($payload, $this->sign($payload))->assertStatus(200);
 
         $this->assertDatabaseHas('webhook_events', [
             'stripe_event_id' => 'evt_004',
