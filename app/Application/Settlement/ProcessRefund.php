@@ -74,10 +74,24 @@ final class ProcessRefund
                 $stripeRefundId, $paymentIntentId, $amountCents,
                 $currency, $refundStatus, $chargeId, $reason, $financiallyActive,
             );
-        } catch (UniqueConstraintViolationException) {
-            return (int) DB::table('refunds')
-                ->where('stripe_refund_id', $stripeRefundId)
-                ->value('id');
+        } catch (UniqueConstraintViolationException $e) {
+            // A UCVE inside the transaction could come from any constraint, not only
+            // the refunds UNIQUE(stripe_refund_id). Only treat it as an idempotent
+            // race if the refund actually exists with a matching payload.
+            $row = DB::table('refunds')
+                ->join('settlements', 'settlements.id', '=', 'refunds.settlement_id')
+                ->where('refunds.stripe_refund_id', $stripeRefundId)
+                ->where('settlements.stripe_payment_intent_id', $paymentIntentId)
+                ->where('refunds.amount_cents', $amountCents)
+                ->where('refunds.currency', strtoupper($currency))
+                ->select('refunds.id')
+                ->first();
+
+            if ($row === null) {
+                throw $e; // Unrelated constraint violation — never return 0
+            }
+
+            return (int) $row->id;
         }
     }
 
@@ -237,6 +251,7 @@ final class ProcessRefund
                     'type'               => 'debit',
                     'amount_cents'       => $delta,
                     'currency'           => strtoupper($currency),
+                    'idempotency_key'    => "refund:{$refundLineId}:debit",
                     'note'               => $isPartial ? 'Partial refund' : 'Full refund',
                     'created_at'         => now(),
                     'updated_at'         => now(),

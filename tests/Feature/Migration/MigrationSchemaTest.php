@@ -138,13 +138,39 @@ class MigrationSchemaTest extends TestCase
             $this->baseLine($sid, ['recipient_type' => 'fund', 'legal_entity_id' => 99])
         );
 
-        DB::table('ledger_entries')->insert(['settlement_id' => $sid, 'settlement_line_id' => $lid, 'type' => 'debit', 'amount_cents' => 500, 'currency' => 'EUR', 'created_at' => now(), 'updated_at' => now()]);
-        DB::table('ledger_entries')->insert(['settlement_id' => $sid, 'settlement_line_id' => $lid, 'type' => 'debit', 'amount_cents' => 500, 'currency' => 'EUR', 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('ledger_entries')->insert(['settlement_id' => $sid, 'settlement_line_id' => $lid, 'type' => 'debit', 'amount_cents' => 500, 'currency' => 'EUR', 'idempotency_key' => 'refund:100:debit', 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('ledger_entries')->insert(['settlement_id' => $sid, 'settlement_line_id' => $lid, 'type' => 'debit', 'amount_cents' => 500, 'currency' => 'EUR', 'idempotency_key' => 'refund:101:debit', 'created_at' => now(), 'updated_at' => now()]);
 
         $this->assertSame(2, (int) DB::table('ledger_entries')->where('settlement_line_id', $lid)->where('type', 'debit')->count());
     }
 
-    // ──────────────────────────────────────────────────────────────
+
+    public function test_ledger_entries_duplicate_idempotency_key_rejected(): void
+    {
+        $sid = $this->insertBaseSettlement('pi_idem_k', 'evt_idem_k');
+        $lid = DB::table('settlement_lines')->insertGetId(
+            $this->baseLine($sid, ['recipient_type' => 'fund', 'legal_entity_id' => 99])
+        );
+
+        DB::table('ledger_entries')->insert([
+            'settlement_id' => $sid, 'settlement_line_id' => $lid,
+            'type' => 'credit', 'amount_cents' => 1000, 'currency' => 'EUR',
+            'idempotency_key' => 'settlement:' . $lid . ':credit',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->expectException(\Illuminate\Database\QueryException::class);
+
+        // Same idempotency_key must be rejected by the DB-level UNIQUE
+        DB::table('ledger_entries')->insert([
+            'settlement_id' => $sid, 'settlement_line_id' => $lid,
+            'type' => 'credit', 'amount_cents' => 500, 'currency' => 'EUR',
+            'idempotency_key' => 'settlement:' . $lid . ':credit',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+    }
+
+        // ──────────────────────────────────────────────────────────────
     // transfer_outbox
     // ──────────────────────────────────────────────────────────────
 

@@ -506,4 +506,67 @@ class ProcessRefundTest extends TestCase
         $this->assertSame(0,
             DB::table('ledger_entries')->where('settlement_id', $s->id)->where('type', 'debit')->count());
     }
+
+    // ══════════════════════════════════════════════════════════════
+    // Catch-block narrowing — unrelated UCVE must not be swallowed
+    // ══════════════════════════════════════════════════════════════
+
+    public function test_unrelated_constraint_failure_is_rethrown(): void
+    {
+        Queue::fake();
+
+        // Create settlement with one transferred line so ProcessRefund tries to
+        // insert a transfer_reversal_orders row.
+        $s = $this->makeSettlement('pi_ucve');
+        $lid = $this->makeLine($s->id, 'artist', 4500, 'transferred', 'tr_ucve_orig');
+
+        // Pre-occupy the idempotency_key that ProcessRefund would generate for
+        // this refund+line combination, using a dummy FK-satisfying refund_line.
+        $dummyRefundId = (int) DB::table('refunds')->insertGetId([
+            'stripe_refund_id'      => 're_ucve_dummy',
+            'settlement_id'         => $s->id,
+            'amount_cents'          => 4500, 'currency' => 'EUR',
+            'is_partial'            => false,
+            'refund_status'         => 'succeeded',
+            'reconciliation_status' => 'pending',
+            'created_at'            => now(), 'updated_at' => now(),
+        ]);
+        $dummyRlId = (int) DB::table('refund_lines')->insertGetId([
+            'refund_id'          => $dummyRefundId,
+            'settlement_line_id' => $lid->id,
+            'amount_cents'       => 4500, 'currency' => 'EUR',
+            'recipient_type'     => 'artist', 'status' => 'pending',
+            'created_at'         => now(), 'updated_at' => now(),
+        ]);
+        // Note: the real refund will get a *different* refund_line_id (auto-increment),
+        // so we cannot pre-block via refund_line unique. Instead, block via the
+        // transfer_reversal_orders.idempotency_key, which IS predictable:
+        //   'rev_' . $stripeRefundId . '_line_' . $lid->id
+        $stripeRefundId = 're_ucve_real';
+        $idemKey = "rev_{$stripeRefundId}_line_{$lid->id}";
+
+        DB::table('transfer_reversal_orders')->insertGetId([
+            'refund_line_id'     => $dummyRlId,
+            'stripe_transfer_id' => 'tr_ucve_blocker',
+            'amount_cents'       => 4500, 'currency' => 'EUR',
+            'idempotency_key'    => $idemKey,
+            'status'             => 'pending', 'attempt' => 0,
+            'created_at'         => now(), 'updated_at' => now(),
+        ]);
+
+        // ProcessRefund will succeed at inserting the refund row but fail at the
+        // reversal order because of the duplicate idempotency_key.  The transaction
+        // rolls back, so 're_ucve_real' does NOT exist in refunds afterward.
+        // The narrowed catch must detect the missing refund and rethrow.
+        $this->expectException(\Illuminate\Database\UniqueConstraintViolationException::class);
+
+        $this->action()->execute($stripeRefundId, 'pi_ucve', 4500);
+
+        // Side effects: the rethrown exception must leave no rows for the real refund
+        $this->assertSame(
+            0,
+            DB::table('refunds')->where('stripe_refund_id', $stripeRefundId)->count(),
+            'No refund row must survive after rethrow'
+        );
+    }
 }

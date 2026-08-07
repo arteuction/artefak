@@ -110,6 +110,7 @@ final class CreateSettlement
                     'type'               => 'credit',
                     'amount_cents'       => $recipient->amount->cents,
                     'currency'           => $recipient->amount->currency,
+                    'idempotency_key'    => "settlement:{$lineId}:credit",
                     'note'               => 'Sale split',
                     'created_at'         => now(),
                     'updated_at'         => now(),
