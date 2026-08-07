@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Migration;
 
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
@@ -17,6 +18,7 @@ use Tests\TestCase;
  */
 class MigrationSchemaTest extends TestCase
 {
+    use RefreshDatabase;
     // ──────────────────────────────────────────────────────────────
     // settlements
     // ──────────────────────────────────────────────────────────────
