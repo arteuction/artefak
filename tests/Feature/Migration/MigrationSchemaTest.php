@@ -127,15 +127,21 @@ class MigrationSchemaTest extends TestCase
         }
     }
 
-    public function test_ledger_entries_one_credit_per_line(): void
+
+    public function test_ledger_entries_allows_multiple_debits_per_line(): void
     {
-        $sid  = $this->insertBaseSettlement('pi_G1', 'evt_G1');
-        $lid  = DB::table('settlement_lines')->insertGetId($this->baseLine($sid, ['recipient_type' => 'fund', 'legal_entity_id' => 99]));
+        // The (settlement_line_id, type) unique was removed in migration 000011 to allow
+        // multiple debit rows per line (required for cumulative partial refunds).
+        // Credit uniqueness is enforced at the application layer (CreateSettlement).
+        $sid = $this->insertBaseSettlement('pi_G1', 'evt_G1');
+        $lid = DB::table('settlement_lines')->insertGetId(
+            $this->baseLine($sid, ['recipient_type' => 'fund', 'legal_entity_id' => 99])
+        );
 
-        DB::table('ledger_entries')->insert(['settlement_id' => $sid, 'settlement_line_id' => $lid, 'type' => 'credit', 'amount_cents' => 1000, 'currency' => 'EUR', 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('ledger_entries')->insert(['settlement_id' => $sid, 'settlement_line_id' => $lid, 'type' => 'debit', 'amount_cents' => 500, 'currency' => 'EUR', 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('ledger_entries')->insert(['settlement_id' => $sid, 'settlement_line_id' => $lid, 'type' => 'debit', 'amount_cents' => 500, 'currency' => 'EUR', 'created_at' => now(), 'updated_at' => now()]);
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
-        DB::table('ledger_entries')->insert(['settlement_id' => $sid, 'settlement_line_id' => $lid, 'type' => 'credit', 'amount_cents' => 500,  'currency' => 'EUR', 'created_at' => now(), 'updated_at' => now()]);
+        $this->assertSame(2, (int) DB::table('ledger_entries')->where('settlement_line_id', $lid)->where('type', 'debit')->count());
     }
 
     // ──────────────────────────────────────────────────────────────

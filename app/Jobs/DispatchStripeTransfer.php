@@ -17,19 +17,21 @@ use Stripe\StripeClient;
 /**
  * Dispatches a single pending transfer_outbox row to Stripe Connect.
  *
- * Design:
- * - Receives the outbox row ID only (not the full row) — avoids stale data.
- * - Uses the stored stripe_idempotency_key so Stripe deduplicates retries.
- * - On success: marks outbox dispatched + fills settlement_line.stripe_transfer_id.
- * - On Stripe API failure: increments attempt, schedules next_attempt_at with
- *   exponential backoff, marks status=failed after MAX_ATTEMPTS.
- * - Does NOT run inside the settlement transaction — called post-commit.
+ * Lease pattern (prevents holding a DB lock during Stripe I/O):
+ *   1. Short TX: pending → processing + processing_started_at = now()  [commit]
+ *   2. Stripe transfers.create() OUTSIDE any transaction
+ *   3. Short TX: processing → dispatched  (or → pending with backoff on failure)
+ *
+ * Abandoned leases: any row with status=processing AND
+ * processing_started_at < now() - 5min should be reset to pending.
+ * See ReclaimAbandonedTransfers artisan command.
  */
 class DispatchStripeTransfer implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    private const MAX_ATTEMPTS = 5;
+    private const MAX_ATTEMPTS   = 5;
+    private const LEASE_MINUTES  = 5;
 
     public function __construct(
         public readonly int $outboxId,
@@ -37,18 +39,35 @@ class DispatchStripeTransfer implements ShouldQueue
 
     public function handle(StripeClient $stripe): void
     {
-        $row = DB::table('transfer_outbox')->where('id', $this->outboxId)->lockForUpdate()->first();
+        // ── Step 1: Claim the row (short TX, no Stripe I/O) ──────────────
+        $claimed = DB::transaction(function (): bool {
+            $row = DB::table('transfer_outbox')
+                ->where('id', $this->outboxId)
+                ->where('status', 'pending')
+                ->lockForUpdate()
+                ->first();
 
-        if ($row === null) {
-            Log::warning('DispatchStripeTransfer: outbox row not found', ['outbox_id' => $this->outboxId]);
+            if ($row === null) {
+                return false; // already processing/dispatched/canceled/failed
+            }
+
+            DB::table('transfer_outbox')->where('id', $this->outboxId)->update([
+                'status'                => 'processing',
+                'processing_started_at' => now(),
+                'updated_at'            => now(),
+            ]);
+
+            return true;
+        });
+
+        if (!$claimed) {
             return;
         }
 
-        if ($row->status !== 'pending') {
-            // Already dispatched or dead-lettered by a concurrent worker — skip.
-            return;
-        }
+        // Re-read outside the transaction to get fresh data for Stripe
+        $row = DB::table('transfer_outbox')->find($this->outboxId);
 
+        // ── Step 2: Stripe API OUTSIDE transaction ────────────────────────
         try {
             $transfer = $stripe->transfers->create(
                 [
@@ -59,12 +78,14 @@ class DispatchStripeTransfer implements ShouldQueue
                 ['idempotency_key' => $row->stripe_idempotency_key]
             );
 
+            // ── Step 3a: Success ─────────────────────────────────────────
             DB::transaction(function () use ($row, $transfer): void {
                 DB::table('transfer_outbox')->where('id', $row->id)->update([
-                    'status'             => 'dispatched',
-                    'stripe_transfer_id' => $transfer->id,
-                    'dispatched_at'      => now(),
-                    'updated_at'         => now(),
+                    'status'                => 'dispatched',
+                    'stripe_transfer_id'    => $transfer->id,
+                    'dispatched_at'         => now(),
+                    'processing_started_at' => null,
+                    'updated_at'            => now(),
                 ]);
 
                 DB::table('settlement_lines')->where('id', $row->settlement_line_id)->update([
@@ -75,18 +96,18 @@ class DispatchStripeTransfer implements ShouldQueue
             });
 
         } catch (ApiErrorException $e) {
+            // ── Step 3b: Failure — release lease, schedule retry ─────────
             $attempt = (int) $row->attempt + 1;
             $isFinal = $attempt >= self::MAX_ATTEMPTS;
-
-            // Exponential backoff: 2^attempt minutes (2, 4, 8, 16, 32 min)
-            $nextAttemptAt = $isFinal ? null : now()->addMinutes(2 ** $attempt);
+            $nextAt  = $isFinal ? null : now()->addMinutes(2 ** $attempt);
 
             DB::table('transfer_outbox')->where('id', $row->id)->update([
-                'status'          => $isFinal ? 'failed' : 'pending',
-                'attempt'         => $attempt,
-                'last_error'      => $e->getMessage(),
-                'next_attempt_at' => $nextAttemptAt,
-                'updated_at'      => now(),
+                'status'                => $isFinal ? 'failed' : 'pending',
+                'attempt'               => $attempt,
+                'last_error'            => $e->getMessage(),
+                'next_attempt_at'       => $nextAt,
+                'processing_started_at' => null,
+                'updated_at'            => now(),
             ]);
 
             Log::error('DispatchStripeTransfer: Stripe API error', [
@@ -97,12 +118,8 @@ class DispatchStripeTransfer implements ShouldQueue
             ]);
 
             if (!$isFinal) {
-                // Re-queue with delay so the queue worker doesn't spin immediately.
-                self::dispatch($this->outboxId)->delay($nextAttemptAt);
+                self::dispatch($this->outboxId)->delay($nextAt);
             }
-
-            // Do not re-throw — the job is not "failed" from Laravel's perspective;
-            // we manage state ourselves to avoid duplicate jobs from Laravel's retry.
         }
     }
 }

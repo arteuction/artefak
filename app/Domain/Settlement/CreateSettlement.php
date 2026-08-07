@@ -103,19 +103,17 @@ final class CreateSettlement
                     'updated_at'       => now(),
                 ]);
 
-                // Ledger credit for fund lines only (append-only fund balance)
-                if ($recipient->type === 'fund') {
-                    DB::table('ledger_entries')->insert([
-                        'settlement_id'      => $settlementId,
-                        'settlement_line_id' => $lineId,
-                        'type'               => 'credit',
-                        'amount_cents'       => $recipient->amount->cents,
-                        'currency'           => $recipient->amount->currency,
-                        'note'               => 'Sale split',
-                        'created_at'         => now(),
-                        'updated_at'         => now(),
-                    ]);
-                }
+                // General ledger credit for every party — full financial audit trail
+                DB::table('ledger_entries')->insert([
+                    'settlement_id'      => $settlementId,
+                    'settlement_line_id' => $lineId,
+                    'type'               => 'credit',
+                    'amount_cents'       => $recipient->amount->cents,
+                    'currency'           => $recipient->amount->currency,
+                    'note'               => 'Sale split',
+                    'created_at'         => now(),
+                    'updated_at'         => now(),
+                ]);
 
                 // Outbox row for any line that has a Stripe Connect account
                 if ($recipient->stripeAccountId !== null) {

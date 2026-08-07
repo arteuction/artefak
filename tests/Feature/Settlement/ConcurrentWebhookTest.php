@@ -67,7 +67,7 @@ class ConcurrentWebhookTest extends TestCase
         $this->assertSame(3, $lineCount, "Expected 3 settlement_lines, found {$lineCount}");
     }
 
-    public function test_ten_concurrent_webhooks_create_exactly_one_ledger_credit(): void
+    public function test_ten_concurrent_webhooks_create_exactly_three_ledger_credits(): void
     {
         $pi  = 'pi_ledger_concurrent_' . uniqid();
         $ids = $this->runParallel($pi);
@@ -78,7 +78,7 @@ class ConcurrentWebhookTest extends TestCase
             ->where('settlement_id', $settlementId)
             ->count();
 
-        $this->assertSame(1, $ledgerCount, "Expected 1 ledger credit, found {$ledgerCount}");
+        $this->assertSame(3, $ledgerCount, "Expected 3 ledger credits, found {$ledgerCount}");
     }
 
     // ──────────────────────────────────────────────────────────────

@@ -74,15 +74,18 @@ class CreateSettlementTest extends TestCase
         $this->assertSame('1234567890',  $byType['artist']->entity_eik);
     }
 
-    public function test_creates_ledger_credit_for_fund_only(): void
+    public function test_creates_ledger_credit_for_all_three_parties(): void
     {
-        $id = $this->action->execute($this->makeResult(10000), 'pi_ledger', 'evt_ledger', $this->baseRecipients);
-
+        $id      = $this->action->execute($this->makeResult(10000), 'pi_ledger', 'evt_ledger', $this->baseRecipients);
         $entries = DB::table('ledger_entries')->where('settlement_id', $id)->get();
-        $this->assertCount(1, $entries);
-        $this->assertSame('credit', $entries[0]->type);
-        $this->assertSame(4500, (int) $entries[0]->amount_cents);
-        $this->assertSame('Sale split', $entries[0]->note);
+
+        $this->assertCount(3, $entries);
+        foreach ($entries as $e) {
+            $this->assertSame('credit', $e->type);
+            $this->assertSame('Sale split', $e->note);
+        }
+        $total = $entries->sum('amount_cents');
+        $this->assertSame(10000, (int) $total);
     }
 
     public function test_creates_outbox_row_for_each_line_with_stripe_account(): void
@@ -149,7 +152,7 @@ class CreateSettlementTest extends TestCase
             ->where('settlements.stripe_payment_intent_id', 'pi_idem3')
             ->count();
 
-        $this->assertSame(1, $count);
+        $this->assertSame(3, $count); // one credit per party
     }
 
     // ── Gross total invariant ─────────────────────────────────────
