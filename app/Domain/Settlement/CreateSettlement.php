@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Settlement;
 
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -36,6 +37,23 @@ final class CreateSettlement
         string           $stripeEvent,
         array            $recipients,
         ?int             $auctionId = null,
+    ): int {
+        try {
+            return $this->attempt($result, $paymentIntent, $stripeEvent, $recipients, $auctionId);
+        } catch (UniqueConstraintViolationException) {
+            // Concurrent request won the INSERT race — fetch and return the winner.
+            return (int) DB::table('settlements')
+                ->where('stripe_payment_intent_id', $paymentIntent)
+                ->value('id');
+        }
+    }
+
+    private function attempt(
+        SettlementResult $result,
+        string           $paymentIntent,
+        string           $stripeEvent,
+        array            $recipients,
+        ?int             $auctionId,
     ): int {
         return DB::transaction(function () use ($result, $paymentIntent, $stripeEvent, $recipients, $auctionId): int {
             // ── Idempotency guard ─────────────────────────────────────────
