@@ -13,7 +13,7 @@ class HandleStripeWebhook implements ShouldQueue
 
     public function __construct(private int $webhookEventId) {}
 
-    public function handle(): void
+    public function handle(ProcessRefund $processRefund): void
     {
         $row = DB::table('webhook_events')->find($this->webhookEventId);
 
@@ -27,7 +27,7 @@ class HandleStripeWebhook implements ShouldQueue
 
         try {
             $event = json_decode($row->payload, true, 512, JSON_THROW_ON_ERROR);
-            $this->route($event);
+            $this->route($event, $processRefund);
 
             DB::table('webhook_events')
                 ->where('id', $this->webhookEventId)
@@ -45,26 +45,28 @@ class HandleStripeWebhook implements ShouldQueue
         }
     }
 
-    private function route(array $event): void
+    private function route(array $event, ProcessRefund $processRefund): void
     {
         match ($event['type']) {
-            'charge.refunded'              => $this->handleChargeRefunded($event),
+            'charge.refunded'               => $this->handleChargeRefunded($event, $processRefund),
             'payment_intent.payment_failed' => $this->handlePaymentFailed($event),
-            default                        => null,
+            default                         => null,
         };
     }
 
-    private function handleChargeRefunded(array $event): void
+    private function handleChargeRefunded(array $event, ProcessRefund $processRefund): void
     {
         $charge  = $event['data']['object'];
         $refunds = $charge['refunds']['data'] ?? [];
 
         foreach ($refunds as $refund) {
-            ProcessRefund::execute(
+            $processRefund->execute(
                 stripeRefundId:  $refund['id'],
                 paymentIntentId: $charge['payment_intent'],
                 amountCents:     (int) $refund['amount'],
                 currency:        strtoupper($refund['currency']),
+                refundStatus:    $refund['status'] ?? 'succeeded',
+                chargeId:        $charge['id'] ?? null,
             );
         }
     }
