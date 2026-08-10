@@ -136,27 +136,37 @@ jobs:
             php artisan migrate --force --env=testing --path="$f"
           done
 
-      - name: Seed ledger credits via CreateSettlement (simulates populated production DB)
+      - name: Seed ledger credits via raw SQL (simulates Phase 1d-era rows without idempotency_key)
         run: |
-          php artisan tinker --env=testing --no-interaction <<'PHP'
-          use App\Domain\Settlement\CreateSettlement;
-          use App\Domain\Settlement\Money;
-          use App\Domain\Settlement\RecipientLine;
-          use App\Domain\Settlement\SettlementCalculator;
-          use App\Domain\Settlement\SplitProfile;
-
-          $profile = SplitProfile::fromKey('social_pilot_45_45_10');
-          $result  = (new SettlementCalculator())->calculate(Money::fromCents(10000, 'EUR'), $profile);
-
-          $recipients = [
-              new RecipientLine('artist', $result->artist, stripeAccountId: 'acct_a'),
-              new RecipientLine('fund',   $result->fund,   stripeAccountId: 'acct_f'),
-              new RecipientLine('ops',    $result->ops,    stripeAccountId: 'acct_o'),
-          ];
-
-          (new CreateSettlement())->execute($result, 'pi_upgrade_test', 'evt_upgrade_test', $recipients);
-          echo "Seeded OK\n";
-          PHP
+          mysql -h127.0.0.1 -uarteuction_test -parteuction_test arteuction_test -e "
+            INSERT INTO settlements
+              (stripe_payment_intent_id, stripe_event_id, gross_cents, currency,
+               profile_key, profile_version,
+               artist_bps, fund_bps, ops_bps,
+               artist_cents, fund_cents, ops_cents,
+               status, created_at, updated_at)
+            VALUES
+              ('pi_seed', 'evt_seed', 10000, 'EUR',
+               'social_pilot_45_45_10', 1,
+               4500, 4500, 1000,
+               4500, 4500, 1000,
+               'completed', NOW(), NOW());
+            SET @sid = LAST_INSERT_ID();
+            INSERT INTO settlement_lines
+              (settlement_id, recipient_type, amount_cents, currency, weight, status, created_at, updated_at)
+            VALUES
+              (@sid, 'artist', 4500, 'EUR', 1, 'pending', NOW(), NOW()),
+              (@sid, 'fund',   4500, 'EUR', 1, 'pending', NOW(), NOW()),
+              (@sid, 'ops',    1000, 'EUR', 1, 'pending', NOW(), NOW());
+            INSERT INTO ledger_entries
+              (settlement_id, settlement_line_id, type, amount_cents, currency, note, created_at, updated_at)
+            SELECT @sid, id, 'credit', amount_cents, currency, 'Sale split', NOW(), NOW()
+            FROM settlement_lines WHERE settlement_id = @sid;
+          "
+          COUNT=$(mysql -h127.0.0.1 -uarteuction_test -parteuction_test arteuction_test \
+            -sNe "SELECT COUNT(*) FROM ledger_entries")
+          echo "Seeded $COUNT ledger credit rows (no idempotency_key column yet)"
+          [ "$COUNT" -eq 3 ] || (echo "FAIL: expected 3 rows, got $COUNT" && exit 1)
 
       - name: Assert ledger rows exist WITHOUT idempotency_key before migration 012
         run: |
