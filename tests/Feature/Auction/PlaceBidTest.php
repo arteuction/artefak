@@ -96,9 +96,10 @@ class PlaceBidTest extends TestCase
             stripePaymentMethodId: 'pm_test_visa',
         );
 
-        $this->assertSame('accepted', $bid->status);
-        $this->assertSame(10000, $bid->amount_cents);
-        $this->assertSame('pi_test_place_bid', $bid->stripe_payment_intent_id);
+        $fresh = $bid->fresh();
+        $this->assertSame('accepted', $fresh->status);
+        $this->assertSame(10000, $fresh->amount_cents);
+        $this->assertSame('pi_test_place_bid', $fresh->stripe_payment_intent_id);
         $this->assertDatabaseHas('bids', ['id' => $bid->id, 'status' => 'accepted']);
     }
 

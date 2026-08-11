@@ -67,6 +67,9 @@ class SettleAuctionTest extends TestCase
 
     private function createSoldItem(string $piId, int $amountCents = 10000): AuctionItem
     {
+        static $lot = 0;
+        $lot++;
+
         $artist  = User::factory()->create();
         $artwork = Artwork::create([
             'user_id' => $artist->id,
@@ -78,7 +81,7 @@ class SettleAuctionTest extends TestCase
         $item = AuctionItem::create([
             'auction_id'          => $this->auction->id,
             'artwork_id'          => $artwork->id,
-            'lot_number'          => rand(1, 999),
+            'lot_number'          => $lot,
             'starting_bid_cents'  => 5000,
             'bid_increment_cents' => 500,
             'status'              => 'sold',
