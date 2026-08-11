@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Settlement;
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
@@ -20,17 +19,47 @@ use Tests\TestCase;
  * wins the INSERT while the other hits the UNIQUE constraint.
  * CreateSettlement catches UniqueConstraintViolationException and returns
  * the winner's ID, so every process gets the same integer back.
+ *
+ * Does NOT use RefreshDatabase — parallel child processes commit on their own
+ * DB connections and those commits land outside the parent's transaction.
+ * Data is cleaned up in tearDown() by stripe_payment_intent_id prefix.
  */
 class ConcurrentWebhookTest extends TestCase
 {
-    use RefreshDatabase;
-
     private const PROCESSES   = 10;
     private const TIMEOUT_SEC = 30;
+
+    /** PI prefixes created during this test run, for tearDown cleanup. */
+    private array $piPrefixes = [];
+
+    protected function tearDown(): void
+    {
+        foreach ($this->piPrefixes as $pi) {
+            $sids = DB::table('settlements')
+                ->where('stripe_payment_intent_id', $pi)
+                ->pluck('id');
+
+            foreach ($sids as $sid) {
+                $lineIds = DB::table('settlement_lines')
+                    ->where('settlement_id', $sid)->pluck('id');
+
+                DB::table('transfer_outbox')
+                    ->whereIn('settlement_line_id', $lineIds)->delete();
+                DB::table('ledger_entries')
+                    ->where('settlement_id', $sid)->delete();
+                DB::table('settlement_lines')
+                    ->whereIn('id', $lineIds)->delete();
+                DB::table('settlements')->where('id', $sid)->delete();
+            }
+        }
+
+        parent::tearDown();
+    }
 
     public function test_ten_concurrent_webhooks_create_exactly_one_settlement(): void
     {
         $pi  = 'pi_concurrent_' . uniqid();
+        $this->piPrefixes[] = $pi;
         $ids = $this->runParallel($pi);
 
         // Every process must have returned a valid integer ID
@@ -56,6 +85,7 @@ class ConcurrentWebhookTest extends TestCase
     public function test_ten_concurrent_webhooks_create_exactly_three_lines(): void
     {
         $pi  = 'pi_lines_concurrent_' . uniqid();
+        $this->piPrefixes[] = $pi;
         $ids = $this->runParallel($pi);
 
         $settlementId = (int) $ids[0];
@@ -70,6 +100,7 @@ class ConcurrentWebhookTest extends TestCase
     public function test_ten_concurrent_webhooks_create_exactly_three_ledger_credits(): void
     {
         $pi  = 'pi_ledger_concurrent_' . uniqid();
+        $this->piPrefixes[] = $pi;
         $ids = $this->runParallel($pi);
 
         $settlementId = (int) $ids[0];

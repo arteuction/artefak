@@ -6,6 +6,8 @@ return new class extends Migration {
         DB::statement("ALTER TABLE settlement_lines MODIFY COLUMN status ENUM('pending','processing','transferred','reversal_pending','reversed','canceled') NOT NULL DEFAULT 'pending'");
     }
     public function down(): void {
+        // Reset any in-flight rows before removing the 'processing' value.
+        DB::statement("UPDATE settlement_lines SET status = 'pending' WHERE status = 'processing'");
         DB::statement("ALTER TABLE settlement_lines MODIFY COLUMN status ENUM('pending','transferred','reversal_pending','reversed','canceled') NOT NULL DEFAULT 'pending'");
     }
 };

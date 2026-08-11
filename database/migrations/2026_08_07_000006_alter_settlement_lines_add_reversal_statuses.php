@@ -19,6 +19,10 @@ return new class extends Migration
 
     public function down(): void
     {
+        // Remap values not present in the original enum before shrinking it.
+        DB::statement("UPDATE settlement_lines SET status = 'pending'    WHERE status = 'reversal_pending'");
+        DB::statement("UPDATE settlement_lines SET status = 'pending'    WHERE status = 'canceled'");
+
         DB::statement("
             ALTER TABLE settlement_lines
             MODIFY COLUMN status

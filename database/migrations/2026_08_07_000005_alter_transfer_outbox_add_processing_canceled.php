@@ -25,6 +25,10 @@ return new class extends Migration
 
     public function down(): void
     {
+        // Remap values that do not exist in the original enum before shrinking it.
+        DB::statement("UPDATE transfer_outbox SET status = 'pending'  WHERE status = 'processing'");
+        DB::statement("UPDATE transfer_outbox SET status = 'failed'   WHERE status = 'canceled'");
+
         DB::statement("
             ALTER TABLE transfer_outbox
             DROP COLUMN processing_started_at
