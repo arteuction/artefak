@@ -11,9 +11,9 @@ return new class extends Migration
         Schema::create('settlements', function (Blueprint $table) {
             $table->id();
 
-            // Idempotency — one settlement per payment attempt, one per webhook event
+            // One settlement per payment attempt; event_id is audit-only (one event → many items)
             $table->string('stripe_payment_intent_id')->unique();
-            $table->string('stripe_event_id')->unique();
+            $table->string('stripe_event_id')->index();
 
             // Auction / artwork reference (nullable until Auction module is ported)
             $table->unsignedBigInteger('auction_id')->nullable()->index();

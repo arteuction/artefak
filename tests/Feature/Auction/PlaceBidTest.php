@@ -70,9 +70,9 @@ class PlaceBidTest extends TestCase
             'status'              => 'open',
         ]);
 
-        // Mock Stripe
+        // Mock Stripe — PaymentIntent uses __get (StripeObject magic), so mock the method
         $pi = $this->createMock(PaymentIntent::class);
-        $pi->id = 'pi_test_place_bid';
+        $pi->method('__get')->with('id')->willReturn('pi_test_place_bid');
 
         $piService = $this->createMock(PaymentIntentService::class);
         $piService->method('create')->willReturn($pi);

@@ -53,12 +53,13 @@ class MigrationSchemaTest extends TestCase
         DB::table('settlements')->insert($this->baseSettlement(['stripe_payment_intent_id' => 'pi_AAA', 'stripe_event_id' => 'evt_BBB']));
     }
 
-    public function test_settlements_stripe_event_unique(): void
+    public function test_settlements_same_event_id_allowed_for_multiple_items(): void
     {
+        // One Stripe event (e.g. auction settled) can produce many settlements — no unique on event_id
         DB::table('settlements')->insert($this->baseSettlement(['stripe_payment_intent_id' => 'pi_CCC', 'stripe_event_id' => 'evt_CCC']));
-
-        $this->expectException(\Illuminate\Database\QueryException::class);
         DB::table('settlements')->insert($this->baseSettlement(['stripe_payment_intent_id' => 'pi_DDD', 'stripe_event_id' => 'evt_CCC']));
+
+        $this->assertDatabaseCount('settlements', 2);
     }
 
     // ──────────────────────────────────────────────────────────────
