@@ -168,12 +168,12 @@ jobs:
           echo "Seeded $COUNT ledger credit rows (no idempotency_key column yet)"
           [ "$COUNT" -eq 3 ] || (echo "FAIL: expected 3 rows, got $COUNT" && exit 1)
 
-      - name: Assert ledger rows exist WITHOUT idempotency_key before migration 012
+      - name: Assert ledger rows exist before migration 012 (column not yet present)
         run: |
           COUNT=$(mysql -h127.0.0.1 -uarteuction_test -parteuction_test arteuction_test \
-            -sNe "SELECT COUNT(*) FROM ledger_entries WHERE idempotency_key IS NULL OR idempotency_key = ''")
-          echo "Rows without idempotency_key before 012: $COUNT"
-          [ "$COUNT" -gt 0 ] || (echo "FAIL: expected unset rows before migration 012" && exit 1)
+            -sNe "SELECT COUNT(*) FROM ledger_entries")
+          echo "Ledger rows before migration 012: $COUNT"
+          [ "$COUNT" -gt 0 ] || (echo "FAIL: expected seeded rows before migration 012" && exit 1)
 
       - name: Run migration 012
         run: |
