@@ -48,11 +48,21 @@ jobs:
             GRANT ALL PRIVILEGES ON arteuction_test.* TO 'arteuction_test'@'%';
             FLUSH PRIVILEGES;"
 
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache/files
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
       - name: composer validate --strict
         run: composer validate --strict
 
       - name: composer install
         run: composer install --prefer-dist --no-interaction --no-progress
+        env:
+          COMPOSER_DISABLE_TLS: 0
+          COMPOSER_CAFILE: /etc/ssl/certs/ca-certificates.crt
 
       - name: Prepare environment
         run: |
@@ -118,8 +128,18 @@ jobs:
             GRANT ALL PRIVILEGES ON arteuction_test.* TO 'arteuction_test'@'%';
             FLUSH PRIVILEGES;"
 
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache/files
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
       - name: composer install
         run: composer install --prefer-dist --no-interaction --no-progress
+        env:
+          COMPOSER_DISABLE_TLS: 0
+          COMPOSER_CAFILE: /etc/ssl/certs/ca-certificates.crt
 
       - name: Prepare environment
         run: |

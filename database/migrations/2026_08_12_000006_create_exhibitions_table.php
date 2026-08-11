@@ -15,7 +15,7 @@ return new class extends Migration
             $table->string('title');
             $table->string('slug')->unique();
             $table->foreignId('venue_id')->constrained()->restrictOnDelete();
-            $table->unsignedBigInteger('auction_id')->nullable()->index(); // FK added when auctions table exists
+            $table->unsignedBigInteger('auction_id')->nullable(); // FK + index added in create_auctions migration
             $table->timestamp('starts_at');
             $table->timestamp('ends_at');
             $table->text('description')->nullable();
@@ -23,7 +23,6 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['venue_id', 'starts_at', 'ends_at']);
-            $table->index(['auction_id']);
         });
     }
 
