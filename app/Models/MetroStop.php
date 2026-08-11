@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 final class MetroStop extends Model
 {
@@ -24,6 +25,11 @@ final class MetroStop extends Model
     public function locality(): BelongsTo
     {
         return $this->belongsTo(GeoLocality::class, 'geo_locality_id');
+    }
+
+    public function displays(): HasMany
+    {
+        return $this->hasMany(MetroStopDisplay::class);
     }
 
     public function lines(): BelongsToMany
