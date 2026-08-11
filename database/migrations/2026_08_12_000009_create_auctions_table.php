@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -26,17 +27,16 @@ return new class extends Migration
             $table->index(['status', 'starts_at']);
         });
 
-        // Now add the FK from exhibitions to auctions
-        Schema::table('exhibitions', function (Blueprint $table) {
-            $table->foreign('auction_id')->references('id')->on('auctions')->nullOnDelete();
-        });
+        // Add FK from exhibitions.auction_id → auctions.id using raw SQL so MySQL
+        // reuses the existing exhibitions_auction_id_index (created in migration 006)
+        // instead of letting Laravel generate a duplicate ADD INDEX statement.
+        DB::statement('ALTER TABLE exhibitions ADD CONSTRAINT exhibitions_auction_id_foreign
+            FOREIGN KEY (auction_id) REFERENCES auctions(id) ON DELETE SET NULL');
     }
 
     public function down(): void
     {
-        Schema::table('exhibitions', function (Blueprint $table) {
-            $table->dropForeign(['auction_id']);
-        });
+        DB::statement('ALTER TABLE exhibitions DROP FOREIGN KEY exhibitions_auction_id_foreign');
 
         Schema::dropIfExists('auctions');
     }
