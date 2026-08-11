@@ -14,6 +14,12 @@ class WebhookInboxTest extends TestCase
 
     private string $secret = 'whsec_test_dummy';
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        config(['services.stripe.webhook_secret' => $this->secret]);
+    }
+
     private function sign(string $payload): string
     {
         $t   = time();

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Jobs;
 
 use App\Application\Settlement\ProcessRefund;
@@ -10,6 +12,9 @@ use Illuminate\Support\Facades\DB;
 class HandleStripeWebhook implements ShouldQueue
 {
     use Queueable;
+
+    public int $tries   = 3;
+    public int $backoff = 60;
 
     public function __construct(private int $webhookEventId) {}
 
@@ -33,13 +38,12 @@ class HandleStripeWebhook implements ShouldQueue
                 ->where('id', $this->webhookEventId)
                 ->update(['status' => 'processed', 'updated_at' => now()]);
         } catch (\Throwable $e) {
+            // Reset to 'received' so the next retry attempt can process it.
+            // Leaving status as 'processing' or 'failed' would make all retries
+            // hit the early-return guard above and silently do nothing.
             DB::table('webhook_events')
                 ->where('id', $this->webhookEventId)
-                ->update([
-                    'status'     => 'failed',
-                    'error'      => $e->getMessage(),
-                    'updated_at' => now(),
-                ]);
+                ->update(['status' => 'received', 'error' => $e->getMessage(), 'updated_at' => now()]);
 
             throw $e;
         }

@@ -75,8 +75,8 @@ class DispatchStripeTransferTest extends TestCase
         $transfers = $this->createMock(\Stripe\Service\TransferService::class);
         $transfers->method('create')->willReturn($transfer);
 
-        $stripe           = $this->createMock(StripeClient::class);
-        $stripe->transfers = $transfers;
+        $stripe = $this->createMock(StripeClient::class);
+        $stripe->method('__get')->with('transfers')->willReturn($transfers);
 
         return $stripe;
     }
@@ -86,8 +86,8 @@ class DispatchStripeTransferTest extends TestCase
         $transfers = $this->createMock(\Stripe\Service\TransferService::class);
         $transfers->method('create')->willThrowException($e);
 
-        $stripe            = $this->createMock(StripeClient::class);
-        $stripe->transfers = $transfers;
+        $stripe = $this->createMock(StripeClient::class);
+        $stripe->method('__get')->with('transfers')->willReturn($transfers);
 
         return $stripe;
     }
@@ -137,8 +137,8 @@ class DispatchStripeTransferTest extends TestCase
 
         $transfers = $this->createMock(\Stripe\Service\TransferService::class);
         $transfers->expects($this->never())->method('create');
-        $stripe            = $this->createMock(StripeClient::class);
-        $stripe->transfers = $transfers;
+        $stripe = $this->createMock(StripeClient::class);
+        $stripe->method('__get')->with('transfers')->willReturn($transfers);
 
         (new DispatchStripeTransfer($oid))->handle($stripe);
 

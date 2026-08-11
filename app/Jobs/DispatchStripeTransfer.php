@@ -18,13 +18,15 @@ use Stripe\StripeClient;
  * Dispatches a single pending transfer_outbox row to Stripe Connect.
  *
  * Lease pattern (prevents holding a DB lock during Stripe I/O):
- *   1. Short TX: pending → processing + processing_started_at = now()  [commit]
+ *   1. Short TX: outbox pending → processing; settlement_lines pending → processing
  *   2. Stripe transfers.create() OUTSIDE any transaction
- *   3. Short TX: processing → dispatched  (or → pending with backoff on failure)
+ *   3a. Success TX: outbox → dispatched; settlement_lines → transferred
+ *       (if ProcessRefund already set lines to reversal_pending, keep that status
+ *        but still record the stripe_transfer_id so the reversal can reference it)
+ *   3b. Failure: outbox → pending; settlement_lines back to pending
  *
  * Abandoned leases: any row with status=processing AND
  * processing_started_at < now() - 5min should be reset to pending.
- * See ReclaimAbandonedTransfers artisan command.
  */
 class DispatchStripeTransfer implements ShouldQueue
 {
@@ -57,6 +59,14 @@ class DispatchStripeTransfer implements ShouldQueue
                 'updated_at'            => now(),
             ]);
 
+            // Mirror the lease on settlement_lines so ProcessRefund can detect
+            // an in-flight transfer and take the reversal_pending path instead
+            // of attempting to cancel an outbox row that is already processing.
+            DB::table('settlement_lines')->where('id', $row->settlement_line_id)->update([
+                'status'     => 'processing',
+                'updated_at' => now(),
+            ]);
+
             return true;
         });
 
@@ -66,6 +76,9 @@ class DispatchStripeTransfer implements ShouldQueue
 
         // Re-read outside the transaction to get fresh data for Stripe
         $row = DB::table('transfer_outbox')->find($this->outboxId);
+        if ($row === null) {
+            return; // deleted between step 1 commit and here (external cleanup)
+        }
 
         // ── Step 2: Stripe API OUTSIDE transaction ────────────────────────
         try {
@@ -88,11 +101,22 @@ class DispatchStripeTransfer implements ShouldQueue
                     'updated_at'            => now(),
                 ]);
 
-                DB::table('settlement_lines')->where('id', $row->settlement_line_id)->update([
-                    'stripe_transfer_id' => $transfer->id,
-                    'status'             => 'transferred',
-                    'updated_at'         => now(),
-                ]);
+                // Always record the transfer ID — reversal orders need it even
+                // when ProcessRefund already moved the line to reversal_pending.
+                // Only advance status to 'transferred' if the line is still in
+                // our lease state; if it's already 'reversal_pending' keep that.
+                $line = DB::table('settlement_lines')
+                    ->where('id', $row->settlement_line_id)
+                    ->lockForUpdate()
+                    ->first();
+
+                $lineUpdate = ['stripe_transfer_id' => $transfer->id, 'updated_at' => now()];
+                if ($line !== null && $line->status === 'processing') {
+                    $lineUpdate['status'] = 'transferred';
+                }
+                DB::table('settlement_lines')
+                    ->where('id', $row->settlement_line_id)
+                    ->update($lineUpdate);
             });
 
         } catch (ApiErrorException $e) {
@@ -109,6 +133,12 @@ class DispatchStripeTransfer implements ShouldQueue
                 'processing_started_at' => null,
                 'updated_at'            => now(),
             ]);
+
+            // Reset settlement_lines only if ProcessRefund hasn't taken it over
+            DB::table('settlement_lines')
+                ->where('id', $row->settlement_line_id)
+                ->where('status', 'processing')
+                ->update(['status' => 'pending', 'updated_at' => now()]);
 
             Log::error('DispatchStripeTransfer: Stripe API error', [
                 'outbox_id' => $row->id,

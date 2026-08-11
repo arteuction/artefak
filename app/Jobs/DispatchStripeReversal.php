@@ -64,9 +64,15 @@ class DispatchStripeReversal implements ShouldQueue
         }
 
         $order = DB::table('transfer_reversal_orders')->find($this->reversalOrderId);
+        if ($order === null) {
+            return; // deleted between step 1 commit and here (external cleanup)
+        }
 
         // Load refund_line for linkage
         $refundLine = DB::table('refund_lines')->find($order->refund_line_id);
+        if ($refundLine === null) {
+            return; // FK row gone — nothing to reverse
+        }
 
         // ── Step 2: Stripe API OUTSIDE transaction ───────────────────────
         try {

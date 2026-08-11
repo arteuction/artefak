@@ -74,11 +74,11 @@ class DispatchStripeReversalTest extends TestCase
 
     private function makeStripeSuccess(string $reversalId = 'trr_ok'): StripeClient
     {
-        $reversal     = \Stripe\TransferReversal::constructFrom(['id' => $reversalId]);
-        $transfers    = $this->createMock(\Stripe\Service\TransferService::class);
+        $reversal  = \Stripe\TransferReversal::constructFrom(['id' => $reversalId]);
+        $transfers = $this->createMock(\Stripe\Service\TransferService::class);
         $transfers->method('createReversal')->willReturn($reversal);
-        $stripe            = $this->createMock(StripeClient::class);
-        $stripe->transfers = $transfers;
+        $stripe = $this->createMock(StripeClient::class);
+        $stripe->method('__get')->with('transfers')->willReturn($transfers);
         return $stripe;
     }
 
@@ -88,8 +88,8 @@ class DispatchStripeReversalTest extends TestCase
         $transfers->method('createReversal')->willThrowException(
             new ApiConnectionException('network error')
         );
-        $stripe            = $this->createMock(StripeClient::class);
-        $stripe->transfers = $transfers;
+        $stripe = $this->createMock(StripeClient::class);
+        $stripe->method('__get')->with('transfers')->willReturn($transfers);
         return $stripe;
     }
 
@@ -132,8 +132,8 @@ class DispatchStripeReversalTest extends TestCase
 
         $transfers = $this->createMock(\Stripe\Service\TransferService::class);
         $transfers->expects($this->never())->method('createReversal');
-        $stripe            = $this->createMock(StripeClient::class);
-        $stripe->transfers = $transfers;
+        $stripe = $this->createMock(StripeClient::class);
+        $stripe->method('__get')->with('transfers')->willReturn($transfers);
 
         (new DispatchStripeReversal($f['orderId']))->handle($stripe);
         $this->assertSame('reversed', DB::table('transfer_reversal_orders')->find($f['orderId'])->status);
@@ -191,8 +191,8 @@ class DispatchStripeReversalTest extends TestCase
 
         $transfers = $this->createMock(\Stripe\Service\TransferService::class);
         $transfers->expects($this->never())->method('createReversal');
-        $stripe            = $this->createMock(StripeClient::class);
-        $stripe->transfers = $transfers;
+        $stripe = $this->createMock(StripeClient::class);
+        $stripe->method('__get')->with('transfers')->willReturn($transfers);
 
         (new DispatchStripeReversal($f['orderId']))->handle($stripe);
         $this->assertTrue(true);

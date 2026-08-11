@@ -8,7 +8,6 @@ use App\Domain\Settlement\CreateSettlement;
 use App\Domain\Settlement\Money;
 use App\Domain\Settlement\RecipientLine;
 use App\Domain\Settlement\SettlementCalculator;
-use App\Domain\Settlement\SplitProfile;
 use Illuminate\Console\Command;
 
 /**
@@ -23,10 +22,9 @@ class SettlementCreateCommand extends Command
 
     public function handle(CreateSettlement $action): int
     {
-        $profile = SplitProfile::fromKey('social_pilot_45_45_10');
-        $calc    = new SettlementCalculator();
-        $gross   = Money::fromCents((int) $this->argument('gross_cents'));
-        $result  = $calc->calculate($gross, $profile);
+        $calc   = new SettlementCalculator();
+        $gross  = Money::fromCents((int) $this->argument('gross_cents'));
+        $result = $calc->calculate($gross);
 
         $recipients = [
             new RecipientLine('artist', $result->artist),

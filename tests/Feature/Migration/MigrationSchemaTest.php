@@ -117,6 +117,7 @@ class MigrationSchemaTest extends TestCase
     {
         foreach ([
             'id', 'settlement_id', 'settlement_line_id',
+            'refund_line_id', 'idempotency_key',
             'type', 'amount_cents', 'currency', 'note',
             'created_at', 'updated_at',
         ] as $col) {

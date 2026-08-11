@@ -558,11 +558,20 @@ class ProcessRefundTest extends TestCase
         // reversal order because of the duplicate idempotency_key.  The transaction
         // rolls back, so 're_ucve_real' does NOT exist in refunds afterward.
         // The narrowed catch must detect the missing refund and rethrow.
-        $this->expectException(\Illuminate\Database\UniqueConstraintViolationException::class);
+        $thrown = null;
+        try {
+            $this->action()->execute($stripeRefundId, 'pi_ucve', 4500);
+        } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
+            $thrown = $e;
+        }
 
-        $this->action()->execute($stripeRefundId, 'pi_ucve', 4500);
+        $this->assertInstanceOf(
+            \Illuminate\Database\UniqueConstraintViolationException::class,
+            $thrown,
+            'Expected UniqueConstraintViolationException to be thrown'
+        );
 
-        // Side effects: the rethrown exception must leave no rows for the real refund
+        // The rolled-back transaction must leave no orphaned rows for the real refund.
         $this->assertSame(
             0,
             DB::table('refunds')->where('stripe_refund_id', $stripeRefundId)->count(),
