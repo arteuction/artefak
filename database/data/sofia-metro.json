@@ -1,0 +1,51 @@
+{
+  "_comment": "Sofia Metro stops and lines. Coordinates are approximate centroids; replace with survey-grade data before production.",
+  "_version": "1.0.0",
+  "lines": [
+    {
+      "code": "M1",
+      "name": "Метро Линия 1",
+      "color": "#003DA5"
+    },
+    {
+      "code": "M2",
+      "name": "Метро Линия 2",
+      "color": "#E4002B"
+    },
+    {
+      "code": "M3",
+      "name": "Метро Линия 3",
+      "color": "#00843D"
+    }
+  ],
+  "stops": [
+    { "code": "M1-01", "name": "Сливница",                "lat": 42.6975, "lng": 23.2648, "lines": [{"code":"M1","sort":1}] },
+    { "code": "M1-02", "name": "Ломско шосе",             "lat": 42.7013, "lng": 23.2763, "lines": [{"code":"M1","sort":2}] },
+    { "code": "M1-03", "name": "Преслав",                 "lat": 42.7042, "lng": 23.2868, "lines": [{"code":"M1","sort":3}] },
+    { "code": "M1-04", "name": "Обеля",                   "lat": 42.7073, "lng": 23.2966, "lines": [{"code":"M1","sort":4}] },
+    { "code": "M1-05", "name": "Надежда",                 "lat": 42.7065, "lng": 23.3082, "lines": [{"code":"M1","sort":5}] },
+    { "code": "M1-06", "name": "Константин Величков",     "lat": 42.7029, "lng": 23.3148, "lines": [{"code":"M1","sort":6}] },
+    { "code": "M1-07", "name": "Опълченска",              "lat": 42.7012, "lng": 23.3217, "lines": [{"code":"M1","sort":7}, {"code":"M2","sort":5}] },
+    { "code": "M1-08", "name": "Сердика",                 "lat": 42.6981, "lng": 23.3216, "lines": [{"code":"M1","sort":8}, {"code":"M2","sort":6}] },
+    { "code": "M1-09", "name": "Лъвов мост",              "lat": 42.6952, "lng": 23.3216, "lines": [{"code":"M1","sort":9}] },
+    { "code": "M1-10", "name": "НДК",                     "lat": 42.6896, "lng": 23.3197, "lines": [{"code":"M1","sort":10}] },
+    { "code": "M1-11", "name": "Джеймс Баучер",           "lat": 42.6871, "lng": 23.3127, "lines": [{"code":"M1","sort":11}] },
+    { "code": "M1-12", "name": "Витоша",                  "lat": 42.6847, "lng": 23.3186, "lines": [{"code":"M1","sort":12}, {"code":"M2","sort":1}] },
+    { "code": "M2-02", "name": "Медицинска академия",     "lat": 42.6858, "lng": 23.3236, "lines": [{"code":"M2","sort":2}] },
+    { "code": "M2-03", "name": "Интер Експо Център",      "lat": 42.6877, "lng": 23.3310, "lines": [{"code":"M2","sort":3}] },
+    { "code": "M2-04", "name": "Цариградско шосе",        "lat": 42.6907, "lng": 23.3380, "lines": [{"code":"M2","sort":4}] },
+    { "code": "M2-07", "name": "Софийски университет",    "lat": 42.6948, "lng": 23.3342, "lines": [{"code":"M2","sort":7}] },
+    { "code": "M2-08", "name": "Г.М.Димитров",            "lat": 42.6960, "lng": 23.3470, "lines": [{"code":"M2","sort":8}] },
+    { "code": "M2-09", "name": "Младост 1",               "lat": 42.6625, "lng": 23.3760, "lines": [{"code":"M2","sort":9}] },
+    { "code": "M2-10", "name": "Младост 3",               "lat": 42.6525, "lng": 23.3820, "lines": [{"code":"M2","sort":10}] },
+    { "code": "M2-11", "name": "Цариградско ш. (Бизнес парк)", "lat": 42.6390, "lng": 23.3918, "lines": [{"code":"M2","sort":11}] },
+    { "code": "M2-12", "name": "Бизнес парк",             "lat": 42.6290, "lng": 23.3990, "lines": [{"code":"M2","sort":12}] },
+    { "code": "M2-13", "name": "Летище София",            "lat": 42.6967, "lng": 23.4106, "lines": [{"code":"M2","sort":13}] },
+    { "code": "M3-01", "name": "Хладилника",              "lat": 42.6750, "lng": 23.3780, "lines": [{"code":"M3","sort":1}] },
+    { "code": "M3-02", "name": "Борово",                  "lat": 42.6820, "lng": 23.3650, "lines": [{"code":"M3","sort":2}] },
+    { "code": "M3-03", "name": "Красно село",             "lat": 42.6900, "lng": 23.3130, "lines": [{"code":"M3","sort":3}] },
+    { "code": "M3-04", "name": "Красна поляна",           "lat": 42.7100, "lng": 23.2980, "lines": [{"code":"M3","sort":4}] },
+    { "code": "M3-05", "name": "Ботевградско шосе",       "lat": 42.7210, "lng": 23.2900, "lines": [{"code":"M3","sort":5}] },
+    { "code": "M2-C1", "name": "Централна гара",          "lat": 42.7115, "lng": 23.3210, "lines": [{"code":"M2","sort":14}] }
+  ]
+}
