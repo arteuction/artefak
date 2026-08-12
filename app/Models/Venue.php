@@ -34,6 +34,11 @@ final class Venue extends Model
         return $this->belongsTo(GeoLocality::class, 'geo_locality_id');
     }
 
+    public function geoLocality(): BelongsTo
+    {
+        return $this->locality();
+    }
+
     public function metroStop(): BelongsTo
     {
         return $this->belongsTo(MetroStop::class, 'metro_stop_id');
