@@ -22,9 +22,41 @@ class ArtifactController extends Controller
     /**
      * GET /api/artifacts/{qrToken}
      *
-     * Resolves a QR token, records the scan, returns artifact data.
+     * Resolves a QR token and returns artifact data — read-only, no side effects.
+     * Crawlers and browser prefetch are safe to call this.
      */
-    public function scan(Request $request, string $qrToken): JsonResponse
+    public function show(Request $request, string $qrToken): JsonResponse
+    {
+        $artifact = ArtmetroArtifact::where('qr_token', $qrToken)
+            ->where('is_active', true)
+            ->with('exhibition:id,title')
+            ->first();
+
+        if ($artifact === null) {
+            return response()->json(['message' => 'Artifact not found.'], 404);
+        }
+
+        return response()->json([
+            'artifact' => [
+                'id'           => $artifact->id,
+                'title'        => $artifact->title,
+                'description'  => $artifact->description,
+                'ar_model_url' => $artifact->ar_model_url,
+                'exhibition'   => [
+                    'id'    => $artifact->exhibition_id,
+                    'title' => $artifact->exhibition?->title,
+                ],
+            ],
+        ]);
+    }
+
+    /**
+     * POST /api/artifacts/{qrToken}/scans
+     *
+     * Records a QR-code scan. Mutating — subject to rate limiting.
+     * Separated from GET show so crawlers/prefetch do not generate false scans.
+     */
+    public function recordScan(Request $request, string $qrToken): JsonResponse
     {
         try {
             $artifact = $this->recordScan->execute(
@@ -51,7 +83,7 @@ class ArtifactController extends Controller
                     'title' => $artifact->exhibition?->title,
                 ],
             ],
-        ]);
+        ], 201);
     }
 
     /**

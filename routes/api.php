@@ -24,9 +24,18 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('/auctions/{auction}/items/{item}/bids', [BidController::class, 'store']);
 });
 
-// ArtMetro — QR scan (public) + visit beacon (public, 202)
-Route::get('/artifacts/{qrToken}/scan', [ArtifactController::class, 'scan']);
-Route::post('/artifacts/{artifact}/visit', [ArtifactController::class, 'visit']);
+// ArtMetro — QR artifact info (read-only, safe for crawlers/prefetch)
+Route::get('/artifacts/{qrToken}', [ArtifactController::class, 'show']);
+
+// ArtMetro — QR scan record (mutating, rate-limited: 30/min per IP)
+Route::middleware('throttle:30,1')->group(function (): void {
+    Route::post('/artifacts/{qrToken}/scans', [ArtifactController::class, 'recordScan']);
+});
+
+// ArtMetro — visit beacon (mutating, rate-limited: 60/min per IP)
+Route::middleware('throttle:60,1')->group(function (): void {
+    Route::post('/artifacts/{artifact}/visit', [ArtifactController::class, 'visit']);
+});
 
 // ArtMetro — routes (public)
 Route::get('/routes', [ArtmetroRouteController::class, 'index']);

@@ -41,6 +41,16 @@ final class Artwork extends Model
         return $this->hasMany(AuctionItem::class);
     }
 
+    public function sdgClaims(): HasMany
+    {
+        return $this->hasMany(ArtworkSdgClaim::class);
+    }
+
+    public function approvedSdgClaims(): HasMany
+    {
+        return $this->hasMany(ArtworkSdgClaim::class)->where('status', 'approved');
+    }
+
     public function scopeStatus(Builder $query, string $status): Builder
     {
         return $query->where('status', $status);
