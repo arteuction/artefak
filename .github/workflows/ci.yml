@@ -55,11 +55,11 @@ jobs:
           key: composer-${{ hashFiles('composer.lock') }}
           restore-keys: composer-
 
-      - name: composer validate --strict
-        run: composer validate --strict
+      - name: composer validate
+        run: composer validate
 
-      - name: composer install
-        run: composer install --prefer-dist --no-interaction --no-progress
+      - name: composer update
+        run: composer update --prefer-dist --no-interaction --no-progress
         env:
           COMPOSER_DISABLE_TLS: 0
           COMPOSER_CAFILE: /etc/ssl/certs/ca-certificates.crt

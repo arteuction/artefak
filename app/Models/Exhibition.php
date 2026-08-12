@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 
 final class Exhibition extends Model
 {
@@ -50,5 +52,20 @@ final class Exhibition extends Model
     public function scopeUpcoming(Builder $query): Builder
     {
         return $query->where('starts_at', '>', now())->orderBy('starts_at');
+    }
+
+    public function sdgNumbers(): array
+    {
+        return DB::table('artmetro_exhibition_sdg')
+            ->where('exhibition_id', $this->id)
+            ->orderBy('sdg_number')
+            ->pluck('sdg_number')
+            ->map(fn ($n) => (int) $n)
+            ->all();
+    }
+
+    public function artifacts(): HasMany
+    {
+        return $this->hasMany(ArtmetroArtifact::class);
     }
 }
