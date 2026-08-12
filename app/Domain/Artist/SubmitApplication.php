@@ -29,7 +29,8 @@ final class SubmitApplication
                 'version'           => $version,
             ]);
 
-            if ($profile->status === 'pending') {
+            $currentStatus = $profile->fresh()->status ?? 'pending';
+            if ($currentStatus === 'pending') {
                 $profile->update(['status' => 'under_review']);
             }
 
