@@ -45,4 +45,19 @@ final class SplitProfileTest extends TestCase
     {
         $this->assertSame(SplitProfile::VERSION, SplitProfile::fromKey('social_pilot_45_45_10')->version());
     }
+
+    public function test_library_80_10_10_profile_basis_points(): void
+    {
+        $p = SplitProfile::fromKey('library_80_10_10');
+        $this->assertSame('library_80_10_10', $p->key());
+        $this->assertSame(8000, $p->artistBps());
+        $this->assertSame(1000, $p->fundBps());
+        $this->assertSame(1000, $p->operationsBps());
+    }
+
+    public function test_library_profile_basis_points_sum_to_ten_thousand(): void
+    {
+        $p = SplitProfile::fromKey('library_80_10_10');
+        $this->assertSame(10000, $p->artistBps() + $p->fundBps() + $p->operationsBps());
+    }
 }

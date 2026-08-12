@@ -23,7 +23,10 @@ final class SplitProfile
     public const VERSION = 1;
 
     private const PROFILES = [
+        // ArteUction phygital auction — equal artist/fund split
         'social_pilot_45_45_10' => ['artist' => 4500, 'fund' => 4500, 'operations' => 1000],
+        // Artefak digital library — author-first marketplace with SDG cause component
+        'library_80_10_10'      => ['artist' => 8000, 'fund' => 1000, 'operations' => 1000],
     ];
 
     private function __construct(
@@ -36,8 +39,9 @@ final class SplitProfile
     public static function fromKey(string $key): self
     {
         if (! array_key_exists($key, self::PROFILES)) {
+            $known = implode("', '", array_keys(self::PROFILES));
             throw new \InvalidArgumentException(
-                "Unknown or unsupported split profile for P0: '{$key}'. Only 'social_pilot_45_45_10' is active."
+                "Unknown split profile '{$key}'. Known profiles: '{$known}'."
             );
         }
 
