@@ -1,58 +1,242 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# ArteUction — Phygital Art Auction Platform
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+[![CI](https://github.com/arteuction/artefak/actions/workflows/ci.yml/badge.svg)](https://github.com/arteuction/artefak/actions/workflows/ci.yml)
+![PHP 8.3](https://img.shields.io/badge/PHP-8.3-777BB4?logo=php&logoColor=white)
+![Laravel 13](https://img.shields.io/badge/Laravel-13-FF2D20?logo=laravel&logoColor=white)
+![MariaDB 11](https://img.shields.io/badge/MariaDB-11-003545?logo=mariadb&logoColor=white)
 
-## About Laravel
+> **ArteUction** е phygital платформа за AR изкуство и благотворителен търг, изградена за
+> METRO България в партньорство с ОББ и Лев Инс. Художници излагат произведения в METRO
+> обектите; посетителите сканират QR код, преживяват AR слой и наддават в реално време.
+> Всяка продажба се разпределя автоматично между художника, социален фонд и операционни разходи.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Съдържание
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- [Архитектура](#архитектура)
+- [Домейни](#домейни)
+- [API](#api)
+- [Тест покритие](#тест-покритие)
+- [CI / Deployment](#ci--deployment)
+- [Текущо състояние](#текущо-състояние)
+- [Пътна карта](#пътна-карта)
 
-## Learning Laravel
+---
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## Архитектура
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+```
+Laravel 13 · PHP 8.3 · MariaDB 11 · Stripe PHP SDK v15 · Sanctum 4
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Системата следва **domain-first** подход: чист домейн слой без DB/Stripe зависимости,
+обслужван от HTTP контролери и Jobs. Всички финансови операции са идемпотентни и
+транзакционни. MariaDB е единственият system of record за MVP.
 
-## Contributing
+```
+app/
+├── Domain/
+│   ├── Artist/          # Регистрация, верификация, SDG claims
+│   ├── Auction/         # PlaceBid, CloseAuctionItem, SettleAuction
+│   ├── Artmetro/        # QR scan, Visit beacon, SDG tagging
+│   └── Settlement/      # Разпределение 45/45/10, refunds, ledger
+├── Models/              # 22 Eloquent модела
+├── Http/Controllers/Api/
+├── Jobs/                # Stripe transfers, reversals, webhook dispatch
+├── Policies/            # ArtistApplication, ArtworkSdgClaim
+└── Console/Commands/    # CloseExpiredLots
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+---
 
-## Code of Conduct
+## Домейни
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### Settlement (финансов двигател)
+Разпределение `45 / 45 / 10` (художник / социален фонд / операции) с пени-точна
+аритметика, идемпотентни Stripe transfers, пълен refund allocator и ledger.
 
-## Security Vulnerabilities
+### Auction
+- `PlaceBid` — row-level lock, Stripe PaymentIntent на всяка оферта
+- `CloseAuctionItem` — определя победителя, отменя останалите PI-та
+- `SettleAuction` — capture → settlement → lines → ledger, идемпотентно
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### Artist Onboarding *(P7)*
+- `ArtistProfile` + `ArtistApplication` с version counter и document paths
+- `SubmitApplication` / `ReviewApplication` (approve/reject) + immutable audit log
+- `SubmitSdgClaim` / `ReviewSdgClaim` — обосновка + доказателства за всяко SDG 1–17
+- Роли: `buyer | artist | admin` — прости enum без пакет за MVP
 
-## License
+### ArtMetro
+- `ArtmetroArtifact` — QR токен (auto-generated), AR model URL, polymorphic sellable
+- `GET /api/artifacts/{qrToken}` — read-only; crawlers/prefetch безопасни
+- `POST /api/artifacts/{qrToken}/scans` — записва сканирането (rate-limited 30/мин)
+- Routes с difficulty, walking distance, accessibility; stop ordering
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+---
+
+## API
+
+| Метод | Endpoint | Auth | Описание |
+|-------|----------|------|----------|
+| GET | `/api/auctions` | публичен | Списък търгове |
+| GET | `/api/auctions/{auction}` | публичен | Детайл търг |
+| GET | `/api/auctions/{auction}/items/{item}` | публичен | Лот |
+| POST | `/api/auctions/{auction}/items/{item}/bids` | Sanctum | Нова оферта |
+| GET | `/api/artifacts/{qrToken}` | публичен | QR артефакт (без странични ефекти) |
+| POST | `/api/artifacts/{qrToken}/scans` | публичен, throttle 30/мин | Запис на сканиране |
+| POST | `/api/artifacts/{artifact}/visit` | публичен, throttle 60/мин | Visit beacon |
+| GET | `/api/routes` | публичен | ArtMetro маршрути |
+| GET | `/api/routes/{route}` | публичен | Маршрут с спирки |
+
+---
+
+## Тест покритие
+
+**185 теста · 465 assertions** — всички зелени
+
+| Suite | Файлове | Фокус |
+|-------|---------|-------|
+| Unit — Settlement | 4 | Money, SplitProfile, Calculator, PoolSplit |
+| Feature — Settlement | 4 | CreateSettlement, ProcessRefund, конкурентност |
+| Feature — Auction | 4 | PlaceBid, CloseItem, SettleAuction, CloseExpiredLots |
+| Feature — ArtMetro | 4 | ArtifactApi, RecordScan, TagSdgs, RouteApi |
+| Feature — Artist | 1 | SubmitApplication, ReviewApplication, SubmitSdgClaim, ReviewSdgClaim |
+| Feature — Jobs | 2 | DispatchStripeTransfer, DispatchStripeReversal |
+| Feature — Webhook | 1 | WebhookInbox |
+| Feature — Migration | 1 | Schema assertions |
+| Smoke | 1 | Boot, env, DB connection |
+
+---
+
+## CI / Deployment
+
+Два паралелни job-а при всяко push:
+
+**`test`** — `migrate:fresh` → пълен тест suite → `composer audit`
+
+**`upgrade-path`** — миграции 001–011, seed на legacy данни, миграция 012,
+assert backfill + UNIQUE constraint
+
+```yaml
+services:
+  mariadb:
+    image: mariadb:11
+    options: --health-cmd="healthcheck.sh --connect --innodb_initialized"
+```
+
+> **Сигурност:** `arteuction_test` DB потребителят няма привилегии върху продукционната
+> база. `.env` и `.env.testing` не се commit-ват никога.
+
+---
+
+## Текущо състояние
+
+| Компонент | Готовност |
+|-----------|-----------|
+| Settlement / Refunds / Ledger | ✅ завършен |
+| Stripe Webhook inbox | ✅ завършен |
+| Auction flow (bid → close → settle) | ✅ завършен |
+| ArtMetro QR / Scans / Visits / Routes | ✅ завършен |
+| Artist registration + SDG claims domain | ✅ завършен |
+| Immutable admin audit log | ✅ завършен |
+| Payment flow (won → Stripe → paid) | 🔄 предстои |
+| Admin control plane (UI) | 🔄 предстои |
+| Blockchain provenance anchoring | 🔄 след стабилизиране на artwork schema |
+| AR интеграция | 🔄 след MVP |
+| Staging Basic Auth / SSL | 🔄 предстои |
+
+---
+
+## Пътна карта
+
+### Следващ milestone — P8: Auction Payment Flow
+
+> Затварянето на търга не означава автоматично settlement.
+
+```
+auction won
+  → payment_pending          # победителят получава payment link
+  → Stripe Checkout/PI       # плаща в рамките на deadline
+  → webhook: payment_intent.succeeded
+  → paid
+  → settlement created       # само след потвърдено плащане
+  → transfers/outbox
+  → fulfillment
+  → delivered
+```
+
+Ще добавим:
+- `winner_payment_deadline` и failed/expired payment handling
+- Idempotent Stripe webhook за `payment_intent.succeeded`
+- Frozen split profile върху конкретната продажба
+- Fulfillment и physical-delivery статуси
+- Refund/chargeback връзка към поръчката
+
+---
+
+### P9: Admin Control Plane
+
+Минимален панел с опашки за модерация:
+
+- Художници (approve / reject applications)
+- Произведения (approve / reject submissions)
+- SDG claims (approve / reject с review note)
+- Exhibitions / Artifacts / Routes
+
+---
+
+### P10: Blockchain Provenance
+
+След финализиране на artwork + SDG схемите:
+
+1. Каноничен JSON manifest на произведението
+2. SHA-256 hash
+3. Append-only provenance record в DB
+4. Blockchain anchoring adapter (chain-агностичен)
+5. Chain ID + transaction hash
+6. Публична `/verify/{hash}` страница
+
+> **Правило:** никакви лични данни или документи on-chain.
+> Blockchain verification се стартира само след като artwork и SDG схемите са стабилни —
+> всяка промяна на структурата инвалидира доказателството.
+
+---
+
+### P11: AR Integration
+
+AR слоят се добавя последен — след като физическият и дигиталният поток са верифицирани
+end-to-end. Изисква финализиран `ar_model_url` pipeline и device testing.
+
+---
+
+### Дългосрочна еволюция
+
+| Фаза | Описание |
+|------|----------|
+| Realtime bidding | WebSockets / Laravel Reverb за live оферти |
+| Supabase read layer | Realtime UI слой върху MariaDB (не втори source of truth) |
+| Multi-currency | EUR → BGN, USD с курсова конверсия в settlement-а |
+| Artist royalties | Secondary market royalty tracking |
+| Public SDG dashboard | Агрегирани SDG данни по художник / изложба |
+| Mobile QR app | Native scanner с AR preview |
+
+---
+
+### Интеграционен тест (целева дефиниция на MVP)
+
+```
+Художник се регистрира
+  → подава документи
+  → получава одобрение от администратор
+  → добавя произведение и SDG обосновка
+  → администраторът одобрява claim-а
+  → произведението влиза в търг
+  → купувач наддава
+  → плаща през Stripe Checkout
+  → settlement се създава автоматично
+  → публичната страница верифицира provenance hash
+```
+
+Докато този поток не мине end-to-end, нови AR функции и допълнителни инфраструктурни
+слоеве увеличават обема на системата, но не и MVP готовността.
