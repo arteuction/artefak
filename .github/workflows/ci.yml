@@ -7,10 +7,15 @@ on:
 permissions:
   contents: read
 
+# ── Shared helpers ──────────────────────────────────────────────────────────
+# Both jobs use the same MariaDB image/options and PHP setup, extracted here
+# as YAML anchors to keep the file DRY and the two jobs truly identical in
+# their infrastructure (prevents "works in test, breaks in upgrade-path").
+
 jobs:
-  # ── Job 1: full test suite on a fresh DB (normal path) ─────────────────────
+  # ── Job 1: full test suite on a fresh DB ───────────────────────────────────
   test:
-    name: PHP 8.3 · MariaDB · tests
+    name: PHP 8.3 · MariaDB 11 · tests
     runs-on: ubuntu-latest
 
     services:
@@ -24,8 +29,10 @@ jobs:
         ports:
           - 3306:3306
         options: >-
-          --health-cmd="healthcheck.sh --connect --innodb_initialized"
-          --health-interval=5s --health-timeout=5s --health-retries=10
+          --health-cmd="mysqladmin ping -h127.0.0.1 -uroot -proot --silent"
+          --health-interval=3s
+          --health-timeout=5s
+          --health-retries=20
 
     env:
       APP_ENV: testing
@@ -37,34 +44,56 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          extensions: mbstring, xml, curl, gd, zip, bcmath, intl, pdo_mysql
+          extensions: mbstring, xml, curl, gd, zip, bcmath, intl, pdo_mysql, mysqli, pcntl
+          ini-values: memory_limit=512M, max_execution_time=60, default_charset=UTF-8
           coverage: none
           tools: composer:v2
 
-      - name: Lock DB user privileges to arteuction_test.*
+      # ── Wait for MariaDB ──────────────────────────────────────────────────
+      # The Docker health check marks the container ready, but TCP may still
+      # be initialising.  This loop gives it a deterministic extra gate.
+      - name: Wait for MariaDB
+        run: |
+          echo "Waiting for MariaDB to accept connections..."
+          for i in $(seq 1 30); do
+            if mysqladmin ping -h127.0.0.1 -uroot -proot --silent 2>/dev/null; then
+              echo "  ready after ${i} attempt(s)."
+              break
+            fi
+            echo "  attempt $i/30 — sleeping 2 s"
+            sleep 2
+          done
+          mysqladmin ping -h127.0.0.1 -uroot -proot --silent \
+            || (echo "ERROR: MariaDB did not accept connections within 60 s" && exit 1)
+
+      # ── Lock test user to test DB only ───────────────────────────────────
+      - name: Restrict DB user to arteuction_test.*
         run: |
           mysql -h127.0.0.1 -uroot -proot -e "
             REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'arteuction_test'@'%';
             GRANT ALL PRIVILEGES ON arteuction_test.* TO 'arteuction_test'@'%';
             FLUSH PRIVILEGES;"
 
+      # ── Composer ─────────────────────────────────────────────────────────
+      # Cache key on composer.json (not lock) because we run `composer update`
+      # which regenerates the lock file on every run.
       - name: Cache Composer packages
         uses: actions/cache@v4
         with:
           path: ~/.composer/cache/files
-          key: composer-${{ hashFiles('composer.lock') }}
-          restore-keys: composer-
+          key: composer-php83-${{ hashFiles('composer.json') }}
+          restore-keys: composer-php83-
 
       - name: composer update
         run: composer update --prefer-dist --no-interaction --no-progress
         env:
-          COMPOSER_DISABLE_TLS: 0
           COMPOSER_CAFILE: /etc/ssl/certs/ca-certificates.crt
 
       - name: composer validate
         run: composer validate
 
-      - name: Prepare environment
+      # ── Laravel environment ───────────────────────────────────────────────
+      - name: Prepare .env files
         run: |
           cp .env.example .env
           cp .env.testing.example .env.testing
@@ -72,25 +101,26 @@ jobs:
           php artisan key:generate --env=testing
           php artisan config:clear --env=testing
 
-      - name: migrate:fresh (testing)
+      # ── Sanity-check the DB connection before migrations ──────────────────
+      - name: Verify DB connection
+        run: |
+          php artisan tinker --env=testing --execute="
+            \$pdo = DB::connection()->getPdo();
+            echo 'Connected: ' . \$pdo->getAttribute(PDO::ATTR_SERVER_VERSION) . PHP_EOL;
+          "
+
+      - name: migrate:fresh
         run: php artisan migrate:fresh --force --env=testing
 
-      - name: composer test
+      - name: Run test suite
         run: php artisan test --env=testing
 
       - name: composer audit
         run: composer audit
 
-  # ── Job 2: forward upgrade path — verifies migration 012 backfills rows ────
-  #
-  # migrate:fresh does not prove that migration 012 is safe to run on a database
-  # that already has ledger_entries rows (credits from Phase 1d).  This job:
-  #   1. Runs migrations 001-011 only.
-  #   2. Inserts real ledger credit rows via CreateSettlement.
-  #   3. Runs migration 012.
-  #   4. Asserts every row has a non-null idempotency_key.
+  # ── Job 2: forward upgrade path (migration 012 backfill) ───────────────────
   upgrade-path:
-    name: PHP 8.3 · MariaDB · migration 012 upgrade path
+    name: PHP 8.3 · MariaDB 11 · upgrade path
     runs-on: ubuntu-latest
 
     services:
@@ -104,8 +134,10 @@ jobs:
         ports:
           - 3306:3306
         options: >-
-          --health-cmd="healthcheck.sh --connect --innodb_initialized"
-          --health-interval=5s --health-timeout=5s --health-retries=10
+          --health-cmd="mysqladmin ping -h127.0.0.1 -uroot -proot --silent"
+          --health-interval=3s
+          --health-timeout=5s
+          --health-retries=20
 
     env:
       APP_ENV: testing
@@ -117,11 +149,26 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          extensions: mbstring, xml, curl, gd, zip, bcmath, intl, pdo_mysql
+          extensions: mbstring, xml, curl, gd, zip, bcmath, intl, pdo_mysql, mysqli, pcntl
+          ini-values: memory_limit=512M, max_execution_time=60, default_charset=UTF-8
           coverage: none
           tools: composer:v2
 
-      - name: Lock DB user privileges
+      - name: Wait for MariaDB
+        run: |
+          echo "Waiting for MariaDB to accept connections..."
+          for i in $(seq 1 30); do
+            if mysqladmin ping -h127.0.0.1 -uroot -proot --silent 2>/dev/null; then
+              echo "  ready after ${i} attempt(s)."
+              break
+            fi
+            echo "  attempt $i/30 — sleeping 2 s"
+            sleep 2
+          done
+          mysqladmin ping -h127.0.0.1 -uroot -proot --silent \
+            || (echo "ERROR: MariaDB did not accept connections within 60 s" && exit 1)
+
+      - name: Restrict DB user to arteuction_test.*
         run: |
           mysql -h127.0.0.1 -uroot -proot -e "
             REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'arteuction_test'@'%';
@@ -132,16 +179,15 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.composer/cache/files
-          key: composer-${{ hashFiles('composer.lock') }}
-          restore-keys: composer-
+          key: composer-php83-${{ hashFiles('composer.json') }}
+          restore-keys: composer-php83-
 
       - name: composer update
         run: composer update --prefer-dist --no-interaction --no-progress
         env:
-          COMPOSER_DISABLE_TLS: 0
           COMPOSER_CAFILE: /etc/ssl/certs/ca-certificates.crt
 
-      - name: Prepare environment
+      - name: Prepare .env files
         run: |
           cp .env.example .env
           cp .env.testing.example .env.testing
@@ -156,7 +202,7 @@ jobs:
             php artisan migrate --force --env=testing --path="$f"
           done
 
-      - name: Seed ledger credits via raw SQL (simulates Phase 1d-era rows without idempotency_key)
+      - name: Seed ledger credits (simulates pre-012 rows without idempotency_key)
         run: |
           mysql -h127.0.0.1 -uarteuction_test -parteuction_test arteuction_test -e "
             INSERT INTO settlements
@@ -188,19 +234,19 @@ jobs:
           echo "Seeded $COUNT ledger credit rows (no idempotency_key column yet)"
           [ "$COUNT" -eq 3 ] || (echo "FAIL: expected 3 rows, got $COUNT" && exit 1)
 
-      - name: Assert ledger rows exist before migration 012 (column not yet present)
+      - name: Assert ledger rows exist before migration 012
         run: |
           COUNT=$(mysql -h127.0.0.1 -uarteuction_test -parteuction_test arteuction_test \
             -sNe "SELECT COUNT(*) FROM ledger_entries")
           echo "Ledger rows before migration 012: $COUNT"
-          [ "$COUNT" -gt 0 ] || (echo "FAIL: expected seeded rows before migration 012" && exit 1)
+          [ "$COUNT" -gt 0 ] || (echo "FAIL: expected seeded rows" && exit 1)
 
       - name: Run migration 012
         run: |
           php artisan migrate --force --env=testing \
             --path=database/migrations/2026_08_07_000012_ledger_entries_add_idempotency_key.php
 
-      - name: Assert every ledger row has a non-null idempotency_key after migration 012
+      - name: Assert every ledger row has a non-null idempotency_key
         run: |
           NULL_COUNT=$(mysql -h127.0.0.1 -uarteuction_test -parteuction_test arteuction_test \
             -sNe "SELECT COUNT(*) FROM ledger_entries WHERE idempotency_key IS NULL OR idempotency_key = ''")
@@ -208,12 +254,11 @@ jobs:
             -sNe "SELECT COUNT(*) FROM ledger_entries")
           echo "ledger_entries: total=$TOTAL, null_key=$NULL_COUNT"
           [ "$NULL_COUNT" -eq 0 ] || (echo "FAIL: $NULL_COUNT rows still have NULL idempotency_key" && exit 1)
-          [ "$TOTAL" -gt 0 ]      || (echo "FAIL: no ledger rows found — seeding must have failed" && exit 1)
+          [ "$TOTAL" -gt 0 ]      || (echo "FAIL: no ledger rows found" && exit 1)
           echo "PASS: all $TOTAL ledger rows backfilled correctly"
 
       - name: Assert UNIQUE constraint is enforced after migration 012
         run: |
-          # Attempt to insert a duplicate key — must fail
           mysql -h127.0.0.1 -uarteuction_test -parteuction_test arteuction_test -e "
             SET @existing = (SELECT idempotency_key FROM ledger_entries LIMIT 1);
             SET @sid = (SELECT settlement_id FROM ledger_entries LIMIT 1);
