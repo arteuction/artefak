@@ -40,7 +40,7 @@ final class SettleAuction
     {
         $settlementIds = [];
 
-        $soldItems = AuctionItem::with(['winningBid', 'artwork.artist'])
+        $soldItems = AuctionItem::with(['winningBid', 'artLot.artwork.artist'])
             ->where('auction_id', $auction->id)
             ->where('status', 'sold')
             ->whereNotNull('winning_bid_id')
@@ -70,7 +70,7 @@ final class SettleAuction
             $result = $this->calculator->calculate($gross);
 
             // 3. Build recipient lines
-            $artist   = $item->artwork?->artist;
+            $artist   = $item->artLot?->artwork?->artist;
             $currency = $auction->currency ?? 'EUR';
 
             $recipients = [
@@ -107,6 +107,12 @@ final class SettleAuction
                 recipients:    $recipients,
                 auctionId:     $auction->id,
             );
+
+            // 5. Advance fulfillment status
+            $item->update([
+                'fulfillment_status' => 'paid',
+                'payment_deadline'   => null, // cleared — payment confirmed
+            ]);
         }
 
         return $settlementIds;

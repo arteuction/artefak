@@ -7,6 +7,7 @@ namespace Tests\Feature\Auction;
 use App\Domain\Auction\SettleAuction;
 use App\Domain\Settlement\CreateSettlement;
 use App\Domain\Settlement\SettlementCalculator;
+use App\Models\ArtLot;
 use App\Models\Auction;
 use App\Models\AuctionItem;
 use App\Models\Artwork;
@@ -78,11 +79,18 @@ class SettleAuctionTest extends TestCase
             'status'  => 'sold',
         ]);
 
+        $artLot = ArtLot::create([
+            'artwork_id'         => $artwork->id,
+            'sale_mode'          => 'auction',
+            'status'             => 'sold',
+            'starting_bid_cents' => 5000,
+            'currency'           => 'EUR',
+        ]);
+
         $item = AuctionItem::create([
             'auction_id'          => $this->auction->id,
-            'artwork_id'          => $artwork->id,
+            'art_lot_id'          => $artLot->id,
             'lot_number'          => $lot,
-            'starting_bid_cents'  => 5000,
             'bid_increment_cents' => 500,
             'status'              => 'sold',
         ]);
@@ -214,11 +222,18 @@ class SettleAuctionTest extends TestCase
         $artist  = User::factory()->create();
         $artwork = Artwork::create(['user_id' => $artist->id, 'title' => 'Open', 'slug' => 'open', 'status' => 'in_auction']);
 
+        $artLot = ArtLot::create([
+            'artwork_id'         => $artwork->id,
+            'sale_mode'          => 'auction',
+            'status'             => 'active',
+            'starting_bid_cents' => 5000,
+            'currency'           => 'EUR',
+        ]);
+
         AuctionItem::create([
             'auction_id'          => $this->auction->id,
-            'artwork_id'          => $artwork->id,
+            'art_lot_id'          => $artLot->id,
             'lot_number'          => 99,
-            'starting_bid_cents'  => 5000,
             'bid_increment_cents' => 500,
             'status'              => 'open', // not sold
         ]);

@@ -6,6 +6,7 @@ namespace Tests\Feature\Auction;
 
 use App\Domain\Auction\BidRejected;
 use App\Domain\Auction\PlaceBid;
+use App\Models\ArtLot;
 use App\Models\Auction;
 use App\Models\AuctionItem;
 use App\Models\Artwork;
@@ -61,11 +62,18 @@ class PlaceBidTest extends TestCase
             'status'  => 'in_auction',
         ]);
 
+        $artLot = ArtLot::create([
+            'artwork_id'         => $artwork->id,
+            'sale_mode'          => 'auction',
+            'status'             => 'active',
+            'starting_bid_cents' => 10000,
+            'currency'           => 'EUR',
+        ]);
+
         $this->item = AuctionItem::create([
             'auction_id'          => $this->auction->id,
-            'artwork_id'          => $artwork->id,
+            'art_lot_id'          => $artLot->id,
             'lot_number'          => 1,
-            'starting_bid_cents'  => 10000,
             'bid_increment_cents' => 1000,
             'status'              => 'open',
         ]);

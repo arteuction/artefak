@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 final class BookEntitlement extends Model
 {
+    public const CREATED_AT = 'granted_at';
     public const UPDATED_AT = null;
 
     protected $fillable = [

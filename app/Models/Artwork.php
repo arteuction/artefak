@@ -36,9 +36,19 @@ final class Artwork extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    public function auctionItems(): HasMany
+    public function artLots(): HasMany
     {
-        return $this->hasMany(AuctionItem::class);
+        return $this->hasMany(ArtLot::class);
+    }
+
+    public function conditionReports(): HasMany
+    {
+        return $this->hasMany(ConditionReport::class)->orderByDesc('version');
+    }
+
+    public function evidence(): HasMany
+    {
+        return $this->hasMany(ArtworkEvidence::class);
     }
 
     public function sdgClaims(): HasMany

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Auction;
 
 use App\Jobs\CloseAuctionItemJob;
+use App\Models\ArtLot;
 use App\Models\Auction;
 use App\Models\AuctionItem;
 use App\Models\Artwork;
@@ -57,11 +58,18 @@ class CloseExpiredLotsCommandTest extends TestCase
         $artist  = User::factory()->create();
         $artwork = Artwork::create(['user_id' => $artist->id, 'title' => "Art{$lot}", 'slug' => "art-{$lot}", 'status' => 'in_auction']);
 
+        $artLot = ArtLot::create([
+            'artwork_id'         => $artwork->id,
+            'sale_mode'          => 'auction',
+            'status'             => 'active',
+            'starting_bid_cents' => 5000,
+            'currency'           => 'EUR',
+        ]);
+
         return AuctionItem::create([
             'auction_id'          => $auction->id,
-            'artwork_id'          => $artwork->id,
+            'art_lot_id'          => $artLot->id,
             'lot_number'          => $lot,
-            'starting_bid_cents'  => 5000,
             'bid_increment_cents' => 500,
             'status'              => $status,
         ]);

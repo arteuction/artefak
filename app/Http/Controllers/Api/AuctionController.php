@@ -27,7 +27,7 @@ final class AuctionController extends Controller
     {
         $auction->load([
             'venue.locality',
-            'items' => fn ($q) => $q->with(['artwork', 'winningBid']),
+            'items' => fn ($q) => $q->with(['artLot.artwork', 'winningBid']),
         ]);
 
         return response()->json($auction);
@@ -38,7 +38,7 @@ final class AuctionController extends Controller
     {
         abort_if($item->auction_id !== $auction->id, 404);
 
-        $item->load(['artwork.artist', 'bids' => fn ($q) => $q->where('status', 'accepted')->orderByDesc('amount_cents')]);
+        $item->load(['artLot.artwork.artist', 'bids' => fn ($q) => $q->where('status', 'accepted')->orderByDesc('amount_cents')]);
 
         return response()->json([
             'item'           => $item,

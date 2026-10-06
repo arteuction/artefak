@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Auction;
 
 use App\Domain\Auction\CloseAuctionItem;
+use App\Models\ArtLot;
 use App\Models\Auction;
 use App\Models\AuctionItem;
 use App\Models\Artwork;
@@ -52,11 +53,18 @@ class CloseAuctionItemTest extends TestCase
             'status'  => 'in_auction',
         ]);
 
+        $artLot = ArtLot::create([
+            'artwork_id'         => $artwork->id,
+            'sale_mode'          => 'auction',
+            'status'             => 'active',
+            'starting_bid_cents' => 5000,
+            'currency'           => 'EUR',
+        ]);
+
         $this->item = AuctionItem::create([
             'auction_id'          => $auction->id,
-            'artwork_id'          => $artwork->id,
+            'art_lot_id'          => $artLot->id,
             'lot_number'          => 1,
-            'starting_bid_cents'  => 5000,
             'bid_increment_cents' => 500,
             'status'              => 'open',
         ]);

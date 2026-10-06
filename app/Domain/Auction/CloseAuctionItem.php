@@ -48,8 +48,10 @@ final class CloseAuctionItem
                 return;
             }
 
-            $locked->status         = 'sold';
-            $locked->winning_bid_id = $winner->id;
+            $locked->status              = 'sold';
+            $locked->winning_bid_id      = $winner->id;
+            $locked->fulfillment_status  = 'awaiting_payment';
+            $locked->payment_deadline    = now()->addHours(48);
             $locked->save();
 
             $winner->status = 'won';
