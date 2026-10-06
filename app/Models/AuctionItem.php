@@ -15,7 +15,7 @@ final class AuctionItem extends Model
     protected $fillable = [
         'auction_id', 'art_lot_id', 'lot_number',
         'bid_increment_cents', 'status', 'winning_bid_id',
-        'payment_deadline', 'fulfillment_status',
+        'payment_deadline', 'fulfillment_status', 'winner_user_id',
     ];
 
     protected function casts(): array
@@ -65,10 +65,13 @@ final class AuctionItem extends Model
     /** Next minimum bid in cents. Starting bid lives on ArtLot. */
     public function nextBidCents(): int
     {
-        $highest = $this->bids()->where('status', 'accepted')->max('amount_cents');
+        $highest   = $this->bids()->where('status', 'accepted')->max('amount_cents');
+        $increment = $this->bid_increment_cents
+                  ?? $this->auction?->ruleset?->default_bid_increment_cents
+                  ?? 1000;
 
         return $highest
-            ? $highest + $this->bid_increment_cents
+            ? $highest + $increment
             : ($this->artLot->starting_bid_cents ?? 0);
     }
 }

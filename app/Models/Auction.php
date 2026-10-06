@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 final class Auction extends Model
 {
     protected $fillable = [
-        'title', 'slug', 'venue_id', 'starts_at', 'ends_at',
+        'title', 'slug', 'venue_id', 'ruleset_id', 'starts_at', 'ends_at',
         'status', 'currency', 'description',
     ];
 
@@ -28,6 +28,11 @@ final class Auction extends Model
     public function venue(): BelongsTo
     {
         return $this->belongsTo(Venue::class);
+    }
+
+    public function ruleset(): BelongsTo
+    {
+        return $this->belongsTo(AuctionRuleset::class);
     }
 
     public function items(): HasMany
