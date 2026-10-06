@@ -215,6 +215,58 @@ class SettleAuctionTest extends TestCase
         $this->assertDatabaseCount('settlements', 0);
     }
 
+    // ── Split profile per lot ─────────────────────────────────────
+
+    public function test_settlement_uses_art_lot_split_profile(): void
+    {
+        // Override to library_80_10_10 on this specific art lot
+        $artist  = User::factory()->create();
+        $artwork = Artwork::create([
+            'user_id' => $artist->id,
+            'title'   => 'Library Artwork',
+            'slug'    => 'library-artwork',
+            'status'  => 'sold',
+        ]);
+
+        $artLot = ArtLot::create([
+            'artwork_id'         => $artwork->id,
+            'sale_mode'          => 'auction',
+            'status'             => 'sold',
+            'starting_bid_cents' => 5000,
+            'currency'           => 'EUR',
+            'split_profile_key'  => 'library_80_10_10',
+        ]);
+
+        $item = AuctionItem::create([
+            'auction_id'          => $this->auction->id,
+            'art_lot_id'          => $artLot->id,
+            'lot_number'          => 50,
+            'bid_increment_cents' => 500,
+            'status'              => 'sold',
+        ]);
+
+        $bid = Bid::create([
+            'auction_item_id'          => $item->id,
+            'user_id'                  => User::factory()->create()->id,
+            'amount_cents'             => 10000,
+            'status'                   => 'won',
+            'stripe_payment_intent_id' => 'pi_library_split',
+        ]);
+
+        $item->update(['winning_bid_id' => $bid->id]);
+
+        $this->action()->execute($this->auction, 'evt_library_split');
+
+        // library_80_10_10: artist=8000, fund=1000, ops=1000
+        $this->assertDatabaseHas('settlements', [
+            'stripe_payment_intent_id' => 'pi_library_split',
+            'artist_cents'             => 8000,
+            'fund_cents'               => 1000,
+            'ops_cents'                => 1000,
+            'profile_key'              => 'library_80_10_10',
+        ]);
+    }
+
     // ── Skips ineligible items ────────────────────────────────────
 
     public function test_skips_open_and_passed_items(): void

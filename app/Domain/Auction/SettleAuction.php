@@ -8,6 +8,7 @@ use App\Domain\Settlement\CreateSettlement;
 use App\Domain\Settlement\Money;
 use App\Domain\Settlement\RecipientLine;
 use App\Domain\Settlement\SettlementCalculator;
+use App\Domain\Settlement\SplitProfile;
 use App\Models\Auction;
 use App\Models\AuctionItem;
 use Stripe\StripeClient;
@@ -65,9 +66,11 @@ final class SettleAuction
                 continue;
             }
 
-            // 2. Calculate split
-            $gross  = Money::fromCents($bid->amount_cents, $auction->currency ?? 'EUR');
-            $result = $this->calculator->calculate($gross);
+            // 2. Calculate split — profile is per-lot; default covers 99% of cases
+            $gross      = Money::fromCents($bid->amount_cents, $auction->currency ?? 'EUR');
+            $profileKey = $item->artLot?->split_profile_key ?? 'social_pilot_45_45_10';
+            $profile    = SplitProfile::fromKey($profileKey);
+            $result     = $this->calculator->calculate($gross, $profile);
 
             // 3. Build recipient lines
             $artist   = $item->artLot?->artwork?->artist;

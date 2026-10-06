@@ -18,7 +18,7 @@ final class SettlementCalculator
 {
     private const CURRENCY = 'EUR';
 
-    public function calculate(Money $gross): SettlementResult
+    public function calculate(Money $gross, SplitProfile $profile): SettlementResult
     {
         if ($gross->currency !== self::CURRENCY) {
             throw new \InvalidArgumentException(
@@ -31,8 +31,6 @@ final class SettlementCalculator
                 "Gross amount cannot be negative, got: {$gross->cents} cents"
             );
         }
-
-        $profile = SplitProfile::fromKey('social_pilot_45_45_10');
 
         $grossCents  = $gross->cents;
         $artistCents = intdiv($grossCents * $profile->artistBps(), 10000);

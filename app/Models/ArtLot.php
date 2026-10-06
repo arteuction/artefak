@@ -14,6 +14,7 @@ final class ArtLot extends Model
     protected $fillable = [
         'artwork_id', 'consignor_id', 'sale_mode', 'status',
         'reserve_price_cents', 'starting_bid_cents', 'buy_now_price_cents', 'currency',
+        'split_profile_key',
         'estimate_low_cents', 'estimate_high_cents',
         'published_at', 'closed_at',
     ];

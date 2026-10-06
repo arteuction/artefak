@@ -7,6 +7,7 @@ namespace Tests\Unit\Settlement;
 use App\Domain\Settlement\Money;
 use App\Domain\Settlement\SettlementCalculator;
 use App\Domain\Settlement\SettlementResult;
+use App\Domain\Settlement\SplitProfile;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -27,10 +28,17 @@ final class SettlementCalculatorTest extends TestCase
         $this->calc = new SettlementCalculator();
     }
 
+    private function socialPilot(): SplitProfile
+    {
+        return SplitProfile::fromKey('social_pilot_45_45_10');
+    }
+
+    // ── social_pilot_45_45_10 ─────────────────────────────────────
+
     /** €0.01 — ops absorbs the only cent */
     public function test_one_cent_goes_entirely_to_ops(): void
     {
-        $r = $this->calc->calculate(Money::fromCents(1));
+        $r = $this->calc->calculate(Money::fromCents(1), $this->socialPilot());
         $this->assertSame(0, $r->artist->cents);
         $this->assertSame(0, $r->fund->cents);
         $this->assertSame(1, $r->ops->cents);
@@ -40,7 +48,7 @@ final class SettlementCalculatorTest extends TestCase
     /** €9.99 */
     public function test_nine_ninety_nine(): void
     {
-        $r = $this->calc->calculate(Money::fromCents(999));
+        $r = $this->calc->calculate(Money::fromCents(999), $this->socialPilot());
         $this->assertSame(449, $r->artist->cents);
         $this->assertSame(449, $r->fund->cents);
         $this->assertSame(101, $r->ops->cents);
@@ -50,7 +58,7 @@ final class SettlementCalculatorTest extends TestCase
     /** €99.99 */
     public function test_ninety_nine_ninety_nine(): void
     {
-        $r = $this->calc->calculate(Money::fromCents(9999));
+        $r = $this->calc->calculate(Money::fromCents(9999), $this->socialPilot());
         $this->assertSame(4499, $r->artist->cents);
         $this->assertSame(4499, $r->fund->cents);
         $this->assertSame(1001, $r->ops->cents);
@@ -60,7 +68,7 @@ final class SettlementCalculatorTest extends TestCase
     /** €100.00 — clean split, no residual */
     public function test_hundred_euros_clean_split(): void
     {
-        $r = $this->calc->calculate(Money::fromCents(10000));
+        $r = $this->calc->calculate(Money::fromCents(10000), $this->socialPilot());
         $this->assertSame(4500, $r->artist->cents);
         $this->assertSame(4500, $r->fund->cents);
         $this->assertSame(1000, $r->ops->cents);
@@ -70,7 +78,7 @@ final class SettlementCalculatorTest extends TestCase
     /** €1000.00 */
     public function test_thousand_euros(): void
     {
-        $r = $this->calc->calculate(Money::fromCents(100000));
+        $r = $this->calc->calculate(Money::fromCents(100000), $this->socialPilot());
         $this->assertSame(45000, $r->artist->cents);
         $this->assertSame(45000, $r->fund->cents);
         $this->assertSame(10000, $r->ops->cents);
@@ -80,7 +88,7 @@ final class SettlementCalculatorTest extends TestCase
     /** Frozen profile snapshot on the result */
     public function test_result_carries_frozen_profile_snapshot(): void
     {
-        $r = $this->calc->calculate(Money::fromCents(10000));
+        $r = $this->calc->calculate(Money::fromCents(10000), $this->socialPilot());
         $this->assertSame('social_pilot_45_45_10', $r->profileKey);
         $this->assertSame(1,    $r->profileVersion);
         $this->assertSame(4500, $r->artistBps);
@@ -91,7 +99,7 @@ final class SettlementCalculatorTest extends TestCase
     /** Currency is preserved on all parts */
     public function test_currency_is_eur_on_all_parts(): void
     {
-        $r = $this->calc->calculate(Money::fromCents(10000, 'EUR'));
+        $r = $this->calc->calculate(Money::fromCents(10000, 'EUR'), $this->socialPilot());
         $this->assertSame('EUR', $r->artist->currency);
         $this->assertSame('EUR', $r->fund->currency);
         $this->assertSame('EUR', $r->ops->currency);
@@ -101,14 +109,42 @@ final class SettlementCalculatorTest extends TestCase
     public function test_non_eur_gross_throws(): void
     {
         $this->expectException(\InvalidArgumentException::class);
-        $this->calc->calculate(Money::fromCents(10000, 'BGN'));
+        $this->calc->calculate(Money::fromCents(10000, 'BGN'), $this->socialPilot());
     }
 
     /** Negative gross must throw */
     public function test_negative_gross_throws(): void
     {
         $this->expectException(\InvalidArgumentException::class);
-        $this->calc->calculate(Money::fromCents(-1));
+        $this->calc->calculate(Money::fromCents(-1), $this->socialPilot());
+    }
+
+    // ── library_80_10_10 ─────────────────────────────────────────
+
+    /** €100 with library profile: artist 80%, fund 10%, ops 10% */
+    public function test_library_profile_80_10_10(): void
+    {
+        $profile = SplitProfile::fromKey('library_80_10_10');
+        $r       = $this->calc->calculate(Money::fromCents(10000), $profile);
+
+        $this->assertSame(8000, $r->artist->cents);
+        $this->assertSame(1000, $r->fund->cents);
+        $this->assertSame(1000, $r->ops->cents);
+        $this->assertSame('library_80_10_10', $r->profileKey);
+        $this->assertReconciles($r);
+    }
+
+    /** Profile snapshot is frozen per-call — calling twice with different profiles gives different results */
+    public function test_different_profiles_produce_different_splits(): void
+    {
+        $gross = Money::fromCents(10000);
+
+        $r1 = $this->calc->calculate($gross, SplitProfile::fromKey('social_pilot_45_45_10'));
+        $r2 = $this->calc->calculate($gross, SplitProfile::fromKey('library_80_10_10'));
+
+        $this->assertNotSame($r1->artistBps, $r2->artistBps);
+        $this->assertSame('social_pilot_45_45_10', $r1->profileKey);
+        $this->assertSame('library_80_10_10',      $r2->profileKey);
     }
 
     private function assertReconciles(SettlementResult $r): void
