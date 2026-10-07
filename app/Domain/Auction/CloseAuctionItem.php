@@ -33,7 +33,7 @@ final class CloseAuctionItem
             /** @var AuctionItem $locked */
             $locked = AuctionItem::lockForUpdate()->findOrFail($item->id);
 
-            if (in_array($locked->status, ['sold', 'passed', 'canceled'], true)) {
+            if (in_array($locked->status, ['sold', 'passed', 'canceled', 'reserve_not_met'], true)) {
                 return; // already closed — idempotent
             }
 
@@ -45,6 +45,17 @@ final class CloseAuctionItem
             if ($winner === null) {
                 $locked->status = 'passed';
                 $locked->save();
+                return;
+            }
+
+            // Reserve check: only when the auction has a ruleset with reserve enabled
+            // AND the art lot has a reserve_price_cents set.
+            $reservePrice   = $locked->artLot?->reserve_price_cents;
+            $reserveEnabled = $locked->auction?->ruleset?->reserve_enabled ?? false;
+
+            if ($reserveEnabled && $reservePrice !== null && $winner->amount_cents < $reservePrice) {
+                // Reserve not met — enter seller-review workflow
+                (new EvaluateReserve())->execute($locked, $winner->amount_cents);
                 return;
             }
 
