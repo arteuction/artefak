@@ -13,6 +13,7 @@ final class Bid extends Model
     protected $fillable = [
         'auction_item_id', 'user_id', 'amount_cents',
         'status', 'stripe_payment_intent_id', 'ip_address',
+        'bid_type', 'max_bid_id',
     ];
 
     protected function casts(): array
@@ -30,6 +31,11 @@ final class Bid extends Model
     public function bidder(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function maxBid(): BelongsTo
+    {
+        return $this->belongsTo(MaxBid::class);
     }
 
     public function scopeAccepted(Builder $query): Builder
