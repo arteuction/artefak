@@ -43,6 +43,16 @@ final class ImpactProject extends Model
         return $this->hasMany(Evidence::class);
     }
 
+    public function partners(): HasMany
+    {
+        return $this->hasMany(ImpactProjectPartner::class);
+    }
+
+    public function activePartners(): HasMany
+    {
+        return $this->hasMany(ImpactProjectPartner::class)->where('status', 'active');
+    }
+
     public function fundingProgressBps(): int
     {
         if ($this->funding_target_cents === null || $this->funding_target_cents === 0) {
