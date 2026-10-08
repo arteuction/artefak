@@ -36,6 +36,7 @@ use App\Http\Controllers\Api\V1\AdminAuditLogController;
 use App\Http\Controllers\Api\V1\DonationRecipientController;
 use App\Http\Controllers\Api\V1\ArtmetroAdminController;
 use App\Http\Controllers\Api\V1\BookAuthorController;
+use App\Http\Controllers\Api\V1\LedgerController;
 use App\Http\Controllers\Api\V1\SplitProfileController;
 use App\Http\Controllers\Api\V1\UserAdminController;
 use App\Http\Controllers\Api\V1\ReconciliationController;
@@ -315,6 +316,10 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         Route::get('/admin/users',          [UserAdminController::class, 'index'])->name('admin.users.index');
         Route::get('/admin/users/{user}',   [UserAdminController::class, 'show'])->name('admin.users.show');
         Route::patch('/admin/users/{user}', [UserAdminController::class, 'update'])->name('admin.users.update');
+
+        // Ledger + refunds — admin read-only
+        Route::get('/admin/ledger',   [LedgerController::class, 'index'])->name('admin.ledger.index');
+        Route::get('/admin/refunds',  [LedgerController::class, 'refunds'])->name('admin.refunds.index');
 
         // Split profiles — admin create, list, deprecate
         Route::get('/admin/split-profiles',               [SplitProfileController::class, 'index'])->name('admin.split-profiles.index');
