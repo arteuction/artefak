@@ -34,6 +34,8 @@ use App\Http\Controllers\Api\V1\SellNowOfferController;
 use App\Http\Controllers\Api\V1\VenueController;
 use App\Http\Controllers\Api\V1\AdminAuditLogController;
 use App\Http\Controllers\Api\V1\ArtmetroAdminController;
+use App\Http\Controllers\Api\V1\ReconciliationController;
+use App\Http\Controllers\Api\V1\SettlementController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\WatchlistController;
 use Illuminate\Support\Facades\Route;
@@ -270,6 +272,15 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         // Admin audit log (admin/operator)
         Route::get('/admin/audit-log',          [AdminAuditLogController::class, 'index'])->name('admin.audit-log.index');
         Route::get('/admin/audit-log/{adminAuditLog}', [AdminAuditLogController::class, 'show'])->name('admin.audit-log.show');
+
+        // Settlements — admin read-only view
+        Route::get('/admin/settlements',       [SettlementController::class, 'index'])->name('admin.settlements.index');
+        Route::get('/admin/settlements/{id}',  [SettlementController::class, 'show'])->name('admin.settlements.show');
+
+        // Reconciliation runs — admin trigger and view
+        Route::get('/admin/reconciliation-runs',                        [ReconciliationController::class, 'index'])->name('admin.reconciliation.index');
+        Route::get('/admin/reconciliation-runs/{reconciliationRun}',    [ReconciliationController::class, 'show'])->name('admin.reconciliation.show');
+        Route::post('/admin/reconciliation-runs',                       [ReconciliationController::class, 'store'])->name('admin.reconciliation.store');
 
         // ArtMetro route admin (admin/operator)
         Route::post('/admin/artmetro/routes',                                        [ArtmetroAdminController::class, 'store'])->name('admin.artmetro.routes.store');
