@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\Asset\ActivateArtworkRevision;
 use App\Domain\Asset\CreateArtworkRevision;
+use App\Domain\Asset\PublishArtworkRevision;
 use App\Models\ArtworkEvidence;
 use App\Models\ArtworkRevision;
 use App\Http\Controllers\Controller;
@@ -46,6 +47,29 @@ final class ArtworkController extends Controller
         ]);
 
         return response()->json($artwork);
+    }
+
+    /** PATCH /api/v1/artworks/{artwork} */
+    public function update(Request $request, Artwork $artwork): JsonResponse
+    {
+        if ($artwork->user_id !== $request->user()->id && ! in_array($request->user()->role, ['admin', 'operator'], true)) {
+            abort(403);
+        }
+
+        $data = $request->validate([
+            'title'          => ['sometimes', 'string', 'max:255'],
+            'medium'         => ['sometimes', 'nullable', 'in:painting,sculpture,photography,digital,nft,mixed,other'],
+            'dimensions'     => ['sometimes', 'nullable', 'string', 'max:200'],
+            'year_created'   => ['sometimes', 'nullable', 'integer', 'min:1000', 'max:2100'],
+            'description'    => ['sometimes', 'nullable', 'string'],
+            'is_original'    => ['sometimes', 'boolean'],
+            'edition_number' => ['sometimes', 'nullable', 'integer', 'min:1'],
+            'edition_total'  => ['sometimes', 'nullable', 'integer', 'min:1'],
+        ]);
+
+        $artwork->update($data);
+
+        return response()->json($artwork->fresh());
     }
 
     /** POST /api/v1/artworks */

@@ -149,7 +149,8 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
     Route::middleware('auth:sanctum')->group(function (): void {
 
         // Artworks
-        Route::post('/artworks', [ArtworkController::class, 'store'])->name('artworks.store');
+        Route::post('/artworks',              [ArtworkController::class, 'store'])->name('artworks.store');
+        Route::patch('/artworks/{artwork}',   [ArtworkController::class, 'update'])->name('artworks.update');
         Route::post('/artworks/{artwork}/revisions', [ArtworkController::class, 'storeRevision'])->name('artworks.revisions.store');
         Route::post('/artworks/{artwork}/revisions/{revision}/activate', [ArtworkController::class, 'activateRevision'])->name('artworks.revisions.activate');
         Route::post('/artworks/{artwork}/evidence',  [ArtworkController::class, 'storeEvidence'])->name('artworks.evidence.store');
@@ -162,7 +163,8 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         Route::post('/exhibitions', [ExhibitionController::class, 'store'])->name('exhibitions.store');
 
         // ArtLots
-        Route::post('/art-lots', [ArtLotController::class, 'store'])->name('art-lots.store');
+        Route::post('/art-lots',              [ArtLotController::class, 'store'])->name('art-lots.store');
+        Route::patch('/art-lots/{artLot}',    [ArtLotController::class, 'update'])->name('art-lots.update');
         Route::post('/art-lots/{artLot}/purchase-now', [ArtLotController::class, 'purchaseNow'])->name('art-lots.purchase-now');
         Route::post('/art-lots/{artLot}/transitions/{transition}', [ArtLotController::class, 'transition'])->name('art-lots.transition');
 

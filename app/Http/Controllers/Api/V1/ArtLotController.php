@@ -73,6 +73,35 @@ final class ArtLotController extends Controller
         return response()->json($lot->load('artwork:id,title,slug'), 201);
     }
 
+    /** PATCH /api/v1/art-lots/{artLot} */
+    public function update(Request $request, ArtLot $artLot): JsonResponse
+    {
+        $user    = $request->user();
+        $isOwner = $artLot->consignor_id === $user->id;
+        $isAdmin = in_array($user->role, ['admin', 'operator'], true);
+
+        if (! $isOwner && ! $isAdmin) {
+            abort(403);
+        }
+
+        if ($artLot->status !== 'draft') {
+            abort(422, 'Only draft lots can be updated.');
+        }
+
+        $data = $request->validate([
+            'reserve_price_cents' => ['sometimes', 'nullable', 'integer', 'min:0'],
+            'starting_bid_cents'  => ['sometimes', 'nullable', 'integer', 'min:0'],
+            'buy_now_price_cents' => ['sometimes', 'nullable', 'integer', 'min:1'],
+            'estimate_low_cents'  => ['sometimes', 'nullable', 'integer', 'min:0'],
+            'estimate_high_cents' => ['sometimes', 'nullable', 'integer', 'min:0'],
+            'sale_mode'           => ['sometimes', 'in:auction,sell_now,hybrid'],
+        ]);
+
+        $artLot->update($data);
+
+        return response()->json($artLot->fresh());
+    }
+
     /**
      * GET /api/v1/art-lots/{artLot}/provenance
      *
