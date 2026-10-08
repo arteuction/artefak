@@ -35,6 +35,8 @@ use App\Http\Controllers\Api\V1\VenueController;
 use App\Http\Controllers\Api\V1\AdminAuditLogController;
 use App\Http\Controllers\Api\V1\DonationRecipientController;
 use App\Http\Controllers\Api\V1\ArtmetroAdminController;
+use App\Http\Controllers\Api\V1\BookAuthorController;
+use App\Http\Controllers\Api\V1\UserAdminController;
 use App\Http\Controllers\Api\V1\ReconciliationController;
 use App\Http\Controllers\Api\V1\SettlementController;
 use App\Http\Controllers\Api\V1\ProfileController;
@@ -299,7 +301,18 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         Route::delete('/admin/artmetro/routes/{route}/stops/{stop}',                 [ArtmetroAdminController::class, 'removeStop'])->name('admin.artmetro.routes.stops.destroy');
 
         // Book publish/unpublish (admin/operator)
-        Route::patch('/books/{book}/publish',   [LibraryController::class, 'publish'])->name('books.publish');
+        Route::patch('/books/{book}/publish',        [LibraryController::class, 'publish'])->name('books.publish');
+
+        // Book authors — owner or admin manages author list and royalty splits
+        Route::get('/books/{book}/authors',                         [BookAuthorController::class, 'index'])->name('books.authors.index');
+        Route::post('/books/{book}/authors',                        [BookAuthorController::class, 'store'])->name('books.authors.store');
+        Route::patch('/books/{book}/authors/{bookAuthor}',          [BookAuthorController::class, 'update'])->name('books.authors.update');
+        Route::delete('/books/{book}/authors/{bookAuthor}',         [BookAuthorController::class, 'destroy'])->name('books.authors.destroy');
+
+        // User admin — admin list and role management
+        Route::get('/admin/users',          [UserAdminController::class, 'index'])->name('admin.users.index');
+        Route::get('/admin/users/{user}',   [UserAdminController::class, 'show'])->name('admin.users.show');
+        Route::patch('/admin/users/{user}', [UserAdminController::class, 'update'])->name('admin.users.update');
         Route::patch('/books/{book}/unpublish', [LibraryController::class, 'unpublish'])->name('books.unpublish');
 
         // Library — authenticated purchase, entitlement, and admin grant
