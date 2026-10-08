@@ -10,8 +10,14 @@ use App\Http\Controllers\Api\V1\ArtLotController;
 use App\Http\Controllers\Api\V1\ArtworkController;
 use App\Http\Controllers\Api\V1\AuctionController as V1AuctionController;
 use App\Http\Controllers\Api\V1\ConsignmentController;
+use App\Http\Controllers\Api\V1\DonationController;
 use App\Http\Controllers\Api\V1\DomainEventController;
+use App\Http\Controllers\Api\V1\ExhibitionController;
+use App\Http\Controllers\Api\V1\GalleryController;
+use App\Http\Controllers\Api\V1\ImpactEventController;
+use App\Http\Controllers\Api\V1\OwnershipTransferController;
 use App\Http\Controllers\Api\V1\SellNowOfferController;
+use App\Http\Controllers\Api\V1\VenueController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -62,6 +68,22 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
     Route::get('/art-lots',          [ArtLotController::class, 'index'])->name('art-lots.index');
     Route::get('/art-lots/{artLot}', [ArtLotController::class, 'show'])->name('art-lots.show');
 
+    // Galleries (public read)
+    Route::get('/galleries',            [GalleryController::class, 'index'])->name('galleries.index');
+    Route::get('/galleries/{gallery}',  [GalleryController::class, 'show'])->name('galleries.show');
+
+    // Venues (public read)
+    Route::get('/venues',         [VenueController::class, 'index'])->name('venues.index');
+    Route::get('/venues/{venue}', [VenueController::class, 'show'])->name('venues.show');
+
+    // Exhibitions (public read)
+    Route::get('/exhibitions',                [ExhibitionController::class, 'index'])->name('exhibitions.index');
+    Route::get('/exhibitions/{exhibition}',   [ExhibitionController::class, 'show'])->name('exhibitions.show');
+
+    // Impact events (public read)
+    Route::get('/impact-events',                  [ImpactEventController::class, 'index'])->name('impact-events.index');
+    Route::get('/impact-events/{impactEvent}',    [ImpactEventController::class, 'show'])->name('impact-events.show');
+
     // Auctions (public read)
     Route::get('/auctions',                              [V1AuctionController::class, 'index'])->name('auctions.index');
     Route::get('/auctions/{auction}',                    [V1AuctionController::class, 'show'])->name('auctions.show');
@@ -91,6 +113,14 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         Route::get('/consignments/{consignment}',           [ConsignmentController::class, 'show'])->name('consignments.show');
         Route::post('/consignments',                        [ConsignmentController::class, 'store'])->name('consignments.store');
         Route::post('/consignments/{consignment}/activate', [ConsignmentController::class, 'activate'])->name('consignments.activate');
+
+        // Donations (donor sees own; admin sees all)
+        Route::get('/donations',            [DonationController::class, 'index'])->name('donations.index');
+        Route::get('/donations/{donation}', [DonationController::class, 'show'])->name('donations.show');
+
+        // Ownership transfers (party to transfer sees own; admin sees all)
+        Route::get('/ownership-transfers',                       [OwnershipTransferController::class, 'index'])->name('ownership-transfers.index');
+        Route::get('/ownership-transfers/{ownershipTransfer}',   [OwnershipTransferController::class, 'show'])->name('ownership-transfers.show');
 
         // Domain events — operator only
         Route::middleware('can:viewAny,App\Models\DomainEvent')->group(function (): void {
