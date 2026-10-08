@@ -33,6 +33,7 @@ use App\Http\Controllers\Api\V1\PayoutController;
 use App\Http\Controllers\Api\V1\SellNowOfferController;
 use App\Http\Controllers\Api\V1\VenueController;
 use App\Http\Controllers\Api\V1\AdminAuditLogController;
+use App\Http\Controllers\Api\V1\ArtmetroAdminController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\WatchlistController;
 use Illuminate\Support\Facades\Route;
@@ -195,6 +196,8 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         Route::post('/collections',                                         [CollectionController::class, 'store'])->name('collections.store');
         Route::post('/collections/{collection}/artworks',                   [CollectionController::class, 'addArtwork'])->name('collections.artworks.store');
         Route::delete('/collections/{collection}/artworks/{artwork}',       [CollectionController::class, 'removeArtwork'])->name('collections.artworks.destroy');
+        Route::patch('/collections/{collection}',                            [CollectionController::class, 'update'])->name('collections.update');
+        Route::delete('/collections/{collection}',                           [CollectionController::class, 'destroy'])->name('collections.destroy');
 
         // Watchlist
         Route::get('/watchlist',                      [WatchlistController::class, 'index'])->name('watchlist.index');
@@ -265,6 +268,13 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         // Admin audit log (admin/operator)
         Route::get('/admin/audit-log',          [AdminAuditLogController::class, 'index'])->name('admin.audit-log.index');
         Route::get('/admin/audit-log/{adminAuditLog}', [AdminAuditLogController::class, 'show'])->name('admin.audit-log.show');
+
+        // ArtMetro route admin (admin/operator)
+        Route::post('/admin/artmetro/routes',                                        [ArtmetroAdminController::class, 'store'])->name('admin.artmetro.routes.store');
+        Route::patch('/admin/artmetro/routes/{route}',                               [ArtmetroAdminController::class, 'update'])->name('admin.artmetro.routes.update');
+        Route::patch('/admin/artmetro/routes/{route}/publish',                       [ArtmetroAdminController::class, 'togglePublish'])->name('admin.artmetro.routes.publish');
+        Route::post('/admin/artmetro/routes/{route}/stops',                          [ArtmetroAdminController::class, 'addStop'])->name('admin.artmetro.routes.stops.store');
+        Route::delete('/admin/artmetro/routes/{route}/stops/{stop}',                 [ArtmetroAdminController::class, 'removeStop'])->name('admin.artmetro.routes.stops.destroy');
 
         // Book publish/unpublish (admin/operator)
         Route::patch('/books/{book}/publish',   [LibraryController::class, 'publish'])->name('books.publish');

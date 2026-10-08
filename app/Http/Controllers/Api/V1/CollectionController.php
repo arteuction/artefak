@@ -90,4 +90,34 @@ final class CollectionController extends Controller
 
         return response()->json(null, 204);
     }
+
+    /** PATCH /api/v1/collections/{collection} */
+    public function update(Request $request, Collection $collection): JsonResponse
+    {
+        if ($collection->owner_id !== $request->user()->id) {
+            abort(403);
+        }
+
+        $data = $request->validate([
+            'title'       => ['sometimes', 'string', 'max:200'],
+            'description' => ['nullable', 'string', 'max:5000'],
+            'visibility'  => ['sometimes', 'in:private,unlisted,public'],
+        ]);
+
+        $collection->update($data);
+
+        return response()->json($collection->fresh());
+    }
+
+    /** DELETE /api/v1/collections/{collection} */
+    public function destroy(Request $request, Collection $collection): JsonResponse
+    {
+        if ($collection->owner_id !== $request->user()->id) {
+            abort(403);
+        }
+
+        $collection->delete();
+
+        return response()->json(null, 204);
+    }
 }
