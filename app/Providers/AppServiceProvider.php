@@ -4,8 +4,10 @@ namespace App\Providers;
 
 use App\Models\ArtistApplication;
 use App\Models\ArtworkSdgClaim;
+use App\Models\DomainEvent;
 use App\Policies\ArtistApplicationPolicy;
 use App\Policies\ArtworkSdgClaimPolicy;
+use App\Policies\DomainEventPolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
@@ -17,5 +19,6 @@ class AppServiceProvider extends ServiceProvider
     {
         Gate::policy(ArtistApplication::class, ArtistApplicationPolicy::class);
         Gate::policy(ArtworkSdgClaim::class, ArtworkSdgClaimPolicy::class);
+        Gate::policy(DomainEvent::class, DomainEventPolicy::class);
     }
 }
