@@ -63,6 +63,37 @@ final class GalleryController extends Controller
     }
 
     /**
+     * PATCH /api/v1/galleries/{gallery}
+     *
+     * Admin/operator or gallery manager updates gallery details.
+     */
+    public function update(Request $request, Gallery $gallery): JsonResponse
+    {
+        $user = $request->user();
+        $isAdmin = in_array($user->role, ['admin', 'operator'], true);
+        $isManager = $gallery->hasRole($user, 'manager');
+
+        if (! $isAdmin && ! $isManager) {
+            abort(403);
+        }
+
+        $data = $request->validate([
+            'name'          => ['sometimes', 'string', 'max:200'],
+            'type'          => ['sometimes', 'in:private,public,institutional,online'],
+            'venue_id'      => ['nullable', 'integer', 'exists:venues,id'],
+            'website'       => ['nullable', 'url', 'max:500'],
+            'contact_email' => ['nullable', 'email', 'max:200'],
+            'legal_name'    => ['nullable', 'string', 'max:200'],
+            'eik'           => ['nullable', 'string', 'max:20'],
+            'status'        => $isAdmin ? ['sometimes', 'in:active,inactive'] : ['prohibited'],
+        ]);
+
+        $gallery->update($data);
+
+        return response()->json($gallery->fresh());
+    }
+
+    /**
      * GET /api/v1/galleries/{gallery}/profile
      *
      * Enriched public profile: active lots, current exhibitions, staff roster.

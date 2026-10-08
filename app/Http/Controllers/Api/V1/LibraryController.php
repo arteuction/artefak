@@ -181,6 +181,64 @@ final class LibraryController extends Controller
     }
 
     /**
+     * PATCH /api/v1/books/{book}/publish
+     *
+     * Admin publishes a book (draft → published).
+     */
+    public function publish(Request $request, Book $book): JsonResponse
+    {
+        if (! in_array($request->user()->role, ['admin', 'operator'], true)) {
+            abort(403);
+        }
+
+        if ($book->status === 'published') {
+            return response()->json(['message' => 'Book is already published.', 'book' => $book]);
+        }
+
+        $data = $request->validate([
+            'review_note' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $book->update([
+            'status'      => 'published',
+            'reviewed_by' => $request->user()->id,
+            'reviewed_at' => now(),
+            'review_note' => $data['review_note'] ?? null,
+        ]);
+
+        return response()->json(['message' => 'Book published.', 'book' => $book->fresh()]);
+    }
+
+    /**
+     * PATCH /api/v1/books/{book}/unpublish
+     *
+     * Admin unpublishes a book (published → draft).
+     */
+    public function unpublish(Request $request, Book $book): JsonResponse
+    {
+        if (! in_array($request->user()->role, ['admin', 'operator'], true)) {
+            abort(403);
+        }
+
+        if ($book->status !== 'published') {
+            abort(422, 'Only published books can be unpublished.');
+        }
+
+        $data = $request->validate([
+            'review_note' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $book->update([
+            'status'      => 'draft',
+            'reviewed_by' => $request->user()->id,
+            'reviewed_at' => now(),
+            'review_note' => $data['review_note'] ?? null,
+        ]);
+
+        return response()->json(['message' => 'Book unpublished.', 'book' => $book->fresh()]);
+    }
+
+    /**
      * GET /api/v1/my-books
      *
      * Returns all active book entitlements for the authenticated user.

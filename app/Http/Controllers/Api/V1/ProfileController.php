@@ -80,4 +80,29 @@ final class ProfileController extends Controller
 
         return response()->json($profile);
     }
+
+    /**
+     * PATCH /api/v1/artist-profile
+     *
+     * Updates the authenticated user's artist profile.
+     */
+    public function updateArtistProfile(Request $request): JsonResponse
+    {
+        $profile = ArtistProfile::where('user_id', $request->user()->id)->first();
+
+        if (! $profile) {
+            abort(404, 'Artist profile not found.');
+        }
+
+        $data = $request->validate([
+            'display_name'     => ['sometimes', 'string', 'max:200'],
+            'bio'              => ['nullable', 'string', 'max:5000'],
+            'website'          => ['nullable', 'url', 'max:500'],
+            'instagram_handle' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        $profile->update($data);
+
+        return response()->json($profile->fresh());
+    }
 }

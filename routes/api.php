@@ -32,6 +32,7 @@ use App\Http\Controllers\Api\V1\OwnershipTransferController;
 use App\Http\Controllers\Api\V1\PayoutController;
 use App\Http\Controllers\Api\V1\SellNowOfferController;
 use App\Http\Controllers\Api\V1\VenueController;
+use App\Http\Controllers\Api\V1\AdminAuditLogController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\WatchlistController;
 use Illuminate\Support\Facades\Route;
@@ -240,12 +241,14 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         Route::get('/ownership-transfers',                       [OwnershipTransferController::class, 'index'])->name('ownership-transfers.index');
         Route::get('/ownership-transfers/{ownershipTransfer}',   [OwnershipTransferController::class, 'show'])->name('ownership-transfers.show');
 
-        // Artist profile — create / show own
-        Route::get('/artist-profile',  [ProfileController::class, 'showArtistProfile'])->name('artist-profile.show');
-        Route::post('/artist-profile', [ProfileController::class, 'createArtistProfile'])->name('artist-profile.store');
+        // Artist profile — create / show / update own
+        Route::get('/artist-profile',   [ProfileController::class, 'showArtistProfile'])->name('artist-profile.show');
+        Route::post('/artist-profile',  [ProfileController::class, 'createArtistProfile'])->name('artist-profile.store');
+        Route::patch('/artist-profile', [ProfileController::class, 'updateArtistProfile'])->name('artist-profile.update');
 
-        // Gallery creation (admin/operator)
-        Route::post('/galleries', [GalleryController::class, 'store'])->name('galleries.store');
+        // Gallery creation + update (admin/operator/manager)
+        Route::post('/galleries',              [GalleryController::class, 'store'])->name('galleries.store');
+        Route::patch('/galleries/{gallery}',   [GalleryController::class, 'update'])->name('galleries.update');
 
         // Evidence — admin/operator listing, show, verify
         Route::get('/evidence',                   [EvidenceController::class, 'index'])->name('evidence.index');
@@ -258,6 +261,14 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         Route::post('/artist-applications',                             [ArtistApplicationController::class, 'store'])->name('artist-applications.store');
         Route::post('/artist-applications/{application}/approve',       [ArtistApplicationController::class, 'approve'])->name('artist-applications.approve');
         Route::post('/artist-applications/{application}/reject',        [ArtistApplicationController::class, 'reject'])->name('artist-applications.reject');
+
+        // Admin audit log (admin/operator)
+        Route::get('/admin/audit-log',          [AdminAuditLogController::class, 'index'])->name('admin.audit-log.index');
+        Route::get('/admin/audit-log/{adminAuditLog}', [AdminAuditLogController::class, 'show'])->name('admin.audit-log.show');
+
+        // Book publish/unpublish (admin/operator)
+        Route::patch('/books/{book}/publish',   [LibraryController::class, 'publish'])->name('books.publish');
+        Route::patch('/books/{book}/unpublish', [LibraryController::class, 'unpublish'])->name('books.unpublish');
 
         // Library — authenticated purchase, entitlement, and admin grant
         Route::get('/my-books',                                        [LibraryController::class, 'myBooks'])->name('books.my');
