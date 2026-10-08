@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Auction;
 
+use App\Domain\Outbox\AppendDomainEvent;
 use App\Models\AuctionItem;
 use App\Models\Reserve;
 use Illuminate\Support\Facades\DB;
@@ -53,6 +54,18 @@ final class WaiveReserve
             ]);
 
             $winner->update(['status' => 'won']);
+
+            (new AppendDomainEvent())->execute(
+                aggregate: $reserve,
+                eventType: 'reserve.waived',
+                payload: [
+                    'auction_item_id'    => $reserve->auction_item_id,
+                    'decided_by'         => $decidedBy,
+                    'highest_bid_cents'  => $reserve->highest_bid_cents,
+                    'reserve_price_cents' => $reserve->reserve_price_cents,
+                ],
+                idempotencyKey: "reserve.waived:{$reserve->id}",
+            );
         });
     }
 }

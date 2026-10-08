@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Auction;
 
+use App\Domain\Outbox\AppendDomainEvent;
 use App\Models\Reserve;
 
 /**
@@ -54,5 +55,17 @@ final class IssueCounterOffer
             'decided_at'               => now(),
             'notes'                    => $notes,
         ]);
+
+        (new AppendDomainEvent())->execute(
+            aggregate: $reserve,
+            eventType: 'reserve.counter_offered',
+            payload: [
+                'auction_item_id'     => $reserve->auction_item_id,
+                'decided_by'          => $decidedBy,
+                'counter_offer_cents' => $counterOfferCents,
+                'expires_in_hours'    => $expiresInHours,
+            ],
+            idempotencyKey: "reserve.counter_offered:{$reserve->id}",
+        );
     }
 }

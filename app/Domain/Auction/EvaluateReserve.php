@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Auction;
 
+use App\Domain\Outbox\AppendDomainEvent;
 use App\Models\AuctionItem;
 use App\Models\Reserve;
 
@@ -27,11 +28,25 @@ final class EvaluateReserve
 
         $item->update(['status' => 'reserve_not_met']);
 
-        return Reserve::create([
-            'auction_item_id'    => $item->id,
+        $reserve = Reserve::create([
+            'auction_item_id'     => $item->id,
             'reserve_price_cents' => $reservePrice,
-            'highest_bid_cents'  => $highestBidCents,
-            'status'             => 'not_reached',
+            'highest_bid_cents'   => $highestBidCents,
+            'status'              => 'not_reached',
         ]);
+
+        (new AppendDomainEvent())->execute(
+            aggregate: $item,
+            eventType: 'reserve.not_met',
+            payload: [
+                'reserve_id'          => $reserve->id,
+                'reserve_price_cents' => $reservePrice,
+                'highest_bid_cents'   => $highestBidCents,
+                'auction_id'          => $item->auction_id,
+            ],
+            idempotencyKey: "reserve.not_met:{$item->id}",
+        );
+
+        return $reserve;
     }
 }

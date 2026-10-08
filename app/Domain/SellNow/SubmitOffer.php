@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\SellNow;
 
+use App\Domain\Outbox\AppendDomainEvent;
 use App\Models\ArtLot;
 use App\Models\SellNowOffer;
 use App\Models\User;
@@ -26,7 +27,7 @@ final class SubmitOffer
             throw new InvalidArgumentException('Offered price must be positive.');
         }
 
-        return SellNowOffer::create([
+        $offer = SellNowOffer::create([
             'art_lot_id'          => $artLot->id,
             'buyer_id'            => $buyer->id,
             'gallery_id'          => $galleryId,
@@ -35,5 +36,19 @@ final class SubmitOffer
             'status'              => 'submitted',
             'notes'               => $notes,
         ]);
+
+        (new AppendDomainEvent())->execute(
+            aggregate: $artLot,
+            eventType: 'offer.submitted',
+            payload: [
+                'offer_id'            => $offer->id,
+                'buyer_id'            => $buyer->id,
+                'offered_price_cents' => $offeredPriceCents,
+                'currency'            => $offer->currency,
+            ],
+            idempotencyKey: "offer.submitted:{$offer->id}",
+        );
+
+        return $offer;
     }
 }

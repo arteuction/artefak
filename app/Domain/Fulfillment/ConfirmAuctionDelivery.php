@@ -49,15 +49,27 @@ final class ConfirmAuctionDelivery
         if ($artLot !== null) {
             (new AppendDomainEvent())->execute(
                 aggregate: $artLot,
-                eventType: 'art_lot.sold',
+                eventType: 'artwork.delivered',
+                payload: [
+                    'channel'         => 'auction',
+                    'auction_item_id' => $item->id,
+                    'buyer_id'        => $fulfillment->winner_user_id,
+                ],
+                idempotencyKey: "artwork.delivered:auction:{$item->id}",
+            );
+
+            (new AppendDomainEvent())->execute(
+                aggregate: $artLot,
+                eventType: 'ownership.transferred',
                 payload: [
                     'channel'              => 'auction',
                     'auction_item_id'      => $item->id,
-                    'buyer_id'             => $fulfillment->winner_user_id,
+                    'from_user_id'         => $artLot->consignor_id,
+                    'to_user_id'           => $fulfillment->winner_user_id,
                     'transfer_price_cents' => $bid?->amount_cents ?? 0,
                     'currency'             => $artLot->currency ?? 'EUR',
                 ],
-                idempotencyKey: "art_lot.sold:auction:{$item->id}",
+                idempotencyKey: "ownership.transferred:auction:{$item->id}",
             );
         }
 

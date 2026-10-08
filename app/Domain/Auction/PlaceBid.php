@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Auction;
 
+use App\Domain\Outbox\AppendDomainEvent;
 use App\Models\AuctionItem;
 use App\Models\Bid;
 use Illuminate\Support\Facades\DB;
@@ -82,6 +83,19 @@ final class PlaceBid
                 ->where('status', 'accepted')
                 ->where('id', '!=', $bid->id)
                 ->update(['status' => 'outbid']);
+
+            (new AppendDomainEvent())->execute(
+                aggregate: $locked,
+                eventType: 'bid.placed',
+                payload: [
+                    'bid_id'          => $bid->id,
+                    'bidder_id'       => $bidderId,
+                    'amount_cents'    => $amountCents,
+                    'bid_type'        => $bid->bid_type ?? 'live',
+                    'auction_id'      => $locked->auction_id,
+                ],
+                idempotencyKey: "bid.placed:{$bid->id}",
+            );
 
             return $bid->refresh();
         });

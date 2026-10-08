@@ -45,17 +45,20 @@ final class CloseSellNow
         ]);
 
         if ($artLot !== null) {
+            $price = $offer->agreed_price_cents ?? $offer->offered_price_cents;
+
             (new AppendDomainEvent())->execute(
                 aggregate: $artLot,
-                eventType: 'art_lot.sold',
+                eventType: 'ownership.transferred',
                 payload: [
                     'channel'              => 'sell_now',
                     'sell_now_offer_id'    => $offer->id,
-                    'buyer_id'             => $offer->buyer_id,
-                    'transfer_price_cents' => $offer->agreed_price_cents ?? $offer->offered_price_cents,
+                    'from_user_id'         => $artLot->consignor_id,
+                    'to_user_id'           => $offer->buyer_id,
+                    'transfer_price_cents' => $price,
                     'currency'             => $offer->currency,
                 ],
-                idempotencyKey: "art_lot.sold:sell_now:{$offer->id}",
+                idempotencyKey: "ownership.transferred:sell_now:{$offer->id}",
             );
         }
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\SellNow;
 
+use App\Domain\Outbox\AppendDomainEvent;
 use App\Models\SellNowOffer;
 use InvalidArgumentException;
 
@@ -27,6 +28,20 @@ final class CounterOffer
             'status'              => 'countered',
             'notes'               => $notes ?? $offer->notes,
         ]);
+
+        $artLot = $offer->artLot;
+        if ($artLot) {
+            (new AppendDomainEvent())->execute(
+                aggregate: $artLot,
+                eventType: 'offer.countered',
+                payload: [
+                    'offer_id'            => $offer->id,
+                    'counter_price_cents' => $counterPriceCents,
+                    'currency'            => $offer->currency,
+                ],
+                idempotencyKey: "offer.countered:{$offer->id}",
+            );
+        }
 
         return $offer->fresh();
     }

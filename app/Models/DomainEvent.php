@@ -12,6 +12,7 @@ final class DomainEvent extends Model
         'aggregate_type',
         'aggregate_id',
         'event_type',
+        'event_version',
         'payload',
         'idempotency_key',
         'status',
@@ -24,6 +25,7 @@ final class DomainEvent extends Model
 
     protected $casts = [
         'payload'               => 'array',
+        'event_version'         => 'integer',
         'attempt'               => 'integer',
         'next_attempt_at'       => 'datetime',
         'processing_started_at' => 'datetime',

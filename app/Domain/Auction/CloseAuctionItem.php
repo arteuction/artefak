@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Auction;
 
+use App\Domain\Outbox\AppendDomainEvent;
 use App\Models\AuctionItem;
 use App\Models\Bid;
 use Illuminate\Support\Facades\DB;
@@ -67,6 +68,19 @@ final class CloseAuctionItem
 
             $winner->status = 'won';
             $winner->save();
+
+            (new AppendDomainEvent())->execute(
+                aggregate: $locked,
+                eventType: 'auction_item.sold',
+                payload: [
+                    'auction_id'           => $locked->auction_id,
+                    'winning_bid_id'       => $winner->id,
+                    'winning_bid_cents'    => $winner->amount_cents,
+                    'winner_id'            => $winner->user_id,
+                    'art_lot_id'           => $locked->art_lot_id,
+                ],
+                idempotencyKey: "auction_item.sold:{$locked->id}",
+            );
         });
 
         // Cancel outbid PaymentIntents outside the transaction (Stripe call)

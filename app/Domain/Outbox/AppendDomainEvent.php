@@ -23,6 +23,7 @@ final class AppendDomainEvent
         string  $eventType,
         array   $payload,
         ?string $idempotencyKey = null,
+        int     $eventVersion   = 1,
     ): DomainEvent {
         if (empty($eventType)) {
             throw new InvalidArgumentException('event_type must not be empty.');
@@ -38,6 +39,7 @@ final class AppendDomainEvent
             'aggregate_type'  => $aggregateType,
             'aggregate_id'    => $aggregateId,
             'event_type'      => $eventType,
+            'event_version'   => $eventVersion,
             'payload'         => $payload,
             'idempotency_key' => $key,
             'status'          => 'pending',

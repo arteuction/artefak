@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Donation;
 
+use App\Domain\Outbox\AppendDomainEvent;
 use App\Models\Donation;
 use App\Models\DonationRecipient;
 use App\Models\User;
@@ -34,7 +35,7 @@ final class RecordDonation
         $basis  = EligibilityBasis::from($recipient->eligibility_basis);
         $result = $this->calculator->calculate($donatedCents, $basis);
 
-        return Donation::create([
+        $donation = Donation::create([
             'donation_recipient_id' => $recipient->id,
             'donor_id'              => $donor->id,
             'art_lot_id'            => $source['art_lot_id'] ?? null,
@@ -49,6 +50,22 @@ final class RecordDonation
             'status'                => 'pending',
             'idempotency_key'       => $idempotencyKey,
         ]);
+
+        (new AppendDomainEvent())->execute(
+            aggregate: $donation,
+            eventType: 'donation.recorded',
+            payload: [
+                'recipient_id'         => $recipient->id,
+                'donor_id'             => $donor->id,
+                'donated_cents'        => $result->donatedCents,
+                'eligibility_basis'    => $result->eligibilityBasis->value,
+                'max_deductible_cents' => $result->maxDeductibleCents,
+                'currency'             => 'EUR',
+            ],
+            idempotencyKey: "donation.recorded:{$idempotencyKey}",
+        );
+
+        return $donation;
     }
 
     private function validateSource(array $source): void

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Impact;
 
+use App\Domain\Outbox\AppendDomainEvent;
 use App\Models\ArtworkSdgClaim;
 use App\Models\ImpactEvent;
 use InvalidArgumentException;
@@ -33,7 +34,7 @@ final class RecordImpactEvent
 
         $this->validateSource($source);
 
-        return ImpactEvent::create([
+        $event = ImpactEvent::create([
             'artwork_sdg_claim_id'    => $claim->id,
             'sdg_number'              => $claim->sdg_number,
             'metric'                  => $metric->value,
@@ -47,6 +48,21 @@ final class RecordImpactEvent
             'idempotency_key'         => $idempotencyKey,
             'note'                    => $note,
         ]);
+
+        (new AppendDomainEvent())->execute(
+            aggregate: $event,
+            eventType: 'impact.recorded',
+            payload: [
+                'sdg_number'  => $claim->sdg_number,
+                'metric'      => $metric->value,
+                'magnitude'   => $magnitude,
+                'claim_id'    => $claim->id,
+                'is_monetary' => $metric->isMonetary(),
+            ],
+            idempotencyKey: "impact.recorded:{$idempotencyKey}",
+        );
+
+        return $event;
     }
 
     private function validateSource(array $source): void

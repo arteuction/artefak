@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Fulfillment;
 
+use App\Domain\Outbox\AppendDomainEvent;
 use App\Models\AuctionFulfillment;
 use App\Models\AuctionItem;
 use InvalidArgumentException;
@@ -35,6 +36,17 @@ final class ShipAuctionItem
         ]);
 
         $item->update(['fulfillment_status' => 'shipped']);
+
+        (new AppendDomainEvent())->execute(
+            aggregate: $item,
+            eventType: 'artwork.shipped',
+            payload: [
+                'art_lot_id'      => $item->art_lot_id,
+                'carrier'         => $carrier,
+                'tracking_number' => $trackingNumber,
+            ],
+            idempotencyKey: "artwork.shipped:{$item->id}",
+        );
 
         return $fulfillment->fresh();
     }
