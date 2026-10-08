@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use App\Models\ArtLot;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -21,6 +22,7 @@ class ArtmetroArtifact extends Model
         'exhibition_id', 'sellable_type', 'sellable_id',
         'title', 'description', 'ar_model_url',
         'qr_token', 'qr_version', 'is_active', 'sort_order',
+        'art_lot_id',
     ];
 
     protected $casts = [
@@ -49,6 +51,11 @@ class ArtmetroArtifact extends Model
     public function sellable(): MorphTo
     {
         return $this->morphTo();
+    }
+
+    public function artLot(): BelongsTo
+    {
+        return $this->belongsTo(ArtLot::class);
     }
 
     public function scans(): HasMany

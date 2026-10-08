@@ -24,6 +24,7 @@ final class Donation extends Model
         'status',
         'reverses_donation_id',
         'idempotency_key',
+        'impact_project_id',
     ];
 
     protected $casts = [

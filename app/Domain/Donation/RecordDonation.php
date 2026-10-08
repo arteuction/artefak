@@ -25,6 +25,7 @@ final class RecordDonation
         int $donatedCents,
         string $idempotencyKey,
         array $source = [],
+        ?int $impactProjectId = null,
     ): Donation {
         if ($recipient->status !== 'active') {
             throw new InvalidArgumentException("Recipient is not active (status: {$recipient->status}).");
@@ -41,6 +42,7 @@ final class RecordDonation
             'art_lot_id'            => $source['art_lot_id'] ?? null,
             'auction_item_id'       => $source['auction_item_id'] ?? null,
             'sell_now_offer_id'     => $source['sell_now_offer_id'] ?? null,
+            'impact_project_id'     => $impactProjectId,
             'donated_cents'         => $result->donatedCents,
             'currency'              => 'EUR',
             'eligibility_basis'     => $result->eligibilityBasis->value,
