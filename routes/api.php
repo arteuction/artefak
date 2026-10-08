@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\V1\DomainEventController;
 use App\Http\Controllers\Api\V1\ExhibitionController;
 use App\Http\Controllers\Api\V1\GalleryController;
 use App\Http\Controllers\Api\V1\ImpactEventController;
+use App\Http\Controllers\Api\V1\OperationsController;
 use App\Http\Controllers\Api\V1\OwnershipTransferController;
 use App\Http\Controllers\Api\V1\SellNowOfferController;
 use App\Http\Controllers\Api\V1\VenueController;
@@ -125,6 +126,16 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         // Domain events — operator only
         Route::middleware('can:viewAny,App\Models\DomainEvent')->group(function (): void {
             Route::get('/domain-events', [DomainEventController::class, 'index'])->name('domain-events.index');
+        });
+
+        // Operations console — admin only
+        Route::middleware('can:admin')->prefix('ops')->name('ops.')->group(function (): void {
+            Route::get('/summary',              [OperationsController::class, 'summary'])             ->name('summary');
+            Route::get('/pending-events',       [OperationsController::class, 'pendingEvents'])       ->name('pending-events');
+            Route::get('/failed-outbox',        [OperationsController::class, 'failedOutbox'])        ->name('failed-outbox');
+            Route::get('/open-reserves',        [OperationsController::class, 'openReserves'])        ->name('open-reserves');
+            Route::get('/active-consignments',  [OperationsController::class, 'activeConsignments'])  ->name('active-consignments');
+            Route::get('/fiscal-year/{year?}',  [OperationsController::class, 'fiscalYearSummaries']) ->name('fiscal-year');
         });
     });
 });

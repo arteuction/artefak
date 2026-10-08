@@ -20,5 +20,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(ArtistApplication::class, ArtistApplicationPolicy::class);
         Gate::policy(ArtworkSdgClaim::class, ArtworkSdgClaimPolicy::class);
         Gate::policy(DomainEvent::class, DomainEventPolicy::class);
+
+        Gate::define('admin', fn ($user) => $user->role === 'admin');
     }
 }
