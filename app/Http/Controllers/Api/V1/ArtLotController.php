@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Domain\Asset\TransitionArtLot;
 use App\Domain\SellNow\PurchaseAtFixedPrice;
 use App\Http\Controllers\Controller;
 use App\Models\ArtLot;
@@ -94,6 +95,47 @@ final class ArtLotController extends Controller
             'data' => $bids,
             'meta' => ['total' => $bids->count()],
         ]);
+    }
+
+    /**
+     * POST /api/v1/art-lots/{artLot}/transitions/{transition}
+     *
+     * Advance the lot through its lifecycle.
+     * Allowed transitions: submit, verify, approve, catalogue, schedule, activate.
+     * Authorization:
+     *   submit   — consignor only
+     *   verify, approve, catalogue, schedule, activate — gallery staff or admin
+     */
+    public function transition(Request $request, ArtLot $artLot, string $transition): JsonResponse
+    {
+        $user     = $request->user();
+        $staffMap = ['verify', 'approve', 'catalogue', 'schedule', 'activate'];
+
+        if ($transition === 'submit') {
+            if ($artLot->consignor_id !== $user->id) {
+                abort(403, 'Only the consignor can submit a lot.');
+            }
+        } elseif (in_array($transition, $staffMap, true)) {
+            $isGalleryStaff = $artLot->gallery_id
+                && \App\Models\GalleryStaff::where('gallery_id', $artLot->gallery_id)
+                    ->where('user_id', $user->id)
+                    ->where('status', 'active')
+                    ->exists();
+
+            if (! $isGalleryStaff && ! in_array($user->role, ['admin', 'operator'], true)) {
+                abort(403, 'Gallery staff or admin required.');
+            }
+        } else {
+            abort(422, "Unknown transition '{$transition}'.");
+        }
+
+        try {
+            $artLot = (new TransitionArtLot())->execute($artLot, $transition);
+        } catch (\DomainException|\InvalidArgumentException $e) {
+            abort(422, $e->getMessage());
+        }
+
+        return response()->json($artLot);
     }
 
     /**

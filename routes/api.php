@@ -40,8 +40,8 @@ Route::get('/auctions', [AuctionController::class, 'index']);
 Route::get('/auctions/{auction}', [AuctionController::class, 'show']);
 Route::get('/auctions/{auction}/items/{item}', [AuctionController::class, 'item']);
 
-// Authenticated — bidding
-Route::middleware('auth:sanctum')->group(function (): void {
+// Authenticated — bidding (rate-limited: 30/min per user)
+Route::middleware(['auth:sanctum', 'throttle:30,1'])->group(function (): void {
     Route::post('/auctions/{auction}/items/{item}/bids', [BidController::class, 'store']);
 });
 
@@ -139,6 +139,7 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         // ArtLots
         Route::post('/art-lots', [ArtLotController::class, 'store'])->name('art-lots.store');
         Route::post('/art-lots/{artLot}/purchase-now', [ArtLotController::class, 'purchaseNow'])->name('art-lots.purchase-now');
+        Route::post('/art-lots/{artLot}/transitions/{transition}', [ArtLotController::class, 'transition'])->name('art-lots.transition');
 
         // Sell Now offers
         Route::get('/art-lots/{artLot}/sell-now-offers',  [SellNowOfferController::class, 'index'])
