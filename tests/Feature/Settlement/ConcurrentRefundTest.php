@@ -21,6 +21,14 @@ class ConcurrentRefundTest extends TestCase
 {
     private ?int $settlementId = null;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        if (PHP_OS_FAMILY === 'Windows') {
+            $this->markTestSkipped('ConcurrentRefundTest requires a POSIX environment with reliable proc_open subprocess inheritance.');
+        }
+    }
+
     protected function tearDown(): void
     {
         if ($this->settlementId !== null) {
