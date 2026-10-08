@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Auction;
 
 use App\Domain\Outbox\AppendDomainEvent;
+use App\Events\BidPlaced;
 use App\Models\AuctionItem;
 use App\Models\Bid;
 use Illuminate\Support\Facades\DB;
@@ -35,7 +36,7 @@ final class PlaceBid
         string      $stripePaymentMethodId,
         string      $ipAddress = '',
     ): Bid {
-        return DB::transaction(function () use ($item, $bidderId, $amountCents, $stripePaymentMethodId, $ipAddress): Bid {
+        $bid = DB::transaction(function () use ($item, $bidderId, $amountCents, $stripePaymentMethodId, $ipAddress): Bid {
             /** @var AuctionItem $locked */
             $locked = AuctionItem::lockForUpdate()->findOrFail($item->id);
 
@@ -101,5 +102,10 @@ final class PlaceBid
 
             return $bid->refresh();
         });
+
+        // Broadcast outside the transaction — fires only after commit.
+        BidPlaced::dispatch($bid);
+
+        return $bid;
     }
 }
