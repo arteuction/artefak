@@ -38,6 +38,40 @@ final class Gallery extends Model
         return $this->hasMany(SellNowOffer::class);
     }
 
+    public function staff(): HasMany
+    {
+        return $this->hasMany(GalleryStaff::class);
+    }
+
+    public function activeStaff(): HasMany
+    {
+        return $this->hasMany(GalleryStaff::class)->where('status', 'active');
+    }
+
+    public function staffWithRole(string $role): HasMany
+    {
+        return $this->hasMany(GalleryStaff::class)->where('role', $role)->where('status', 'active');
+    }
+
+    /** True if the given user holds ANY active role at this gallery. */
+    public function hasMember(User $user): bool
+    {
+        return $this->staff()
+            ->where('user_id', $user->id)
+            ->where('status', 'active')
+            ->exists();
+    }
+
+    /** True if the given user holds the specified active role. */
+    public function hasRole(User $user, string $role): bool
+    {
+        return $this->staff()
+            ->where('user_id', $user->id)
+            ->where('role', $role)
+            ->where('status', 'active')
+            ->exists();
+    }
+
     public function isActive(): bool
     {
         return $this->status === 'active';
