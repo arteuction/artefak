@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\V1\GalleryController;
 use App\Http\Controllers\Api\V1\ImpactEventController;
 use App\Http\Controllers\Api\V1\OperationsController;
 use App\Http\Controllers\Api\V1\OwnershipTransferController;
+use App\Http\Controllers\Api\V1\PayoutController;
 use App\Http\Controllers\Api\V1\SellNowOfferController;
 use App\Http\Controllers\Api\V1\VenueController;
 use Illuminate\Support\Facades\Route;
@@ -64,6 +65,9 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
     // Artworks
     Route::get('/artworks',        [ArtworkController::class, 'index'])->name('artworks.index');
     Route::get('/artworks/{artwork}', [ArtworkController::class, 'show'])->name('artworks.show');
+
+    // Artwork sales history (public — privacy-preserving, no buyer identity)
+    Route::get('/artworks/{artwork}/sales-history', [PayoutController::class, 'artworkSalesHistory'])->name('artworks.sales-history');
 
     // ArtLots
     Route::get('/art-lots',          [ArtLotController::class, 'index'])->name('art-lots.index');
@@ -127,6 +131,10 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         Route::middleware('can:viewAny,App\Models\DomainEvent')->group(function (): void {
             Route::get('/domain-events', [DomainEventController::class, 'index'])->name('domain-events.index');
         });
+
+        // Payout dashboard — artist sees own lines; gallery finance/owner sees gallery
+        Route::get('/payouts/artist',              [PayoutController::class, 'artist'])             ->name('payouts.artist');
+        Route::get('/payouts/gallery/{gallery}',   [PayoutController::class, 'gallery'])            ->name('payouts.gallery');
 
         // Operations console — admin only
         Route::middleware('can:admin')->prefix('ops')->name('ops.')->group(function (): void {
