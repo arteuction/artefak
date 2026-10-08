@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\V1\DonationController;
 use App\Http\Controllers\Api\V1\DisputeController;
 use App\Http\Controllers\Api\V1\DomainEventController;
 use App\Http\Controllers\Api\V1\ExhibitionController;
+use App\Http\Controllers\Api\V1\FulfillmentController;
 use App\Http\Controllers\Api\V1\GalleryController;
 use App\Http\Controllers\Api\V1\GalleryStaffController;
 use App\Http\Controllers\Api\V1\SdgClaimController;
@@ -198,6 +199,12 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         // SDG claims — submit (artwork owner) + review (admin/operator)
         Route::post('/artworks/{artwork}/sdg-claims',                           [SdgClaimController::class, 'store'])->name('artworks.sdg-claims.store');
         Route::post('/artworks/{artwork}/sdg-claims/{claim}/review',            [SdgClaimController::class, 'review'])->name('artworks.sdg-claims.review');
+
+        // Fulfillment
+        Route::post('/auction-items/{item}/ship',             [FulfillmentController::class, 'shipAuctionItem'])->name('auction-items.ship');
+        Route::post('/auction-items/{item}/confirm-delivery', [FulfillmentController::class, 'confirmAuctionDelivery'])->name('auction-items.confirm-delivery');
+        Route::post('/sell-now-offers/{offer}/confirm-payment',  [FulfillmentController::class, 'confirmSellNowPayment'])->name('sell-now-offers.confirm-payment');
+        Route::post('/sell-now-offers/{offer}/confirm-delivery', [FulfillmentController::class, 'confirmSellNowDelivery'])->name('sell-now-offers.confirm-delivery');
 
         // Disputes
         Route::get('/disputes',                          [DisputeController::class, 'index'])->name('disputes.index');
