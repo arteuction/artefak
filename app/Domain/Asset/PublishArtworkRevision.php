@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Asset;
 
+use App\Domain\Outbox\AppendDomainEvent;
 use App\Models\ArtworkRevision;
 use InvalidArgumentException;
 
@@ -27,6 +28,21 @@ final class PublishArtworkRevision
             'effective_from' => now(),
         ]);
 
-        return $revision->fresh();
+        $fresh = $revision->fresh();
+
+        (new AppendDomainEvent())->execute(
+            aggregate: $fresh,
+            eventType: 'artwork_revision.published',
+            payload: [
+                'artwork_id'    => $fresh->artwork_id,
+                'version'       => $fresh->version,
+                'title'         => $fresh->title,
+                'reason'        => $fresh->reason,
+                'effective_from' => $fresh->effective_from?->toIso8601String(),
+            ],
+            idempotencyKey: "artwork_revision.published:{$fresh->id}",
+        );
+
+        return $fresh;
     }
 }

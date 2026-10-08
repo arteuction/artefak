@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Fulfillment;
 
+use App\Domain\Outbox\AppendDomainEvent;
 use App\Models\ArtLot;
 use App\Models\OwnershipTransfer;
 use App\Models\SellNowOffer;
@@ -42,6 +43,21 @@ final class CloseSellNow
             'transferred_at'       => now(),
             'notes'                => $notes,
         ]);
+
+        if ($artLot !== null) {
+            (new AppendDomainEvent())->execute(
+                aggregate: $artLot,
+                eventType: 'art_lot.sold',
+                payload: [
+                    'channel'              => 'sell_now',
+                    'sell_now_offer_id'    => $offer->id,
+                    'buyer_id'             => $offer->buyer_id,
+                    'transfer_price_cents' => $offer->agreed_price_cents ?? $offer->offered_price_cents,
+                    'currency'             => $offer->currency,
+                ],
+                idempotencyKey: "art_lot.sold:sell_now:{$offer->id}",
+            );
+        }
 
         return $offer->fresh();
     }

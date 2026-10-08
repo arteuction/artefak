@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Fulfillment;
 
+use App\Domain\Outbox\AppendDomainEvent;
 use App\Models\AuctionFulfillment;
 use App\Models\AuctionItem;
 use App\Models\OwnershipTransfer;
@@ -43,6 +44,22 @@ final class ConfirmAuctionDelivery
             'channel'              => 'auction',
             'transferred_at'       => now(),
         ]);
+
+        $artLot = $item->artLot;
+        if ($artLot !== null) {
+            (new AppendDomainEvent())->execute(
+                aggregate: $artLot,
+                eventType: 'art_lot.sold',
+                payload: [
+                    'channel'              => 'auction',
+                    'auction_item_id'      => $item->id,
+                    'buyer_id'             => $fulfillment->winner_user_id,
+                    'transfer_price_cents' => $bid?->amount_cents ?? 0,
+                    'currency'             => $artLot->currency ?? 'EUR',
+                ],
+                idempotencyKey: "art_lot.sold:auction:{$item->id}",
+            );
+        }
 
         return $fulfillment->fresh();
     }
