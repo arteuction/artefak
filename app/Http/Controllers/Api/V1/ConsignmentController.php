@@ -5,7 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\Asset\ActivateConsignment;
+use App\Domain\Asset\ApproveConsignment;
 use App\Domain\Asset\CreateConsignment;
+use App\Domain\Asset\CreateLotFromConsignment;
+use App\Domain\Asset\RequestConsignmentChanges;
+use App\Models\ArtLot;
 use App\Http\Controllers\Controller;
 use App\Models\Artwork;
 use App\Models\Consignment;
@@ -81,6 +85,64 @@ final class ConsignmentController extends Controller
         }
 
         return response()->json($consignment, 201);
+    }
+
+    /** POST /api/v1/consignments/{consignment}/approve */
+    public function approve(Request $request, Consignment $consignment): JsonResponse
+    {
+        try {
+            $consignment = (new ApproveConsignment())->execute($consignment, $request->user());
+        } catch (\DomainException $e) {
+            abort(422, $e->getMessage());
+        }
+
+        return response()->json($consignment);
+    }
+
+    /** POST /api/v1/consignments/{consignment}/request-changes */
+    public function requestChanges(Request $request, Consignment $consignment): JsonResponse
+    {
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:2000'],
+        ]);
+
+        try {
+            (new RequestConsignmentChanges())->execute($consignment, $request->user(), $data['reason']);
+        } catch (\DomainException $e) {
+            abort(422, $e->getMessage());
+        }
+
+        return response()->json(['status' => 'changes_requested']);
+    }
+
+    /** POST /api/v1/consignments/{consignment}/create-lot */
+    public function createLot(Request $request, Consignment $consignment): JsonResponse
+    {
+        $data = $request->validate([
+            'sale_mode'            => ['required', 'in:auction,sell_now,gallery,private,hybrid'],
+            'starting_bid_cents'   => ['nullable', 'integer', 'min:0'],
+            'reserve_price_cents'  => ['nullable', 'integer', 'min:0'],
+            'buy_now_price_cents'  => ['nullable', 'integer', 'min:1'],
+            'split_profile_key'    => ['nullable', 'string', 'max:80'],
+            'currency'             => ['nullable', 'string', 'size:3'],
+        ]);
+
+        try {
+            $lot = (new CreateLotFromConsignment())->execute(
+                consignment:      $consignment,
+                createdBy:        $request->user(),
+                saleMode:         $data['sale_mode'],
+                startingBidCents: (int) ($data['starting_bid_cents'] ?? 0),
+                reservePriceCents: isset($data['reserve_price_cents']) ? (int) $data['reserve_price_cents'] : null,
+                buyNowPriceCents:  isset($data['buy_now_price_cents']) ? (int) $data['buy_now_price_cents'] : null,
+                splitProfileKey:   $data['split_profile_key'] ?? 'social_pilot_45_45_10',
+                currency:          $data['currency'] ?? 'EUR',
+            );
+        } catch (\DomainException|\InvalidArgumentException $e) {
+            abort(422, $e->getMessage());
+        }
+
+        return response()->json($lot->load('artwork:id,title,slug'), 201);
     }
 
     /** POST /api/v1/consignments/{consignment}/activate */

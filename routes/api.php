@@ -9,17 +9,21 @@ use App\Http\Controllers\Api\BidController;
 use App\Http\Controllers\Api\V1\ArtLotController;
 use App\Http\Controllers\Api\V1\ArtworkController;
 use App\Http\Controllers\Api\V1\AuctionController as V1AuctionController;
+use App\Http\Controllers\Api\V1\CollectionController;
 use App\Http\Controllers\Api\V1\ConsignmentController;
 use App\Http\Controllers\Api\V1\DonationController;
 use App\Http\Controllers\Api\V1\DomainEventController;
 use App\Http\Controllers\Api\V1\ExhibitionController;
 use App\Http\Controllers\Api\V1\GalleryController;
+use App\Http\Controllers\Api\V1\GalleryStaffController;
 use App\Http\Controllers\Api\V1\ImpactEventController;
+use App\Http\Controllers\Api\V1\ImpactProjectController;
 use App\Http\Controllers\Api\V1\OperationsController;
 use App\Http\Controllers\Api\V1\OwnershipTransferController;
 use App\Http\Controllers\Api\V1\PayoutController;
 use App\Http\Controllers\Api\V1\SellNowOfferController;
 use App\Http\Controllers\Api\V1\VenueController;
+use App\Http\Controllers\Api\V1\WatchlistController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -44,6 +48,11 @@ Route::get('/artifacts/{qrToken}', [ArtifactController::class, 'show']);
 // ArtMetro — QR scan record (mutating, rate-limited: 30/min per IP)
 Route::middleware('throttle:30,1')->group(function (): void {
     Route::post('/artifacts/{qrToken}/scans', [ArtifactController::class, 'recordScan']);
+});
+
+// ArtMetro — link/unlink an ArtLot to a physical label (gallery staff, authenticated)
+Route::middleware('auth:sanctum')->group(function (): void {
+    Route::patch('/artifacts/{artifact}/lot', [ArtifactController::class, 'linkLot']);
 });
 
 // ArtMetro — visit beacon (mutating, rate-limited: 60/min per IP)
@@ -76,6 +85,7 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
     // Galleries (public read)
     Route::get('/galleries',            [GalleryController::class, 'index'])->name('galleries.index');
     Route::get('/galleries/{gallery}',  [GalleryController::class, 'show'])->name('galleries.show');
+    Route::get('/galleries/{gallery}/staff', [GalleryStaffController::class, 'index'])->name('galleries.staff.index');
 
     // Venues (public read)
     Route::get('/venues',         [VenueController::class, 'index'])->name('venues.index');
@@ -88,6 +98,14 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
     // Impact events (public read)
     Route::get('/impact-events',                  [ImpactEventController::class, 'index'])->name('impact-events.index');
     Route::get('/impact-events/{impactEvent}',    [ImpactEventController::class, 'show'])->name('impact-events.show');
+
+    // Impact projects (public read + public stats)
+    Route::get('/impact-projects/stats',              [ImpactProjectController::class, 'stats'])->name('impact-projects.stats');
+    Route::get('/impact-projects',                    [ImpactProjectController::class, 'index'])->name('impact-projects.index');
+    Route::get('/impact-projects/{impactProject}',    [ImpactProjectController::class, 'show'])->name('impact-projects.show');
+
+    // Collections (public show for unlisted/public; authenticated for index/store/manage)
+    Route::get('/collections/{collection}', [CollectionController::class, 'show'])->name('collections.show');
 
     // Auctions (public read)
     Route::get('/auctions',                              [V1AuctionController::class, 'index'])->name('auctions.index');
@@ -102,6 +120,7 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
 
         // ArtLots
         Route::post('/art-lots', [ArtLotController::class, 'store'])->name('art-lots.store');
+        Route::post('/art-lots/{artLot}/purchase-now', [ArtLotController::class, 'purchaseNow'])->name('art-lots.purchase-now');
 
         // Sell Now offers
         Route::post('/art-lots/{artLot}/sell-now-offers', [SellNowOfferController::class, 'store'])
@@ -117,7 +136,25 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         Route::get('/consignments',                         [ConsignmentController::class, 'index'])->name('consignments.index');
         Route::get('/consignments/{consignment}',           [ConsignmentController::class, 'show'])->name('consignments.show');
         Route::post('/consignments',                        [ConsignmentController::class, 'store'])->name('consignments.store');
-        Route::post('/consignments/{consignment}/activate', [ConsignmentController::class, 'activate'])->name('consignments.activate');
+        Route::post('/consignments/{consignment}/activate',       [ConsignmentController::class, 'activate'])->name('consignments.activate');
+        Route::post('/consignments/{consignment}/approve',        [ConsignmentController::class, 'approve'])->name('consignments.approve');
+        Route::post('/consignments/{consignment}/request-changes',[ConsignmentController::class, 'requestChanges'])->name('consignments.request-changes');
+        Route::post('/consignments/{consignment}/create-lot',     [ConsignmentController::class, 'createLot'])->name('consignments.create-lot');
+
+        // Gallery staff management (owner-only mutations; read is public above)
+        Route::post('/galleries/{gallery}/staff',          [GalleryStaffController::class, 'store'])->name('galleries.staff.store');
+        Route::delete('/galleries/{gallery}/staff/{user}', [GalleryStaffController::class, 'destroy'])->name('galleries.staff.destroy');
+
+        // Collections
+        Route::get('/collections',                                          [CollectionController::class, 'index'])->name('collections.index');
+        Route::post('/collections',                                         [CollectionController::class, 'store'])->name('collections.store');
+        Route::post('/collections/{collection}/artworks',                   [CollectionController::class, 'addArtwork'])->name('collections.artworks.store');
+        Route::delete('/collections/{collection}/artworks/{artwork}',       [CollectionController::class, 'removeArtwork'])->name('collections.artworks.destroy');
+
+        // Watchlist
+        Route::get('/watchlist',                      [WatchlistController::class, 'index'])->name('watchlist.index');
+        Route::post('/watchlist',                     [WatchlistController::class, 'store'])->name('watchlist.store');
+        Route::delete('/watchlist/{type}/{id}',       [WatchlistController::class, 'destroy'])->name('watchlist.destroy');
 
         // Donations (donor sees own; admin sees all)
         Route::get('/donations',            [DonationController::class, 'index'])->name('donations.index');

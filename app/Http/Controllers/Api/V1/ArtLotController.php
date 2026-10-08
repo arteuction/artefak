@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Domain\SellNow\PurchaseAtFixedPrice;
 use App\Http\Controllers\Controller;
 use App\Models\ArtLot;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use InvalidArgumentException;
 
 final class ArtLotController extends Controller
 {
@@ -68,5 +70,25 @@ final class ArtLotController extends Controller
         ]);
 
         return response()->json($lot->load('artwork:id,title,slug'), 201);
+    }
+
+    /**
+     * POST /api/v1/art-lots/{artLot}/purchase-now
+     *
+     * Instant buy at the fixed buy_now_price_cents — valid for sell_now and hybrid lots.
+     */
+    public function purchaseNow(Request $request, ArtLot $artLot): JsonResponse
+    {
+        try {
+            $offer = (new PurchaseAtFixedPrice())->execute(
+                artLot:    $artLot,
+                buyer:     $request->user(),
+                galleryId: $artLot->gallery_id,
+            );
+        } catch (InvalidArgumentException $e) {
+            abort(422, $e->getMessage());
+        }
+
+        return response()->json($offer, 201);
     }
 }

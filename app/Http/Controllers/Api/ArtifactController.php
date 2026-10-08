@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api;
 
+use App\Domain\Artmetro\LinkArtLotToArtifact;
 use App\Domain\Artmetro\RecordArtifactScan;
 use App\Domain\Artmetro\RecordVisit;
 use App\Http\Controllers\Controller;
+use App\Models\ArtLot;
 use App\Models\ArtmetroArtifact;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
@@ -112,5 +114,28 @@ class ArtifactController extends Controller
         );
 
         return response()->json(['ok' => true], 202);
+    }
+
+    /**
+     * PATCH /api/artifacts/{artifact}/lot
+     *
+     * Gallery staff: link or unlink the active ArtLot shown by this physical label.
+     * Pass art_lot_id: null to clear the link.
+     */
+    public function linkLot(Request $request, ArtmetroArtifact $artifact): JsonResponse
+    {
+        $data = $request->validate([
+            'art_lot_id' => ['nullable', 'integer', 'exists:art_lots,id'],
+        ]);
+
+        $lot = isset($data['art_lot_id']) ? ArtLot::findOrFail($data['art_lot_id']) : null;
+
+        try {
+            $artifact = (new LinkArtLotToArtifact())->execute($artifact, $lot);
+        } catch (\DomainException $e) {
+            abort(422, $e->getMessage());
+        }
+
+        return response()->json($artifact->only(['id', 'art_lot_id', 'title']));
     }
 }
