@@ -136,6 +136,7 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
             Route::get('/open-reserves',        [OperationsController::class, 'openReserves'])        ->name('open-reserves');
             Route::get('/active-consignments',  [OperationsController::class, 'activeConsignments'])  ->name('active-consignments');
             Route::get('/fiscal-year/{year?}',  [OperationsController::class, 'fiscalYearSummaries']) ->name('fiscal-year');
+            Route::get('/consumer-lag',         [OperationsController::class, 'consumerLag'])         ->name('consumer-lag');
         });
     });
 });

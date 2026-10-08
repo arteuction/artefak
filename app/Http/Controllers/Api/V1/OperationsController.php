@@ -9,6 +9,7 @@ use App\Models\Consignment;
 use App\Models\DomainEvent;
 use App\Models\DonorFiscalYear;
 use App\Models\Reserve;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 
@@ -88,6 +89,67 @@ final class OperationsController extends Controller
             ->paginate(50);
 
         return response()->json(['data' => $consignments]);
+    }
+
+    /**
+     * Per-consumer lag metrics.
+     *
+     * Returns one row per known consumer with:
+     *   consumer:          logical consumer name
+     *   processed:         total inbox rows for this consumer
+     *   last_processed_at: timestamp of most recent processed event
+     *   lag_events:        domain events not yet seen by this consumer
+     *   lag_seconds:       seconds since oldest unprocessed event was emitted
+     *                      (null when no lag exists)
+     */
+    public function consumerLag(): JsonResponse
+    {
+        // All known consumers from the inbox
+        $consumers = DB::table('consumer_inbox')
+            ->select('consumer')
+            ->distinct()
+            ->orderBy('consumer')
+            ->pluck('consumer');
+
+        $totalEvents = (int) DB::table('domain_events')->count();
+        $oldestEventAt = DB::table('domain_events')->min('created_at');
+
+        $metrics = $consumers->map(function (string $consumer) use ($totalEvents, $oldestEventAt): array {
+            $processed = (int) DB::table('consumer_inbox')
+                ->where('consumer', $consumer)
+                ->count();
+
+            $lastProcessedAt = DB::table('consumer_inbox')
+                ->where('consumer', $consumer)
+                ->max('processed_at');
+
+            $lagEvents = $totalEvents - $processed;
+
+            // Seconds since the oldest domain event the consumer has not yet seen
+            $lagSeconds = null;
+            if ($lagEvents > 0 && $oldestEventAt !== null) {
+                // Find oldest unprocessed event for this consumer
+                $oldestUnprocessed = DB::table('domain_events')
+                    ->whereNotIn('id', DB::table('consumer_inbox')
+                        ->where('consumer', $consumer)
+                        ->select('domain_event_id'))
+                    ->min('created_at');
+
+                if ($oldestUnprocessed !== null) {
+                    $lagSeconds = (int) now()->diffInSeconds(\Carbon\Carbon::parse($oldestUnprocessed));
+                }
+            }
+
+            return [
+                'consumer'          => $consumer,
+                'processed'         => $processed,
+                'last_processed_at' => $lastProcessedAt,
+                'lag_events'        => $lagEvents,
+                'lag_seconds'       => $lagSeconds,
+            ];
+        });
+
+        return response()->json(['data' => $metrics]);
     }
 
     /** Fiscal-year summaries for the given year (defaults to current). */

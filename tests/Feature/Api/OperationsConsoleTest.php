@@ -226,6 +226,116 @@ final class OperationsConsoleTest extends TestCase
              ->assertJsonPath('data.total', 1);
     }
 
+    // -----------------------------------------------------------------------
+    // Consumer lag endpoint
+    // -----------------------------------------------------------------------
+
+    public function test_consumer_lag_returns_empty_when_no_consumers(): void
+    {
+        Sanctum::actingAs($this->admin);
+
+        $response = $this->getJson('/api/v1/ops/consumer-lag')->assertOk();
+        $this->assertSame([], $response->json('data'));
+    }
+
+    public function test_consumer_lag_shows_zero_lag_when_all_consumed(): void
+    {
+        $artwork = $this->makeArtwork();
+        $event   = (new AppendDomainEvent())->execute(
+            aggregate:      $artwork,
+            eventType:      'test.consumed',
+            payload:        [],
+            idempotencyKey: 'lag-test-consumed-1',
+        );
+        (new RecordConsumerEvent())->execute('email_worker', $event);
+
+        Sanctum::actingAs($this->admin);
+
+        $response = $this->getJson('/api/v1/ops/consumer-lag')->assertOk();
+        $row = collect($response->json('data'))->firstWhere('consumer', 'email_worker');
+
+        $this->assertNotNull($row);
+        $this->assertSame(0, $row['lag_events']);
+        $this->assertNull($row['lag_seconds']);
+        $this->assertSame(1, $row['processed']);
+    }
+
+    public function test_consumer_lag_shows_pending_events(): void
+    {
+        $artwork = $this->makeArtwork();
+
+        // Two events; consumer only processes one
+        $e1 = (new AppendDomainEvent())->execute(
+            aggregate:      $artwork,
+            eventType:      'test.partial.1',
+            payload:        [],
+            idempotencyKey: 'lag-test-partial-1',
+        );
+        $e2 = (new AppendDomainEvent())->execute(
+            aggregate:      $artwork,
+            eventType:      'test.partial.2',
+            payload:        [],
+            idempotencyKey: 'lag-test-partial-2',
+        );
+
+        (new RecordConsumerEvent())->execute('analytics', $e1);
+        // $e2 left unprocessed
+
+        Sanctum::actingAs($this->admin);
+
+        $response = $this->getJson('/api/v1/ops/consumer-lag')->assertOk();
+        $row = collect($response->json('data'))->firstWhere('consumer', 'analytics');
+
+        $this->assertNotNull($row);
+        $this->assertSame(1, $row['processed']);
+        $this->assertSame(1, $row['lag_events']);
+        $this->assertNotNull($row['lag_seconds']);
+    }
+
+    public function test_consumer_lag_shows_multiple_consumers_independently(): void
+    {
+        $artwork = $this->makeArtwork();
+        $event   = (new AppendDomainEvent())->execute(
+            aggregate:      $artwork,
+            eventType:      'test.multi',
+            payload:        [],
+            idempotencyKey: 'lag-multi-consumer-1',
+        );
+
+        (new RecordConsumerEvent())->execute('email_worker', $event);
+        // 'sms_worker' has NOT processed it
+
+        // Register sms_worker via a second event it did process
+        $e2 = (new AppendDomainEvent())->execute(
+            aggregate:      $artwork,
+            eventType:      'test.multi.2',
+            payload:        [],
+            idempotencyKey: 'lag-multi-consumer-2',
+        );
+        (new RecordConsumerEvent())->execute('sms_worker', $e2);
+
+        Sanctum::actingAs($this->admin);
+
+        $response = $this->getJson('/api/v1/ops/consumer-lag')->assertOk();
+        $data     = collect($response->json('data'));
+
+        $email = $data->firstWhere('consumer', 'email_worker');
+        $sms   = $data->firstWhere('consumer', 'sms_worker');
+
+        // email_worker: processed 1, lag 1 (e2 not consumed)
+        $this->assertSame(1, $email['processed']);
+        $this->assertSame(1, $email['lag_events']);
+
+        // sms_worker: processed 1 (e2), lag 1 (e1 not consumed)
+        $this->assertSame(1, $sms['processed']);
+        $this->assertSame(1, $sms['lag_events']);
+    }
+
+    public function test_consumer_lag_endpoint_requires_admin(): void
+    {
+        $this->getJson('/api/v1/ops/consumer-lag')->assertUnauthorized();
+    }
+
     public function test_ops_failed_outbox_endpoint(): void
     {
         // Create minimum parent rows to satisfy FK chain
