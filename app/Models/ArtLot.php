@@ -16,6 +16,8 @@ final class ArtLot extends Model
         'reserve_price_cents', 'starting_bid_cents', 'buy_now_price_cents', 'currency',
         'split_profile_key',
         'gallery_id',
+        'consignment_id',
+        'artwork_revision_id',
         'estimate_low_cents', 'estimate_high_cents',
         'published_at', 'closed_at',
     ];
@@ -66,5 +68,15 @@ final class ArtLot extends Model
     public function ownershipTransfers(): HasMany
     {
         return $this->hasMany(OwnershipTransfer::class);
+    }
+
+    public function consignment(): BelongsTo
+    {
+        return $this->belongsTo(Consignment::class);
+    }
+
+    public function artworkRevision(): BelongsTo
+    {
+        return $this->belongsTo(ArtworkRevision::class, 'artwork_revision_id');
     }
 }

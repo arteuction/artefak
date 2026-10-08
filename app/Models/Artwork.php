@@ -51,6 +51,21 @@ final class Artwork extends Model
         return $this->hasMany(ArtworkEvidence::class);
     }
 
+    public function revisions(): HasMany
+    {
+        return $this->hasMany(ArtworkRevision::class)->orderBy('version');
+    }
+
+    public function activeRevision(): HasMany
+    {
+        return $this->hasMany(ArtworkRevision::class)->where('status', 'active');
+    }
+
+    public function consignments(): HasMany
+    {
+        return $this->hasMany(Consignment::class);
+    }
+
     public function sdgClaims(): HasMany
     {
         return $this->hasMany(ArtworkSdgClaim::class);
