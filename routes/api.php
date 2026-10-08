@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CollectionController;
 use App\Http\Controllers\Api\V1\ConsignmentController;
 use App\Http\Controllers\Api\V1\DonationController;
+use App\Http\Controllers\Api\V1\DisputeController;
 use App\Http\Controllers\Api\V1\DomainEventController;
 use App\Http\Controllers\Api\V1\ExhibitionController;
 use App\Http\Controllers\Api\V1\GalleryController;
@@ -197,6 +198,14 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         // SDG claims — submit (artwork owner) + review (admin/operator)
         Route::post('/artworks/{artwork}/sdg-claims',                           [SdgClaimController::class, 'store'])->name('artworks.sdg-claims.store');
         Route::post('/artworks/{artwork}/sdg-claims/{claim}/review',            [SdgClaimController::class, 'review'])->name('artworks.sdg-claims.review');
+
+        // Disputes
+        Route::get('/disputes',                          [DisputeController::class, 'index'])->name('disputes.index');
+        Route::get('/disputes/{dispute}',                [DisputeController::class, 'show'])->name('disputes.show');
+        Route::post('/disputes',                         [DisputeController::class, 'store'])->name('disputes.store');
+        Route::post('/disputes/{dispute}/assign',        [DisputeController::class, 'assign'])->name('disputes.assign');
+        Route::post('/disputes/{dispute}/resolve',       [DisputeController::class, 'resolve'])->name('disputes.resolve');
+        Route::post('/disputes/{dispute}/evidence',      [DisputeController::class, 'attachEvidence'])->name('disputes.evidence.store');
 
         // Ownership transfers (party to transfer sees own; admin sees all)
         Route::get('/ownership-transfers',                       [OwnershipTransferController::class, 'index'])->name('ownership-transfers.index');

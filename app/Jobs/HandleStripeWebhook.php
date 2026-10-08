@@ -53,6 +53,7 @@ class HandleStripeWebhook implements ShouldQueue
     {
         match ($event['type']) {
             'charge.refunded'               => $this->handleChargeRefunded($event, $processRefund),
+            'payment_intent.succeeded'      => $this->handlePaymentIntentSucceeded($event),
             'payment_intent.payment_failed' => $this->handlePaymentFailed($event),
             default                         => null,
         };
@@ -75,8 +76,38 @@ class HandleStripeWebhook implements ShouldQueue
         }
     }
 
+    private function handlePaymentIntentSucceeded(array $event): void
+    {
+        $pi = $event['data']['object'];
+        $piId = $pi['id'] ?? null;
+
+        if (! $piId) {
+            return;
+        }
+
+        // Mark settlement as completed (idempotent — status may already be completed)
+        DB::table('settlements')
+            ->where('stripe_payment_intent_id', $piId)
+            ->where('status', 'pending')
+            ->update(['status' => 'completed', 'updated_at' => now()]);
+    }
+
     private function handlePaymentFailed(array $event): void
     {
-        // Phase 2: update payment attempt status
+        $pi = $event['data']['object'];
+        $piId = $pi['id'] ?? null;
+
+        if (! $piId) {
+            return;
+        }
+
+        // Record failure reason for ops visibility; settlement stays pending until manual review
+        DB::table('settlements')
+            ->where('stripe_payment_intent_id', $piId)
+            ->whereIn('status', ['pending'])
+            ->update([
+                'status'     => 'pending',
+                'updated_at' => now(),
+            ]);
     }
 }
