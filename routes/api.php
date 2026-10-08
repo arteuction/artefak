@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\ArtifactController;
 use App\Http\Controllers\Api\ArtmetroRouteController;
 use App\Http\Controllers\Api\AuctionController;
 use App\Http\Controllers\Api\BidController;
+use App\Http\Controllers\Api\V1\ArtistApplicationController;
 use App\Http\Controllers\Api\V1\ArtLotController;
 use App\Http\Controllers\Api\V1\ArtworkController;
 use App\Http\Controllers\Api\V1\AuctionController as V1AuctionController;
@@ -19,6 +20,8 @@ use App\Http\Controllers\Api\V1\ExhibitionController;
 use App\Http\Controllers\Api\V1\FulfillmentController;
 use App\Http\Controllers\Api\V1\GalleryController;
 use App\Http\Controllers\Api\V1\GalleryStaffController;
+use App\Http\Controllers\Api\V1\ImpactRecordController;
+use App\Http\Controllers\Api\V1\LibraryController;
 use App\Http\Controllers\Api\V1\SdgClaimController;
 use App\Http\Controllers\Api\V1\ImpactEventController;
 use App\Http\Controllers\Api\V1\ImpactProjectController;
@@ -111,6 +114,10 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
     // Exhibitions (public read)
     Route::get('/exhibitions',                [ExhibitionController::class, 'index'])->name('exhibitions.index');
     Route::get('/exhibitions/{exhibition}',   [ExhibitionController::class, 'show'])->name('exhibitions.show');
+
+    // Library — public catalogue
+    Route::get('/books',           [LibraryController::class, 'index'])->name('books.index');
+    Route::get('/books/{book}',    [LibraryController::class, 'show'])->name('books.show');
 
     // Impact events (public read)
     Route::get('/impact-events',                  [ImpactEventController::class, 'index'])->name('impact-events.index');
@@ -219,6 +226,25 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         // Ownership transfers (party to transfer sees own; admin sees all)
         Route::get('/ownership-transfers',                       [OwnershipTransferController::class, 'index'])->name('ownership-transfers.index');
         Route::get('/ownership-transfers/{ownershipTransfer}',   [OwnershipTransferController::class, 'show'])->name('ownership-transfers.show');
+
+        // Artist applications
+        Route::get('/artist-applications',                              [ArtistApplicationController::class, 'index'])->name('artist-applications.index');
+        Route::get('/artist-applications/{application}',                [ArtistApplicationController::class, 'show'])->name('artist-applications.show');
+        Route::post('/artist-applications',                             [ArtistApplicationController::class, 'store'])->name('artist-applications.store');
+        Route::post('/artist-applications/{application}/approve',       [ArtistApplicationController::class, 'approve'])->name('artist-applications.approve');
+        Route::post('/artist-applications/{application}/reject',        [ArtistApplicationController::class, 'reject'])->name('artist-applications.reject');
+
+        // Library — authenticated purchase, entitlement, and admin grant
+        Route::get('/my-books',                          [LibraryController::class, 'myBooks'])->name('books.my');
+        Route::get('/books/{book}/entitlement',          [LibraryController::class, 'entitlement'])->name('books.entitlement');
+        Route::post('/books/{book}/purchase',            [LibraryController::class, 'purchase'])->name('books.purchase');
+        Route::post('/books/{book}/grant',               [LibraryController::class, 'grant'])->name('books.grant');
+
+        // Exhibitions — SDG tagging (gallery staff or admin)
+        Route::put('/exhibitions/{exhibition}/sdg-tags', [ExhibitionController::class, 'tagSdgs'])->name('exhibitions.sdg-tags');
+
+        // Impact events — record against approved SDG claim (admin/operator)
+        Route::post('/sdg-claims/{claim}/impact-events', [ImpactRecordController::class, 'store'])->name('sdg-claims.impact-events.store');
 
         // Domain events — operator only
         Route::middleware('can:viewAny,App\Models\DomainEvent')->group(function (): void {
