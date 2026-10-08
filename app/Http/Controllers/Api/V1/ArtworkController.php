@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Domain\Asset\ActivateArtworkRevision;
 use App\Domain\Asset\CreateArtworkRevision;
+use App\Models\ArtworkRevision;
 use App\Http\Controllers\Controller;
 use App\Models\Artwork;
 use Illuminate\Http\JsonResponse;
@@ -103,5 +105,25 @@ final class ArtworkController extends Controller
         }
 
         return response()->json($revision, 201);
+    }
+
+    /** POST /api/v1/artworks/{artwork}/revisions/{revision}/activate */
+    public function activateRevision(Request $request, Artwork $artwork, ArtworkRevision $revision): JsonResponse
+    {
+        if ($artwork->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
+        if ($revision->artwork_id !== $artwork->id) {
+            abort(404);
+        }
+
+        try {
+            $revision = (new ActivateArtworkRevision())->execute($revision);
+        } catch (\DomainException $e) {
+            abort(422, $e->getMessage());
+        }
+
+        return response()->json($revision);
     }
 }

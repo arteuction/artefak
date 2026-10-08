@@ -17,6 +17,28 @@ use InvalidArgumentException;
 
 final class SellNowOfferController extends Controller
 {
+    /**
+     * GET /api/v1/art-lots/{artLot}/sell-now-offers
+     *
+     * Seller sees all offers on their lot; buyer sees only their own.
+     */
+    public function index(Request $request, ArtLot $artLot): JsonResponse
+    {
+        $userId = $request->user()->id;
+        $query  = $artLot->sellNowOffers()->with('buyer:id,name');
+
+        if ($artLot->consignor_id !== $userId) {
+            // Not the seller — show only own offers
+            $query->where('buyer_id', $userId);
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->input('status'));
+        }
+
+        return response()->json($query->orderByDesc('created_at')->paginate(20));
+    }
+
     /** POST /api/v1/art-lots/{artLot}/sell-now-offers */
     public function store(Request $request, ArtLot $artLot): JsonResponse
     {

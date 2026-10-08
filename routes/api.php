@@ -73,9 +73,11 @@ Route::get('/routes/{route}', [ArtmetroRouteController::class, 'show']);
 */
 Route::prefix('v1')->name('v1.')->group(function (): void {
 
-    // Auth (public)
-    Route::post('/register', [AuthController::class, 'register'])->name('register');
-    Route::post('/login',    [AuthController::class, 'login'])->name('login');
+    // Auth (public, rate-limited: 10 attempts per minute per IP)
+    Route::middleware('throttle:10,1')->group(function (): void {
+        Route::post('/register', [AuthController::class, 'register'])->name('register');
+        Route::post('/login',    [AuthController::class, 'login'])->name('login');
+    });
 
     // Artworks
     Route::get('/artworks',        [ArtworkController::class, 'index'])->name('artworks.index');
@@ -126,12 +128,15 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         // Artworks
         Route::post('/artworks', [ArtworkController::class, 'store'])->name('artworks.store');
         Route::post('/artworks/{artwork}/revisions', [ArtworkController::class, 'storeRevision'])->name('artworks.revisions.store');
+        Route::post('/artworks/{artwork}/revisions/{revision}/activate', [ArtworkController::class, 'activateRevision'])->name('artworks.revisions.activate');
 
         // ArtLots
         Route::post('/art-lots', [ArtLotController::class, 'store'])->name('art-lots.store');
         Route::post('/art-lots/{artLot}/purchase-now', [ArtLotController::class, 'purchaseNow'])->name('art-lots.purchase-now');
 
         // Sell Now offers
+        Route::get('/art-lots/{artLot}/sell-now-offers',  [SellNowOfferController::class, 'index'])
+             ->name('sell-now-offers.index');
         Route::post('/art-lots/{artLot}/sell-now-offers', [SellNowOfferController::class, 'store'])
              ->name('sell-now-offers.store');
         Route::post('/sell-now-offers/{offer}/counter',   [SellNowOfferController::class, 'counter'])
