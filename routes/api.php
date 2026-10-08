@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\AuctionController;
 use App\Http\Controllers\Api\BidController;
 use App\Http\Controllers\Api\V1\ArtistApplicationController;
 use App\Http\Controllers\Api\V1\ArtLotController;
+use App\Http\Controllers\Api\V1\EvidenceController;
 use App\Http\Controllers\Api\V1\ReserveController;
 use App\Http\Controllers\Api\V1\ArtworkController;
 use App\Http\Controllers\Api\V1\AuctionController as V1AuctionController;
@@ -227,6 +228,18 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         // Ownership transfers (party to transfer sees own; admin sees all)
         Route::get('/ownership-transfers',                       [OwnershipTransferController::class, 'index'])->name('ownership-transfers.index');
         Route::get('/ownership-transfers/{ownershipTransfer}',   [OwnershipTransferController::class, 'show'])->name('ownership-transfers.show');
+
+        // Artist profile — create / show own
+        Route::get('/artist-profile',  [ProfileController::class, 'showArtistProfile'])->name('artist-profile.show');
+        Route::post('/artist-profile', [ProfileController::class, 'createArtistProfile'])->name('artist-profile.store');
+
+        // Gallery creation (admin/operator)
+        Route::post('/galleries', [GalleryController::class, 'store'])->name('galleries.store');
+
+        // Evidence — admin/operator listing, show, verify
+        Route::get('/evidence',                   [EvidenceController::class, 'index'])->name('evidence.index');
+        Route::get('/evidence/{evidence}',         [EvidenceController::class, 'show'])->name('evidence.show');
+        Route::post('/evidence/{evidence}/verify', [EvidenceController::class, 'verify'])->name('evidence.verify');
 
         // Artist applications
         Route::get('/artist-applications',                              [ArtistApplicationController::class, 'index'])->name('artist-applications.index');

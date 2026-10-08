@@ -8,9 +8,42 @@ use App\Http\Controllers\Controller;
 use App\Models\Gallery;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 final class GalleryController extends Controller
 {
+    /**
+     * POST /api/v1/galleries
+     *
+     * Admin/operator creates a new gallery.
+     */
+    public function store(Request $request): JsonResponse
+    {
+        if (! in_array($request->user()->role, ['admin', 'operator'], true)) {
+            abort(403);
+        }
+
+        $data = $request->validate([
+            'name'          => ['required', 'string', 'max:200'],
+            'type'          => ['nullable', 'in:private,public,institutional,online'],
+            'venue_id'      => ['nullable', 'integer', 'exists:venues,id'],
+            'website'       => ['nullable', 'url', 'max:500'],
+            'contact_email' => ['nullable', 'email', 'max:200'],
+            'legal_name'    => ['nullable', 'string', 'max:200'],
+            'eik'           => ['nullable', 'string', 'max:20'],
+            'status'        => ['nullable', 'in:active,inactive'],
+        ]);
+
+        $gallery = Gallery::create([
+            ...$data,
+            'slug'   => Str::slug($data['name']) . '-' . time(),
+            'status' => $data['status'] ?? 'active',
+            'type'   => $data['type'] ?? 'private',
+        ]);
+
+        return response()->json($gallery, 201);
+    }
+
     public function index(Request $request): JsonResponse
     {
         $query = Gallery::query();
