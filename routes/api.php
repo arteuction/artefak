@@ -184,9 +184,10 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         Route::get('/me', [ProfileController::class, 'show'])->name('me');
 
         // Donations (donor sees own; admin sees all)
-        Route::get('/donations',             [DonationController::class, 'index'])->name('donations.index');
-        Route::get('/donations/{donation}',  [DonationController::class, 'show'])->name('donations.show');
-        Route::post('/donations',            [DonationController::class, 'store'])->name('donations.store');
+        Route::get('/donations',                      [DonationController::class, 'index'])->name('donations.index');
+        Route::get('/donations/tax-receipt/{year?}',  [DonationController::class, 'taxReceipt'])->name('donations.tax-receipt');
+        Route::get('/donations/{donation}',           [DonationController::class, 'show'])->name('donations.show');
+        Route::post('/donations',                     [DonationController::class, 'store'])->name('donations.store');
 
         // Impact projects — create/update/evidence (admin/operator)
         Route::post('/impact-projects',                                    [ImpactProjectController::class, 'store'])->name('impact-projects.store');
@@ -218,6 +219,7 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
             Route::get('/open-reserves',        [OperationsController::class, 'openReserves'])        ->name('open-reserves');
             Route::get('/active-consignments',  [OperationsController::class, 'activeConsignments'])  ->name('active-consignments');
             Route::get('/fiscal-year/{year?}',  [OperationsController::class, 'fiscalYearSummaries']) ->name('fiscal-year');
+            Route::get('/zkpo-report/{year?}',  [OperationsController::class, 'zkpoReport'])           ->name('zkpo-report');
             Route::get('/consumer-lag',         [OperationsController::class, 'consumerLag'])         ->name('consumer-lag');
         });
     });

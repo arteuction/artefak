@@ -8,6 +8,7 @@ use App\Domain\Donation\RecordDonation;
 use App\Http\Controllers\Controller;
 use App\Models\Donation;
 use App\Models\DonationRecipient;
+use App\Models\DonorFiscalYear;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use InvalidArgumentException;
@@ -75,5 +76,37 @@ final class DonationController extends Controller
         }
 
         return response()->json(['data' => $donation], 201);
+    }
+
+    /**
+     * GET /api/v1/donations/tax-receipt/{year?}
+     *
+     * Donor's own ЗКПО чл.31 documentation for the given fiscal year.
+     * Returns the DonorFiscalYear record and itemized confirmed donations.
+     */
+    public function taxReceipt(Request $request, int $year = 0): JsonResponse
+    {
+        if ($year === 0) {
+            $year = (int) now()->format('Y');
+        }
+
+        $user = $request->user();
+
+        $fiscal = DonorFiscalYear::where('donor_id', $user->id)
+            ->where('fiscal_year', $year)
+            ->first();
+
+        $donations = Donation::where('donor_id', $user->id)
+            ->where('status', 'confirmed')
+            ->whereYear('donated_at', $year)
+            ->with('recipient:id,name,eik')
+            ->orderBy('donated_at')
+            ->get(['id', 'donation_recipient_id', 'donated_cents', 'currency', 'impact_project_id', 'donated_at']);
+
+        return response()->json([
+            'fiscal_year'  => $year,
+            'summary'      => $fiscal,
+            'donations'    => $donations,
+        ]);
     }
 }

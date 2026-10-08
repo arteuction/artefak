@@ -166,6 +166,75 @@ final class OperationsController extends Controller
         return response()->json(['data' => $summaries]);
     }
 
+    /**
+     * ЗКПО чл.31 tax report — deductible donation summary for a fiscal year.
+     *
+     * GET /api/v1/ops/zkpo-report/{year?}
+     *
+     * Returns:
+     *   fiscal_year                  — the year being reported
+     *   total_donations_cents        — sum of all confirmed donations that year
+     *   total_deductible_cents       — max deductible amount (10% rule per donor, 65% rule for corp)
+     *   donors_with_documentation    — donors who submitted tax documentation
+     *   eligible_basis_breakdown     — count by eligibility_basis (individual | corporate | ngo)
+     *   per_project                  — donation totals per ImpactProject
+     */
+    public function zkpoReport(int $year = 0): JsonResponse
+    {
+        if ($year === 0) {
+            $year = (int) now()->format('Y');
+        }
+
+        $totals = DB::table('donor_fiscal_years')
+            ->where('fiscal_year', $year)
+            ->selectRaw('
+                SUM(aggregate_donated_cents)        AS total_donated_cents,
+                SUM(aggregate_max_deductible_cents) AS total_deductible_cents,
+                SUM(donation_count)                 AS total_donations,
+                COUNT(DISTINCT donor_id)            AS total_donors
+            ')
+            ->first();
+
+        $basisBreakdown = DB::table('donor_fiscal_years')
+            ->where('fiscal_year', $year)
+            ->selectRaw('eligibility_basis, COUNT(*) AS cnt, SUM(aggregate_donated_cents) AS donated_cents')
+            ->groupBy('eligibility_basis')
+            ->get();
+
+        $docStatus = DB::table('donor_fiscal_years')
+            ->where('fiscal_year', $year)
+            ->selectRaw('documentation_status, COUNT(*) AS cnt')
+            ->groupBy('documentation_status')
+            ->pluck('cnt', 'documentation_status');
+
+        $perProject = DB::table('donations')
+            ->join('impact_projects', 'impact_projects.id', '=', 'donations.impact_project_id')
+            ->whereYear('donations.donated_at', $year)
+            ->where('donations.status', 'confirmed')
+            ->whereNotNull('donations.impact_project_id')
+            ->selectRaw('
+                impact_projects.id,
+                impact_projects.title,
+                impact_projects.slug,
+                SUM(donations.donated_cents) AS total_donated_cents,
+                COUNT(*)                     AS donation_count
+            ')
+            ->groupBy('impact_projects.id', 'impact_projects.title', 'impact_projects.slug')
+            ->orderByDesc('total_donated_cents')
+            ->get();
+
+        return response()->json([
+            'fiscal_year'               => $year,
+            'total_donated_cents'       => (int) ($totals->total_donated_cents ?? 0),
+            'total_deductible_cents'    => (int) ($totals->total_deductible_cents ?? 0),
+            'total_donations'           => (int) ($totals->total_donations ?? 0),
+            'total_donors'              => (int) ($totals->total_donors ?? 0),
+            'documentation_status'      => $docStatus,
+            'eligibility_basis'         => $basisBreakdown,
+            'per_project'               => $perProject,
+        ]);
+    }
+
     private function pendingDomainEventCount(): int
     {
         // Domain events not yet recorded in any consumer inbox
