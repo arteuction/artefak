@@ -31,11 +31,40 @@ class ArtifactController extends Controller
     {
         $artifact = ArtmetroArtifact::where('qr_token', $qrToken)
             ->where('is_active', true)
-            ->with('exhibition:id,title')
+            ->with([
+                'exhibition:id,title',
+                'artLot:id,status,sale_mode,buy_now_price_cents,buy_now_expires_at,currency,starting_bid_cents',
+                'artLot.auctionItem:id,auction_lot_id,status,current_bid_cents,next_bid_cents',
+                'artLot.auctionItem.auction:id,ends_at',
+            ])
             ->first();
 
         if ($artifact === null) {
             return response()->json(['message' => 'Artifact not found.'], 404);
+        }
+
+        $lot     = $artifact->artLot;
+        $saleData = null;
+
+        if ($lot !== null) {
+            $item    = $lot->auctionItem ?? null;
+            $auction = $item?->auction;
+
+            $saleData = [
+                'lot_id'               => $lot->id,
+                'status'               => $lot->status,
+                'sale_mode'            => $lot->sale_mode,
+                'currency'             => $lot->currency,
+                'buy_now_price_cents'  => $lot->buy_now_price_cents,
+                'buy_now_expires_at'   => $lot->buy_now_expires_at,
+                'auction_item'         => $item ? [
+                    'id'                => $item->id,
+                    'status'            => $item->status,
+                    'current_bid_cents' => $item->current_bid_cents,
+                    'next_bid_cents'    => $item->next_bid_cents,
+                    'ends_at'           => $auction?->ends_at,
+                ] : null,
+            ];
         }
 
         return response()->json([
@@ -48,6 +77,7 @@ class ArtifactController extends Controller
                     'id'    => $artifact->exhibition_id,
                     'title' => $artifact->exhibition?->title,
                 ],
+                'sale'         => $saleData,
             ],
         ]);
     }

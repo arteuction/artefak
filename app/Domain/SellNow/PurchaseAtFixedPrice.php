@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\SellNow;
 
+use App\Domain\Asset\CloseArtLot;
 use App\Models\ArtLot;
 use App\Models\SellNowOffer;
 use App\Models\User;
@@ -21,14 +22,31 @@ final class PurchaseAtFixedPrice
             throw new InvalidArgumentException('ArtLot has no fixed buy-now price set.');
         }
 
-        return SellNowOffer::create([
+        // Hybrid lots: buy-now window may have expired
+        if ($artLot->buy_now_expires_at !== null && now()->gt($artLot->buy_now_expires_at)) {
+            throw new InvalidArgumentException('The Buy Now window for this lot has expired.');
+        }
+
+        $price = $artLot->buy_now_price_cents;
+
+        $offer = SellNowOffer::create([
             'art_lot_id'          => $artLot->id,
             'buyer_id'            => $buyer->id,
             'gallery_id'          => $galleryId,
-            'offered_price_cents' => $artLot->buy_now_price_cents,
-            'agreed_price_cents'  => $artLot->buy_now_price_cents,
+            'offered_price_cents' => $price,
+            'agreed_price_cents'  => $price,
             'currency'            => $artLot->currency ?? 'EUR',
             'status'              => 'accepted',
         ]);
+
+        (new CloseArtLot())->execute(
+            artLot:         $artLot,
+            outcome:        CloseArtLot::STATUS_SOLD,
+            soldPriceCents: $price,
+            buyerId:        $buyer->id,
+            idempotencyKey: "art_lot.sold.purchase_now:{$artLot->id}:{$offer->id}",
+        );
+
+        return $offer;
     }
 }

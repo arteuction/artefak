@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\SellNow;
 
+use App\Domain\Asset\CloseArtLot;
 use App\Domain\Outbox\AppendDomainEvent;
 use App\Models\SellNowOffer;
 use InvalidArgumentException;
@@ -37,6 +38,14 @@ final class AcceptOffer
                     'currency'           => $offer->currency,
                 ],
                 idempotencyKey: "offer.accepted:{$offer->id}",
+            );
+
+            (new CloseArtLot())->execute(
+                artLot:         $artLot,
+                outcome:        CloseArtLot::STATUS_SOLD,
+                soldPriceCents: $agreedPrice,
+                buyerId:        $offer->buyer_id,
+                idempotencyKey: "art_lot.sold.offer:{$artLot->id}:{$offer->id}",
             );
         }
 

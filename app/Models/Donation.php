@@ -63,6 +63,11 @@ final class Donation extends Model
         return $this->belongsTo(Donation::class, 'reverses_donation_id');
     }
 
+    public function impactProject(): BelongsTo
+    {
+        return $this->belongsTo(ImpactProject::class);
+    }
+
     public function isPending(): bool
     {
         return $this->status === 'pending';

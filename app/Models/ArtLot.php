@@ -20,6 +20,7 @@ final class ArtLot extends Model
         'artwork_revision_id',
         'estimate_low_cents', 'estimate_high_cents',
         'published_at', 'closed_at',
+        'buy_now_expires_at',
     ];
 
     protected function casts(): array
@@ -32,6 +33,7 @@ final class ArtLot extends Model
             'estimate_high_cents'  => 'integer',
             'published_at'         => 'datetime',
             'closed_at'            => 'datetime',
+            'buy_now_expires_at'   => 'datetime',
         ];
     }
 
