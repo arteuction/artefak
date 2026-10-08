@@ -62,4 +62,9 @@ final class ArtLot extends Model
     {
         return $this->hasMany(AuctionItem::class);
     }
+
+    public function ownershipTransfers(): HasMany
+    {
+        return $this->hasMany(OwnershipTransfer::class);
+    }
 }
