@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\BidController;
 use App\Http\Controllers\Api\V1\ArtLotController;
 use App\Http\Controllers\Api\V1\ArtworkController;
 use App\Http\Controllers\Api\V1\AuctionController as V1AuctionController;
+use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CollectionController;
 use App\Http\Controllers\Api\V1\ConsignmentController;
 use App\Http\Controllers\Api\V1\DonationController;
@@ -72,6 +73,10 @@ Route::get('/routes/{route}', [ArtmetroRouteController::class, 'show']);
 */
 Route::prefix('v1')->name('v1.')->group(function (): void {
 
+    // Auth (public)
+    Route::post('/register', [AuthController::class, 'register'])->name('register');
+    Route::post('/login',    [AuthController::class, 'login'])->name('login');
+
     // Artworks
     Route::get('/artworks',        [ArtworkController::class, 'index'])->name('artworks.index');
     Route::get('/artworks/{artwork}', [ArtworkController::class, 'show'])->name('artworks.show');
@@ -106,6 +111,7 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
     Route::get('/impact-projects',                    [ImpactProjectController::class, 'index'])->name('impact-projects.index');
     Route::get('/impact-projects/{impactProject}',    [ImpactProjectController::class, 'show'])->name('impact-projects.show');
 
+
     // Collections (public show for unlisted/public; authenticated for index/store/manage)
     Route::get('/collections/{collection}', [CollectionController::class, 'show'])->name('collections.show');
 
@@ -119,6 +125,7 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
 
         // Artworks
         Route::post('/artworks', [ArtworkController::class, 'store'])->name('artworks.store');
+        Route::post('/artworks/{artwork}/revisions', [ArtworkController::class, 'storeRevision'])->name('artworks.revisions.store');
 
         // ArtLots
         Route::post('/art-lots', [ArtLotController::class, 'store'])->name('art-lots.store');
@@ -158,6 +165,9 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         Route::post('/watchlist',                     [WatchlistController::class, 'store'])->name('watchlist.store');
         Route::delete('/watchlist/{type}/{id}',       [WatchlistController::class, 'destroy'])->name('watchlist.destroy');
 
+        // Auth — logout
+        Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+
         // Me (current user profile)
         Route::get('/me', [ProfileController::class, 'show'])->name('me');
 
@@ -165,6 +175,9 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         Route::get('/donations',             [DonationController::class, 'index'])->name('donations.index');
         Route::get('/donations/{donation}',  [DonationController::class, 'show'])->name('donations.show');
         Route::post('/donations',            [DonationController::class, 'store'])->name('donations.store');
+
+        // Impact projects — create (admin/operator)
+        Route::post('/impact-projects',      [ImpactProjectController::class, 'store'])->name('impact-projects.store');
 
         // Ownership transfers (party to transfer sees own; admin sees all)
         Route::get('/ownership-transfers',                       [OwnershipTransferController::class, 'index'])->name('ownership-transfers.index');

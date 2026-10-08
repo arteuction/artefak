@@ -38,6 +38,25 @@ final class ImpactProjectController extends Controller
         return response()->json($impactProject);
     }
 
+    /** POST /api/v1/impact-projects */
+    public function store(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'title'                => ['required', 'string', 'max:200'],
+            'slug'                 => ['required', 'string', 'max:200', 'unique:impact_projects,slug'],
+            'description'          => ['nullable', 'string'],
+            'sdg_number'           => ['required', 'integer', 'min:1', 'max:17'],
+            'funding_target_cents' => ['nullable', 'integer', 'min:0'],
+            'status'               => ['nullable', 'in:planned,active,completed,paused'],
+            'starts_on'            => ['nullable', 'date'],
+            'ends_on'              => ['nullable', 'date', 'after_or_equal:starts_on'],
+        ]);
+
+        $project = ImpactProject::create($data);
+
+        return response()->json($project, 201);
+    }
+
     /**
      * GET /api/v1/impact-projects/stats
      *

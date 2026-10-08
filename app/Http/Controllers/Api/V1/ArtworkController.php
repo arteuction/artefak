@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Domain\Asset\CreateArtworkRevision;
 use App\Http\Controllers\Controller;
 use App\Models\Artwork;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use InvalidArgumentException;
 
 final class ArtworkController extends Controller
 {
@@ -65,5 +67,41 @@ final class ArtworkController extends Controller
         ]);
 
         return response()->json($artwork, 201);
+    }
+
+    /** POST /api/v1/artworks/{artwork}/revisions */
+    public function storeRevision(Request $request, Artwork $artwork): JsonResponse
+    {
+        if ($artwork->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
+        $data = $request->validate([
+            'title'             => ['required', 'string', 'max:255'],
+            'reason'            => ['required', 'in:initial,correction,restoration_documented,attribution_updated,provenance_expanded,certificate_added'],
+            'year_created'      => ['nullable', 'integer', 'min:1000', 'max:2100'],
+            'medium'            => ['nullable', 'string', 'max:200'],
+            'dimensions_notes'  => ['nullable', 'string', 'max:200'],
+            'description'       => ['nullable', 'string'],
+            'edition_info'      => ['nullable', 'string', 'max:100'],
+        ]);
+
+        try {
+            $revision = (new CreateArtworkRevision())->execute(
+                artwork:          $artwork,
+                revisedBy:        $request->user(),
+                title:            $data['title'],
+                reason:           $data['reason'],
+                yearCreated:      isset($data['year_created']) ? (int) $data['year_created'] : null,
+                medium:           $data['medium'] ?? null,
+                dimensionsNotes:  $data['dimensions_notes'] ?? null,
+                description:      $data['description'] ?? null,
+                editionInfo:      $data['edition_info'] ?? null,
+            );
+        } catch (InvalidArgumentException $e) {
+            abort(422, $e->getMessage());
+        }
+
+        return response()->json($revision, 201);
     }
 }
