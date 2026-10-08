@@ -44,6 +44,32 @@ final class GalleryStaffController extends Controller
         return response()->json($member, 201);
     }
 
+    /**
+     * PATCH /api/v1/galleries/{gallery}/staff/{staffMember}
+     *
+     * Update a staff member's role. Requires gallery manager or admin.
+     */
+    public function update(Request $request, Gallery $gallery, \App\Models\GalleryStaff $staffMember): JsonResponse
+    {
+        abort_if($staffMember->gallery_id !== $gallery->id, 404);
+
+        $actingUser = $request->user();
+        $isAdmin    = in_array($actingUser->role, ['admin', 'operator'], true);
+        $isManager  = $gallery->hasRole($actingUser, 'manager') || $gallery->hasRole($actingUser, 'owner');
+
+        if (! $isAdmin && ! $isManager) {
+            abort(403);
+        }
+
+        $data = $request->validate([
+            'role' => ['required', 'in:owner,finance,curator,sales'],
+        ]);
+
+        $staffMember->update($data);
+
+        return response()->json($staffMember->fresh()->load('user:id,name'));
+    }
+
     /** DELETE /api/v1/galleries/{gallery}/staff/{user} */
     public function destroy(Request $request, Gallery $gallery, User $user): JsonResponse
     {

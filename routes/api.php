@@ -36,6 +36,7 @@ use App\Http\Controllers\Api\V1\AdminAuditLogController;
 use App\Http\Controllers\Api\V1\DonationRecipientController;
 use App\Http\Controllers\Api\V1\ArtmetroAdminController;
 use App\Http\Controllers\Api\V1\BookAuthorController;
+use App\Http\Controllers\Api\V1\SplitProfileController;
 use App\Http\Controllers\Api\V1\UserAdminController;
 use App\Http\Controllers\Api\V1\ReconciliationController;
 use App\Http\Controllers\Api\V1\SettlementController;
@@ -200,6 +201,7 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
 
         // Gallery staff management (owner-only mutations; read is public above)
         Route::post('/galleries/{gallery}/staff',          [GalleryStaffController::class, 'store'])->name('galleries.staff.store');
+        Route::patch('/galleries/{gallery}/staff/{staffMember}',  [GalleryStaffController::class, 'update'])->name('galleries.staff.update');
         Route::delete('/galleries/{gallery}/staff/{user}', [GalleryStaffController::class, 'destroy'])->name('galleries.staff.destroy');
 
         // Collections
@@ -313,6 +315,11 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         Route::get('/admin/users',          [UserAdminController::class, 'index'])->name('admin.users.index');
         Route::get('/admin/users/{user}',   [UserAdminController::class, 'show'])->name('admin.users.show');
         Route::patch('/admin/users/{user}', [UserAdminController::class, 'update'])->name('admin.users.update');
+
+        // Split profiles — admin create, list, deprecate
+        Route::get('/admin/split-profiles',               [SplitProfileController::class, 'index'])->name('admin.split-profiles.index');
+        Route::post('/admin/split-profiles',              [SplitProfileController::class, 'store'])->name('admin.split-profiles.store');
+        Route::patch('/admin/split-profiles/{id}/deprecate', [SplitProfileController::class, 'deprecate'])->name('admin.split-profiles.deprecate');
         Route::patch('/books/{book}/unpublish', [LibraryController::class, 'unpublish'])->name('books.unpublish');
 
         // Library — authenticated purchase, entitlement, and admin grant
