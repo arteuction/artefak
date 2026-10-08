@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\V1\DomainEventController;
 use App\Http\Controllers\Api\V1\ExhibitionController;
 use App\Http\Controllers\Api\V1\GalleryController;
 use App\Http\Controllers\Api\V1\GalleryStaffController;
+use App\Http\Controllers\Api\V1\SdgClaimController;
 use App\Http\Controllers\Api\V1\ImpactEventController;
 use App\Http\Controllers\Api\V1\ImpactProjectController;
 use App\Http\Controllers\Api\V1\OperationsController;
@@ -92,9 +93,13 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
     Route::get('/art-lots/{artLot}/bids',      [ArtLotController::class, 'bids'])->name('art-lots.bids');
 
     // Galleries (public read)
-    Route::get('/galleries',            [GalleryController::class, 'index'])->name('galleries.index');
-    Route::get('/galleries/{gallery}',  [GalleryController::class, 'show'])->name('galleries.show');
-    Route::get('/galleries/{gallery}/staff', [GalleryStaffController::class, 'index'])->name('galleries.staff.index');
+    Route::get('/galleries',                    [GalleryController::class, 'index'])->name('galleries.index');
+    Route::get('/galleries/{gallery}',          [GalleryController::class, 'show'])->name('galleries.show');
+    Route::get('/galleries/{gallery}/profile',  [GalleryController::class, 'profile'])->name('galleries.profile');
+    Route::get('/galleries/{gallery}/staff',    [GalleryStaffController::class, 'index'])->name('galleries.staff.index');
+
+    // SDG claims (public read — approved only)
+    Route::get('/artworks/{artwork}/sdg-claims', [SdgClaimController::class, 'index'])->name('artworks.sdg-claims.index');
 
     // Venues (public read)
     Route::get('/venues',         [VenueController::class, 'index'])->name('venues.index');
@@ -112,6 +117,7 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
     Route::get('/impact-projects/stats',              [ImpactProjectController::class, 'stats'])->name('impact-projects.stats');
     Route::get('/impact-projects',                    [ImpactProjectController::class, 'index'])->name('impact-projects.index');
     Route::get('/impact-projects/{impactProject}',    [ImpactProjectController::class, 'show'])->name('impact-projects.show');
+    Route::get('/impact-projects/{impactProject}/evidence', [ImpactProjectController::class, 'indexEvidence'])->name('impact-projects.evidence.index');
 
 
     // Collections (public show for unlisted/public; authenticated for index/store/manage)
@@ -181,8 +187,14 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         Route::get('/donations/{donation}',  [DonationController::class, 'show'])->name('donations.show');
         Route::post('/donations',            [DonationController::class, 'store'])->name('donations.store');
 
-        // Impact projects — create (admin/operator)
-        Route::post('/impact-projects',      [ImpactProjectController::class, 'store'])->name('impact-projects.store');
+        // Impact projects — create/update/evidence (admin/operator)
+        Route::post('/impact-projects',                                    [ImpactProjectController::class, 'store'])->name('impact-projects.store');
+        Route::patch('/impact-projects/{impactProject}',                   [ImpactProjectController::class, 'update'])->name('impact-projects.update');
+        Route::post('/impact-projects/{impactProject}/evidence',           [ImpactProjectController::class, 'storeEvidence'])->name('impact-projects.evidence.store');
+
+        // SDG claims — submit (artwork owner) + review (admin/operator)
+        Route::post('/artworks/{artwork}/sdg-claims',                           [SdgClaimController::class, 'store'])->name('artworks.sdg-claims.store');
+        Route::post('/artworks/{artwork}/sdg-claims/{claim}/review',            [SdgClaimController::class, 'review'])->name('artworks.sdg-claims.review');
 
         // Ownership transfers (party to transfer sees own; admin sees all)
         Route::get('/ownership-transfers',                       [OwnershipTransferController::class, 'index'])->name('ownership-transfers.index');

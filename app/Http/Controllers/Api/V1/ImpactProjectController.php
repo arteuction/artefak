@@ -57,6 +57,63 @@ final class ImpactProjectController extends Controller
         return response()->json($project, 201);
     }
 
+    /** GET /api/v1/impact-projects/{impactProject}/evidence */
+    public function indexEvidence(ImpactProject $impactProject): JsonResponse
+    {
+        $evidence = Evidence::where('impact_project_id', $impactProject->id)
+            ->orderByDesc('created_at')
+            ->paginate(20);
+
+        return response()->json($evidence);
+    }
+
+    /** PATCH /api/v1/impact-projects/{impactProject} */
+    public function update(Request $request, ImpactProject $impactProject): JsonResponse
+    {
+        $data = $request->validate([
+            'title'                => ['sometimes', 'string', 'max:200'],
+            'description'          => ['sometimes', 'nullable', 'string'],
+            'sdg_number'           => ['sometimes', 'integer', 'min:1', 'max:17'],
+            'funding_target_cents' => ['sometimes', 'nullable', 'integer', 'min:0'],
+            'status'               => ['sometimes', 'in:planned,active,completed,paused'],
+            'starts_on'            => ['sometimes', 'nullable', 'date'],
+            'ends_on'              => ['sometimes', 'nullable', 'date', 'after_or_equal:starts_on'],
+        ]);
+
+        $impactProject->update($data);
+
+        return response()->json($impactProject->fresh());
+    }
+
+    /**
+     * POST /api/v1/impact-projects/{impactProject}/evidence
+     *
+     * Attach a new evidence record to this project.
+     * Evidence is polymorphic — subject is the ImpactProject itself.
+     */
+    public function storeEvidence(Request $request, ImpactProject $impactProject): JsonResponse
+    {
+        $data = $request->validate([
+            'type'          => ['required', 'in:authenticity,provenance,condition,payment,donation,ownership,delivery,impact'],
+            'subtype'       => ['nullable', 'string', 'max:60'],
+            'document_path' => ['nullable', 'string', 'max:500'],
+            'document_mime' => ['nullable', 'string', 'max:100'],
+            'issuer'        => ['nullable', 'string', 'max:200'],
+            'issued_at'     => ['nullable', 'date'],
+            'notes'         => ['nullable', 'string'],
+        ]);
+
+        $evidence = Evidence::create([
+            ...$data,
+            'subject_type'      => $impactProject->getMorphClass(),
+            'subject_id'        => $impactProject->id,
+            'impact_project_id' => $impactProject->id,
+            'verification_status' => 'pending',
+        ]);
+
+        return response()->json($evidence, 201);
+    }
+
     /**
      * GET /api/v1/impact-projects/stats
      *
