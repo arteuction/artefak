@@ -62,6 +62,30 @@ final class AuctionItem extends Model
         return $query->where('status', 'open');
     }
 
+    /**
+     * Server-authoritative open check.
+     *
+     * Status alone is insufficient: there is a race window between the moment
+     * the auction's ends_at passes and the time CloseAuctionItem runs.  Any
+     * bid accepted in that window would be after the hammer fell.
+     *
+     * Rule: status must be 'open' AND auction.ends_at must be in the future.
+     * The browser timer is display-only and MUST NOT be the gate.
+     */
+    public function isOpenForBidding(): bool
+    {
+        if ($this->status !== 'open') {
+            return false;
+        }
+
+        $endsAt = $this->auction?->ends_at;
+        if ($endsAt === null) {
+            return false;
+        }
+
+        return now()->lt($endsAt);
+    }
+
     /** Next minimum bid in cents. Starting bid lives on ArtLot. */
     public function nextBidCents(): int
     {

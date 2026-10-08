@@ -40,6 +40,7 @@ final class AdversarialAuctionTest extends TestCase
 
     private User         $bidder;
     private User         $bidder2;
+    private Auction      $auction;
     private AuctionItem  $item;
     private StripeClient $stripe;
 
@@ -52,7 +53,7 @@ final class AdversarialAuctionTest extends TestCase
         $locality     = GeoLocality::create(['geo_municipality_id' => $municipality->id, 'name' => 'Sofia', 'slug' => 'sofia-68134', 'ekatte' => '68134', 'type' => 'city']);
         $venue        = Venue::create(['name' => 'Gallery', 'slug' => 'gallery', 'type' => 'private', 'geo_locality_id' => $locality->id]);
 
-        $auction = Auction::create([
+        $this->auction = Auction::create([
             'title'     => 'Adversarial Auction',
             'slug'      => 'adversarial-auction',
             'venue_id'  => $venue->id,
@@ -79,7 +80,7 @@ final class AdversarialAuctionTest extends TestCase
         ]);
 
         $this->item = AuctionItem::create([
-            'auction_id'          => $auction->id,
+            'auction_id'          => $this->auction->id,
             'art_lot_id'          => $artLot->id,
             'lot_number'          => 1,
             'bid_increment_cents' => 1000,
@@ -336,6 +337,50 @@ final class AdversarialAuctionTest extends TestCase
         }
 
         $this->assertSame($before, Bid::count(), 'No bid row should be created when Stripe throws');
+    }
+
+    // -----------------------------------------------------------------------
+    // Server-authoritative clock tests (Phase 14C)
+    // -----------------------------------------------------------------------
+
+    /**
+     * Bid rejected when auction ends_at is in the past but status is still 'open'.
+     * This is the race window CloseAuctionItem has not yet run.
+     */
+    public function test_bid_rejected_when_auction_time_expired_but_status_open(): void
+    {
+        // Wind the auction's ends_at into the past while keeping status 'open'
+        $this->auction->update(['ends_at' => now()->subMinutes(5)]);
+        $this->item->unsetRelation('auction'); // force reload
+
+        $this->expectException(BidRejected::class);
+
+        (new PlaceBid($this->makeStripeMock()))->execute(
+            item:                  $this->item,
+            bidderId:              $this->bidder->id,
+            amountCents:           10000,
+            stripePaymentMethodId: 'pm_expired_clock',
+        );
+    }
+
+    public function test_auction_item_is_open_for_bidding_uses_server_clock(): void
+    {
+        // Live auction — open
+        $this->assertTrue($this->item->isOpenForBidding());
+
+        // Expire the auction
+        $this->auction->update(['ends_at' => now()->subSecond()]);
+        $this->item->unsetRelation('auction');
+
+        $this->assertFalse($this->item->isOpenForBidding());
+    }
+
+    public function test_auction_item_not_open_when_status_closed_regardless_of_clock(): void
+    {
+        // Status closed, time still valid
+        $this->item->update(['status' => 'sold']);
+
+        $this->assertFalse($this->item->isOpenForBidding());
     }
 
     // -----------------------------------------------------------------------

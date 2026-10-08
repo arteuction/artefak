@@ -39,7 +39,9 @@ final class PlaceBid
             /** @var AuctionItem $locked */
             $locked = AuctionItem::lockForUpdate()->findOrFail($item->id);
 
-            if ($locked->status !== 'open') {
+            // Server-authoritative clock check: status alone is not sufficient.
+            // ends_at may have passed while CloseAuctionItem is still pending.
+            if (! $locked->isOpenForBidding()) {
                 throw new BidRejected("Lot #{$locked->lot_number} is not open for bidding.");
             }
 
