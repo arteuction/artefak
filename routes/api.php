@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\AuctionController;
 use App\Http\Controllers\Api\BidController;
 use App\Http\Controllers\Api\V1\ArtistApplicationController;
 use App\Http\Controllers\Api\V1\ArtLotController;
+use App\Http\Controllers\Api\V1\ReserveController;
 use App\Http\Controllers\Api\V1\ArtworkController;
 use App\Http\Controllers\Api\V1\AuctionController as V1AuctionController;
 use App\Http\Controllers\Api\V1\AuthController;
@@ -235,10 +236,19 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         Route::post('/artist-applications/{application}/reject',        [ArtistApplicationController::class, 'reject'])->name('artist-applications.reject');
 
         // Library — authenticated purchase, entitlement, and admin grant
-        Route::get('/my-books',                          [LibraryController::class, 'myBooks'])->name('books.my');
-        Route::get('/books/{book}/entitlement',          [LibraryController::class, 'entitlement'])->name('books.entitlement');
-        Route::post('/books/{book}/purchase',            [LibraryController::class, 'purchase'])->name('books.purchase');
-        Route::post('/books/{book}/grant',               [LibraryController::class, 'grant'])->name('books.grant');
+        Route::get('/my-books',                                        [LibraryController::class, 'myBooks'])->name('books.my');
+        Route::get('/books/{book}/entitlement',                        [LibraryController::class, 'entitlement'])->name('books.entitlement');
+        Route::post('/books/{book}/purchase',                          [LibraryController::class, 'purchase'])->name('books.purchase');
+        Route::post('/books/{book}/grant',                             [LibraryController::class, 'grant'])->name('books.grant');
+        Route::delete('/book-entitlements/{bookEntitlement}',          [LibraryController::class, 'revokeEntitlement'])->name('books.entitlements.revoke');
+
+        // Reserves — seller decision after reserve not met
+        Route::get('/reserves/{reserve}',                              [ReserveController::class, 'show'])->name('reserves.show');
+        Route::post('/reserves/{reserve}/waive',                       [ReserveController::class, 'waive'])->name('reserves.waive');
+        Route::post('/reserves/{reserve}/counter-offer',               [ReserveController::class, 'counterOffer'])->name('reserves.counter-offer');
+
+        // Max bid (proxy bidding)
+        Route::post('/auctions/{auction}/items/{item}/max-bid',        [V1AuctionController::class, 'placeMaxBid'])->name('auctions.items.max-bid');
 
         // Exhibitions — SDG tagging (gallery staff or admin)
         Route::put('/exhibitions/{exhibition}/sdg-tags', [ExhibitionController::class, 'tagSdgs'])->name('exhibitions.sdg-tags');

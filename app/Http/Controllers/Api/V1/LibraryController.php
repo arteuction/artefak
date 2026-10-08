@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\Library\GrantBookEntitlement;
+use App\Domain\Library\RevokeBookEntitlement;
 use App\Http\Controllers\Controller;
 use App\Models\Book;
 use App\Models\BookEntitlement;
@@ -161,6 +162,22 @@ final class LibraryController extends Controller
         }
 
         return response()->json(['entitlement' => $entitlement]);
+    }
+
+    /**
+     * DELETE /api/v1/book-entitlements/{entitlement}
+     *
+     * Admin-only: revoke a book entitlement.
+     */
+    public function revokeEntitlement(Request $request, BookEntitlement $bookEntitlement): JsonResponse
+    {
+        if (! in_array($request->user()->role, ['admin', 'operator'], true)) {
+            abort(403);
+        }
+
+        (new RevokeBookEntitlement())->forAdmin($bookEntitlement);
+
+        return response()->json(['message' => 'Entitlement revoked.']);
     }
 
     /**
