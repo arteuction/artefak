@@ -239,6 +239,7 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
             Route::get('/fiscal-year/{year?}',  [OperationsController::class, 'fiscalYearSummaries']) ->name('fiscal-year');
             Route::get('/zkpo-report/{year?}',  [OperationsController::class, 'zkpoReport'])           ->name('zkpo-report');
             Route::get('/consumer-lag',         [OperationsController::class, 'consumerLag'])         ->name('consumer-lag');
+            Route::post('/transfer-outbox/{id}/retry', [OperationsController::class, 'retryTransfer'])->name('transfer-outbox.retry');
         });
     });
 });

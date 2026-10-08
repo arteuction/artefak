@@ -152,6 +152,37 @@ final class OperationsController extends Controller
         return response()->json(['data' => $metrics]);
     }
 
+    /**
+     * POST /api/v1/ops/transfer-outbox/{id}/retry
+     *
+     * Reset a failed transfer_outbox row back to 'pending' so the worker retries it.
+     * A new stripe_idempotency_key suffix is appended to prevent key reuse.
+     */
+    public function retryTransfer(int $id): JsonResponse
+    {
+        $row = DB::table('transfer_outbox')->find($id);
+
+        if (! $row) {
+            abort(404, "Transfer outbox row #{$id} not found.");
+        }
+
+        if ($row->status !== 'failed') {
+            abort(422, "Row #{$id} has status '{$row->status}'; only 'failed' rows can be retried.");
+        }
+
+        DB::table('transfer_outbox')
+            ->where('id', $id)
+            ->update([
+                'status'                 => 'pending',
+                'stripe_idempotency_key' => $row->stripe_idempotency_key . '_retry_' . now()->timestamp,
+                'next_attempt_at'        => now(),
+                'last_error'             => null,
+                'updated_at'             => now(),
+            ]);
+
+        return response()->json(['message' => "Row #{$id} reset to pending for retry."]);
+    }
+
     /** Fiscal-year summaries for the given year (defaults to current). */
     public function fiscalYearSummaries(int $year = 0): JsonResponse
     {
