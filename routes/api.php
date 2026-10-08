@@ -33,6 +33,7 @@ use App\Http\Controllers\Api\V1\PayoutController;
 use App\Http\Controllers\Api\V1\SellNowOfferController;
 use App\Http\Controllers\Api\V1\VenueController;
 use App\Http\Controllers\Api\V1\AdminAuditLogController;
+use App\Http\Controllers\Api\V1\DonationRecipientController;
 use App\Http\Controllers\Api\V1\ArtmetroAdminController;
 use App\Http\Controllers\Api\V1\ReconciliationController;
 use App\Http\Controllers\Api\V1\SettlementController;
@@ -131,6 +132,10 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
     // Impact events (public read)
     Route::get('/impact-events',                  [ImpactEventController::class, 'index'])->name('impact-events.index');
     Route::get('/impact-events/{impactEvent}',    [ImpactEventController::class, 'show'])->name('impact-events.show');
+
+    // Donation recipients (public: active list; admin: all)
+    Route::get('/donation-recipients',                [DonationRecipientController::class, 'index'])->name('donation-recipients.index');
+    Route::get('/donation-recipients/{donationRecipient}', [DonationRecipientController::class, 'show'])->name('donation-recipients.show');
 
     // Impact projects (public read + public stats)
     Route::get('/impact-projects/stats',              [ImpactProjectController::class, 'stats'])->name('impact-projects.stats');
@@ -268,6 +273,10 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         Route::post('/artist-applications',                             [ArtistApplicationController::class, 'store'])->name('artist-applications.store');
         Route::post('/artist-applications/{application}/approve',       [ArtistApplicationController::class, 'approve'])->name('artist-applications.approve');
         Route::post('/artist-applications/{application}/reject',        [ArtistApplicationController::class, 'reject'])->name('artist-applications.reject');
+
+        // Donation recipients — admin create/update
+        Route::post('/donation-recipients',                          [DonationRecipientController::class, 'store'])->name('donation-recipients.store');
+        Route::patch('/donation-recipients/{donationRecipient}',     [DonationRecipientController::class, 'update'])->name('donation-recipients.update');
 
         // Admin audit log (admin/operator)
         Route::get('/admin/audit-log',          [AdminAuditLogController::class, 'index'])->name('admin.audit-log.index');
