@@ -74,6 +74,21 @@ final class ArtLotController extends Controller
     }
 
     /**
+     * GET /api/v1/art-lots/{artLot}/provenance
+     *
+     * Public ownership history for this lot — channel, price band, date.
+     * Buyer/seller identity intentionally withheld.
+     */
+    public function provenance(ArtLot $artLot): JsonResponse
+    {
+        $transfers = $artLot->ownershipTransfers()
+            ->orderBy('transferred_at')
+            ->get(['id', 'channel', 'transfer_price_cents', 'currency', 'transferred_at']);
+
+        return response()->json(['data' => $transfers]);
+    }
+
+    /**
      * GET /api/v1/art-lots/{artLot}/bids
      *
      * Public bid history — amounts and timestamps only; no bidder identity exposed.

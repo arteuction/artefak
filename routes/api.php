@@ -92,7 +92,8 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
     // ArtLots
     Route::get('/art-lots',                    [ArtLotController::class, 'index'])->name('art-lots.index');
     Route::get('/art-lots/{artLot}',           [ArtLotController::class, 'show'])->name('art-lots.show');
-    Route::get('/art-lots/{artLot}/bids',      [ArtLotController::class, 'bids'])->name('art-lots.bids');
+    Route::get('/art-lots/{artLot}/bids',       [ArtLotController::class, 'bids'])->name('art-lots.bids');
+    Route::get('/art-lots/{artLot}/provenance', [ArtLotController::class, 'provenance'])->name('art-lots.provenance');
 
     // Galleries (public read)
     Route::get('/galleries',                    [GalleryController::class, 'index'])->name('galleries.index');
@@ -205,6 +206,7 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         Route::post('/auction-items/{item}/confirm-delivery', [FulfillmentController::class, 'confirmAuctionDelivery'])->name('auction-items.confirm-delivery');
         Route::post('/sell-now-offers/{offer}/confirm-payment',  [FulfillmentController::class, 'confirmSellNowPayment'])->name('sell-now-offers.confirm-payment');
         Route::post('/sell-now-offers/{offer}/confirm-delivery', [FulfillmentController::class, 'confirmSellNowDelivery'])->name('sell-now-offers.confirm-delivery');
+        Route::post('/sell-now-offers/{offer}/close',            [FulfillmentController::class, 'closeSellNow'])->name('sell-now-offers.close');
 
         // Disputes
         Route::get('/disputes',                          [DisputeController::class, 'index'])->name('disputes.index');

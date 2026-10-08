@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Domain\Fulfillment\CloseSellNow;
 use App\Domain\Fulfillment\ConfirmAuctionDelivery;
 use App\Domain\Fulfillment\ConfirmSellNowDelivery;
 use App\Domain\Fulfillment\ConfirmSellNowPayment;
@@ -101,6 +102,27 @@ final class FulfillmentController extends Controller
     {
         try {
             $offer = (new ConfirmSellNowDelivery())->execute($offer);
+        } catch (InvalidArgumentException $e) {
+            abort(422, $e->getMessage());
+        }
+
+        return response()->json($offer, 200);
+    }
+
+    /**
+     * POST /api/v1/sell-now-offers/{offer}/close
+     *
+     * Closes a sell-now transaction (delivered → closed), records ownership transfer.
+     * Gallery or admin only.
+     */
+    public function closeSellNow(Request $request, SellNowOffer $offer): JsonResponse
+    {
+        $data = $request->validate([
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        try {
+            $offer = (new CloseSellNow())->execute($offer, $data['notes'] ?? null);
         } catch (InvalidArgumentException $e) {
             abort(422, $e->getMessage());
         }
