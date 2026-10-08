@@ -9,9 +9,47 @@ use App\Http\Controllers\Controller;
 use App\Models\Exhibition;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 final class ExhibitionController extends Controller
 {
+    /**
+     * POST /api/v1/exhibitions
+     *
+     * Gallery staff (for that venue's gallery) or admin/operator creates an exhibition.
+     */
+    public function store(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'title'       => ['required', 'string', 'max:200'],
+            'venue_id'    => ['required', 'integer', 'exists:venues,id'],
+            'starts_at'   => ['required', 'date'],
+            'ends_at'     => ['required', 'date', 'after:starts_at'],
+            'description' => ['nullable', 'string', 'max:5000'],
+            'is_active'   => ['nullable', 'boolean'],
+        ]);
+
+        $user = $request->user();
+        $galleryIds = \App\Models\Gallery::where('venue_id', $data['venue_id'])->pluck('id');
+        $isGalleryStaff = $galleryIds->isNotEmpty()
+            && \App\Models\GalleryStaff::whereIn('gallery_id', $galleryIds)
+                ->where('user_id', $user->id)
+                ->where('status', 'active')
+                ->exists();
+
+        if (! $isGalleryStaff && ! in_array($user->role, ['admin', 'operator'], true)) {
+            abort(403, 'Gallery staff or admin required.');
+        }
+
+        $exhibition = Exhibition::create([
+            ...$data,
+            'slug'      => Str::slug($data['title']) . '-' . time(),
+            'is_active' => $data['is_active'] ?? false,
+        ]);
+
+        return response()->json($exhibition, 201);
+    }
+
     public function index(Request $request): JsonResponse
     {
         $query = Exhibition::query();

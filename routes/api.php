@@ -90,6 +90,7 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
     // Artworks
     Route::get('/artworks',        [ArtworkController::class, 'index'])->name('artworks.index');
     Route::get('/artworks/{artwork}', [ArtworkController::class, 'show'])->name('artworks.show');
+    Route::get('/artworks/{artwork}/evidence', [ArtworkController::class, 'indexEvidence'])->name('artworks.evidence.index');
 
     // Artwork sales history (public — privacy-preserving, no buyer identity)
     Route::get('/artworks/{artwork}/sales-history', [PayoutController::class, 'artworkSalesHistory'])->name('artworks.sales-history');
@@ -112,6 +113,8 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
     // Venues (public read)
     Route::get('/venues',         [VenueController::class, 'index'])->name('venues.index');
     Route::get('/venues/{venue}', [VenueController::class, 'show'])->name('venues.show');
+
+    // Exhibitions (public read)  — store is in the auth group below
 
     // Exhibitions (public read)
     Route::get('/exhibitions',                [ExhibitionController::class, 'index'])->name('exhibitions.index');
@@ -147,6 +150,14 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         Route::post('/artworks', [ArtworkController::class, 'store'])->name('artworks.store');
         Route::post('/artworks/{artwork}/revisions', [ArtworkController::class, 'storeRevision'])->name('artworks.revisions.store');
         Route::post('/artworks/{artwork}/revisions/{revision}/activate', [ArtworkController::class, 'activateRevision'])->name('artworks.revisions.activate');
+        Route::post('/artworks/{artwork}/evidence',  [ArtworkController::class, 'storeEvidence'])->name('artworks.evidence.store');
+
+        // Venues — create/update (admin)
+        Route::post('/venues',          [VenueController::class, 'store'])->name('venues.store');
+        Route::patch('/venues/{venue}', [VenueController::class, 'update'])->name('venues.update');
+
+        // Exhibitions — create (gallery staff or admin)
+        Route::post('/exhibitions', [ExhibitionController::class, 'store'])->name('exhibitions.store');
 
         // ArtLots
         Route::post('/art-lots', [ArtLotController::class, 'store'])->name('art-lots.store');

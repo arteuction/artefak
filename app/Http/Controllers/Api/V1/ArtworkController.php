@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\Asset\ActivateArtworkRevision;
 use App\Domain\Asset\CreateArtworkRevision;
+use App\Models\ArtworkEvidence;
 use App\Models\ArtworkRevision;
 use App\Http\Controllers\Controller;
 use App\Models\Artwork;
@@ -125,5 +126,56 @@ final class ArtworkController extends Controller
         }
 
         return response()->json($revision);
+    }
+
+    /**
+     * GET /api/v1/artworks/{artwork}/evidence
+     *
+     * Public list of verified evidence for an artwork.
+     * Admin sees all statuses; public sees only verified.
+     */
+    public function indexEvidence(Request $request, Artwork $artwork): JsonResponse
+    {
+        $query = ArtworkEvidence::where('artwork_id', $artwork->id);
+
+        $user = $request->user();
+        if (! $user || ! in_array($user->role, ['admin', 'operator'], true)) {
+            $query->where('verification_status', 'verified');
+        }
+
+        return response()->json(['data' => $query->orderByDesc('issued_at')->get()]);
+    }
+
+    /**
+     * POST /api/v1/artworks/{artwork}/evidence
+     *
+     * Add an evidence record to an artwork.
+     * Owner or admin/operator only.
+     */
+    public function storeEvidence(Request $request, Artwork $artwork): JsonResponse
+    {
+        $user = $request->user();
+        $isOwner = $artwork->user_id === $user->id;
+        $isAdmin = in_array($user->role, ['admin', 'operator'], true);
+
+        if (! $isOwner && ! $isAdmin) {
+            abort(403);
+        }
+
+        $data = $request->validate([
+            'type'          => ['required', 'in:authenticity,provenance,condition,ownership,certificate,exhibition_history,restoration'],
+            'issuer'        => ['nullable', 'string', 'max:200'],
+            'issued_at'     => ['nullable', 'date'],
+            'document_path' => ['nullable', 'string', 'max:500'],
+            'notes'         => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $evidence = ArtworkEvidence::create([
+            ...$data,
+            'artwork_id'          => $artwork->id,
+            'verification_status' => 'pending',
+        ]);
+
+        return response()->json($evidence, 201);
     }
 }
