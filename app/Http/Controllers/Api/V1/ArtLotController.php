@@ -73,6 +73,30 @@ final class ArtLotController extends Controller
     }
 
     /**
+     * GET /api/v1/art-lots/{artLot}/bids
+     *
+     * Public bid history — amounts and timestamps only; no bidder identity exposed.
+     */
+    public function bids(ArtLot $artLot): JsonResponse
+    {
+        $item = $artLot->auctionItem()->first();
+
+        if ($item === null) {
+            return response()->json(['data' => [], 'meta' => ['total' => 0]]);
+        }
+
+        $bids = $item->bids()
+            ->where('status', 'accepted')
+            ->orderByDesc('amount_cents')
+            ->get(['id', 'amount_cents', 'currency', 'created_at']);
+
+        return response()->json([
+            'data' => $bids,
+            'meta' => ['total' => $bids->count()],
+        ]);
+    }
+
+    /**
      * POST /api/v1/art-lots/{artLot}/purchase-now
      *
      * Instant buy at the fixed buy_now_price_cents — valid for sell_now and hybrid lots.

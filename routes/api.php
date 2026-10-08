@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\V1\OwnershipTransferController;
 use App\Http\Controllers\Api\V1\PayoutController;
 use App\Http\Controllers\Api\V1\SellNowOfferController;
 use App\Http\Controllers\Api\V1\VenueController;
+use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\WatchlistController;
 use Illuminate\Support\Facades\Route;
 
@@ -79,8 +80,9 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
     Route::get('/artworks/{artwork}/sales-history', [PayoutController::class, 'artworkSalesHistory'])->name('artworks.sales-history');
 
     // ArtLots
-    Route::get('/art-lots',          [ArtLotController::class, 'index'])->name('art-lots.index');
-    Route::get('/art-lots/{artLot}', [ArtLotController::class, 'show'])->name('art-lots.show');
+    Route::get('/art-lots',                    [ArtLotController::class, 'index'])->name('art-lots.index');
+    Route::get('/art-lots/{artLot}',           [ArtLotController::class, 'show'])->name('art-lots.show');
+    Route::get('/art-lots/{artLot}/bids',      [ArtLotController::class, 'bids'])->name('art-lots.bids');
 
     // Galleries (public read)
     Route::get('/galleries',            [GalleryController::class, 'index'])->name('galleries.index');
@@ -156,9 +158,13 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         Route::post('/watchlist',                     [WatchlistController::class, 'store'])->name('watchlist.store');
         Route::delete('/watchlist/{type}/{id}',       [WatchlistController::class, 'destroy'])->name('watchlist.destroy');
 
+        // Me (current user profile)
+        Route::get('/me', [ProfileController::class, 'show'])->name('me');
+
         // Donations (donor sees own; admin sees all)
-        Route::get('/donations',            [DonationController::class, 'index'])->name('donations.index');
-        Route::get('/donations/{donation}', [DonationController::class, 'show'])->name('donations.show');
+        Route::get('/donations',             [DonationController::class, 'index'])->name('donations.index');
+        Route::get('/donations/{donation}',  [DonationController::class, 'show'])->name('donations.show');
+        Route::post('/donations',            [DonationController::class, 'store'])->name('donations.store');
 
         // Ownership transfers (party to transfer sees own; admin sees all)
         Route::get('/ownership-transfers',                       [OwnershipTransferController::class, 'index'])->name('ownership-transfers.index');

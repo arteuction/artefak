@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Domain\Auction;
 
+use App\Domain\Asset\CloseArtLot;
 use App\Domain\Outbox\AppendDomainEvent;
+use App\Models\ArtLot;
 use App\Models\AuctionItem;
 use App\Models\Bid;
 use Illuminate\Support\Facades\DB;
@@ -81,6 +83,20 @@ final class CloseAuctionItem
                 ],
                 idempotencyKey: "auction_item.sold:{$locked->id}",
             );
+
+            // Propagate sold status to the parent ArtLot so the lot is no longer available
+            if ($locked->art_lot_id !== null) {
+                $artLot = ArtLot::find($locked->art_lot_id);
+                if ($artLot !== null) {
+                    (new CloseArtLot())->execute(
+                        artLot:         $artLot,
+                        outcome:        CloseArtLot::STATUS_SOLD,
+                        soldPriceCents: $winner->amount_cents,
+                        buyerId:        $winner->user_id,
+                        idempotencyKey: "art_lot.sold.auction:{$artLot->id}:{$locked->id}",
+                    );
+                }
+            }
         });
 
         // Cancel outbid PaymentIntents outside the transaction (Stripe call)
