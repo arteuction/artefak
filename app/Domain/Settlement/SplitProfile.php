@@ -45,7 +45,14 @@ final class SplitProfile
             );
         }
 
-        $p = self::PROFILES[$key];
+        $p   = self::PROFILES[$key];
+        $sum = $p['artist'] + $p['fund'] + $p['operations'];
+        if ($sum !== 10000) {
+            throw new \LogicException(
+                "Split profile '{$key}' basis points sum to {$sum}, expected 10000."
+            );
+        }
+
         return new self($key, $p['artist'], $p['fund'], $p['operations']);
     }
 

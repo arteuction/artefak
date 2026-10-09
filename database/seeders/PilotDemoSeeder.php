@@ -7,6 +7,7 @@ namespace Database\Seeders;
 use App\Models\Artwork;
 use App\Models\ArtLot;
 use App\Models\Auction;
+use App\Models\AuctionItem;
 use App\Models\Gallery;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -30,6 +31,11 @@ final class PilotDemoSeeder extends Seeder
 {
     public function run(): void
     {
+        if (app()->environment('production')) {
+            $this->command->error('PilotDemoSeeder must NOT run in production.');
+            return;
+        }
+
         $admin = User::firstOrCreate(
             ['email' => 'admin@arteuction.bg'],
             ['name' => 'Admin', 'password' => Hash::make('secret'), 'role' => 'admin'],
@@ -103,18 +109,23 @@ final class PilotDemoSeeder extends Seeder
             ['slug' => 'autumn-sale-2025'],
             [
                 'title'      => 'Autumn Sale 2025',
-                'status'     => 'scheduled',
+                'status'     => 'published',
                 'currency'   => 'EUR',
                 'starts_at'  => now()->addDays(7),
                 'ends_at'    => now()->addDays(10),
             ],
         );
 
+        $lotNumber = 1;
         foreach ($artworks as $artwork) {
             if ($artwork->status === 'in_auction') {
-                ArtLot::firstOrCreate(
-                    ['artwork_id' => $artwork->id, 'auction_id' => $auction->id],
-                    ['status' => 'active', 'currency' => 'EUR', 'starting_bid_cents' => 50_000],
+                $lot = ArtLot::firstOrCreate(
+                    ['artwork_id' => $artwork->id],
+                    ['status' => 'active', 'currency' => 'EUR'],
+                );
+                AuctionItem::firstOrCreate(
+                    ['auction_id' => $auction->id, 'art_lot_id' => $lot->id],
+                    ['lot_number' => $lotNumber++, 'status' => 'pending', 'bid_increment_cents' => 5_000],
                 );
             }
         }
