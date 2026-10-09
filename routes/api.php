@@ -412,6 +412,9 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         Route::patch('/admin/auctions/{auction}',                    [AdminAuctionController::class, 'update'])->name('admin.auctions.update');
         Route::post('/admin/auctions/{auction}/items',               [AdminAuctionController::class, 'addItem'])->name('admin.auctions.items.store');
         Route::delete('/admin/auctions/{auction}/items/{item}',      [AdminAuctionController::class, 'removeItem'])->name('admin.auctions.items.destroy');
+        Route::post('/admin/auctions/{auction}/publish',             [AdminAuctionController::class, 'publish'])->name('admin.auctions.publish');
+        Route::post('/admin/auctions/{auction}/open',                [AdminAuctionController::class, 'open'])->name('admin.auctions.open');
+        Route::post('/admin/auctions/{auction}/close',               [AdminAuctionController::class, 'close'])->name('admin.auctions.close');
 
         // Book files — metadata management (owner or admin)
         Route::get('/books/{book}/files',                          [BookFileController::class, 'index'])->name('books.files.index');

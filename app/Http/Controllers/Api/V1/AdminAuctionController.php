@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Domain\Auction\CloseAuctionItem;
 use App\Http\Controllers\Controller;
 use App\Models\ArtLot;
 use App\Models\Auction;
 use App\Models\AuctionItem;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
@@ -149,5 +151,75 @@ final class AdminAuctionController extends Controller
         $item->delete();
 
         return response()->json(null, 204);
+    }
+
+    /**
+     * POST /api/v1/admin/auctions/{auction}/publish
+     *
+     * Transition: draft → published
+     * Auction becomes visible to the public but bidding not yet open.
+     */
+    public function publish(Request $request, Auction $auction): JsonResponse
+    {
+        $this->requireAdmin($request);
+
+        if ($auction->status !== 'draft') {
+            abort(422, "Auction must be in [draft] to publish. Current status: [{$auction->status}].");
+        }
+
+        if (! $auction->items()->where('status', 'pending')->exists()) {
+            abort(422, 'Auction must have at least one pending item before publishing.');
+        }
+
+        $auction->update(['status' => 'published']);
+
+        return response()->json(['data' => $auction->fresh()]);
+    }
+
+    /**
+     * POST /api/v1/admin/auctions/{auction}/open
+     *
+     * Transition: published → live
+     * Opens all pending items for bidding.
+     */
+    public function open(Request $request, Auction $auction): JsonResponse
+    {
+        $this->requireAdmin($request);
+
+        if ($auction->status !== 'published') {
+            abort(422, "Auction must be in [published] to open. Current status: [{$auction->status}].");
+        }
+
+        DB::transaction(function () use ($auction): void {
+            $auction->update(['status' => 'live']);
+            $auction->items()->where('status', 'pending')->update(['status' => 'open']);
+        });
+
+        return response()->json(['data' => $auction->fresh()->loadCount('items')]);
+    }
+
+    /**
+     * POST /api/v1/admin/auctions/{auction}/close
+     *
+     * Transition: live → closed
+     * Runs CloseAuctionItem on every still-open item, then marks auction closed.
+     */
+    public function close(Request $request, Auction $auction, CloseAuctionItem $closeItem): JsonResponse
+    {
+        $this->requireAdmin($request);
+
+        if ($auction->status !== 'live') {
+            abort(422, "Auction must be in [live] to close. Current status: [{$auction->status}].");
+        }
+
+        $openItems = $auction->items()->where('status', 'open')->get();
+
+        foreach ($openItems as $item) {
+            $closeItem->execute($item);
+        }
+
+        $auction->update(['status' => 'closed']);
+
+        return response()->json(['data' => $auction->fresh()->loadCount('items')]);
     }
 }
