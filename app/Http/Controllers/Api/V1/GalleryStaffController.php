@@ -32,10 +32,10 @@ final class GalleryStaffController extends Controller
 
         try {
             $member = (new AddGalleryStaff())->execute(
-                gallery:    $gallery,
-                actingUser: $request->user(),
-                newUser:    User::findOrFail($data['user_id']),
-                role:       $data['role'],
+                gallery:   $gallery,
+                user:      User::findOrFail($data['user_id']),
+                role:      $data['role'],
+                invitedBy: $request->user(),
             );
         } catch (\DomainException $e) {
             abort(422, $e->getMessage());

@@ -70,9 +70,9 @@ Route::get('/auctions', [AuctionController::class, 'index']);
 Route::get('/auctions/{auction}', [AuctionController::class, 'show']);
 Route::get('/auctions/{auction}/items/{item}', [AuctionController::class, 'item']);
 
-// Authenticated — bidding (rate-limited: 30/min per user)
+// Authenticated — bidding legacy alias (kept for backward compat; canonical route is /api/v1/auctions/.../bids)
 Route::middleware(['auth:sanctum', 'throttle:30,1'])->group(function (): void {
-    Route::post('/auctions/{auction}/items/{item}/bids', [BidController::class, 'store']);
+    Route::post('/auctions/{auction}/items/{item}/bids', [BidController::class, 'store'])->name('bids.store.legacy');
 });
 
 // ArtMetro — QR artifact info (read-only, safe for crawlers/prefetch)
@@ -377,6 +377,11 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         Route::get('/reserves/{reserve}',                              [ReserveController::class, 'show'])->name('reserves.show');
         Route::post('/reserves/{reserve}/waive',                       [ReserveController::class, 'waive'])->name('reserves.waive');
         Route::post('/reserves/{reserve}/counter-offer',               [ReserveController::class, 'counterOffer'])->name('reserves.counter-offer');
+
+        // Bid placement (canonical v1 route; rate-limited separately)
+        Route::post('/auctions/{auction}/items/{item}/bids', [BidController::class, 'store'])
+            ->middleware('throttle:30,1')
+            ->name('auctions.items.bids.store');
 
         // Max bid (proxy bidding)
         Route::post('/auctions/{auction}/items/{item}/max-bid',        [V1AuctionController::class, 'placeMaxBid'])->name('auctions.items.max-bid');

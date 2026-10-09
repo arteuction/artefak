@@ -37,8 +37,16 @@ final class ArtworkController extends Controller
     }
 
     /** GET /api/v1/artworks/{artwork} */
-    public function show(Artwork $artwork): JsonResponse
+    public function show(Request $request, Artwork $artwork): JsonResponse
     {
+        // Draft and archived artworks are only visible to their owner and admins
+        if (in_array($artwork->status, ['draft', 'archived'], true)) {
+            $user = $request->user();
+            if ($user === null || ($artwork->user_id !== $user->id && ! in_array($user->role, ['admin', 'operator'], true))) {
+                abort(403);
+            }
+        }
+
         $artwork->load([
             'artist:id,name',
             'artLots' => fn ($q) => $q->whereIn('status', ['active', 'sold']),
