@@ -1,8 +1,17 @@
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
+import { echo } from '@/lib/echo';
 import type { Auction, ArtLot } from '@/lib/api';
+
+type BidEvent = {
+    bidId: number;
+    auctionItemId: number;
+    amountCents: number;
+    currency: string;
+    nextBidCents: number;
+};
 
 type AuctionWithItems = Auction & { items?: ArtLot[] };
 
@@ -11,6 +20,7 @@ export default function AuctionRoomPage() {
     const queryClient = useQueryClient();
     const [bidAmount, setBidAmount] = useState('');
     const [activeLotId, setActiveLotId] = useState<number | null>(null);
+    const [liveBids, setLiveBids] = useState<Record<number, BidEvent>>({});
 
     const { data: auction, isLoading } = useQuery({
         queryKey: ['auction', id],
@@ -18,9 +28,22 @@ export default function AuctionRoomPage() {
             const res = await api.get<AuctionWithItems>(`/auctions/${id}`);
             return res.data;
         },
-        refetchInterval: 5000,
         enabled: !!id,
     });
+
+    // Subscribe to real-time bid events via Reverb
+    useEffect(() => {
+        if (!id) return;
+        const channel = echo.channel(`auction.${id}`);
+        channel.listen('.bid.placed', (e: BidEvent) => {
+            setLiveBids((prev) => ({ ...prev, [e.auctionItemId]: e }));
+            void queryClient.invalidateQueries({ queryKey: ['auction', id] });
+        });
+        return () => {
+            channel.stopListening('.bid.placed');
+            echo.leave(`auction.${id}`);
+        };
+    }, [id, queryClient]);
 
     const bidMutation = useMutation({
         mutationFn: async ({ lotId, amount }: { lotId: number; amount: number }) => {
@@ -65,19 +88,28 @@ export default function AuctionRoomPage() {
 
             <div className="grid md:grid-cols-2 gap-6">
                 {(auction.items ?? []).map((lot) => {
-                    const currentBid = lot.current_bid_cents
-                        ? `${(lot.current_bid_cents / 100).toFixed(2)} ${lot.currency}`
+                    const live = liveBids[lot.id];
+                    const currentBidCents = live?.amountCents ?? lot.current_bid_cents;
+
+                    const currentBid = currentBidCents
+                        ? `${(currentBidCents / 100).toFixed(2)} ${lot.currency}`
                         : lot.starting_bid_cents
                         ? `Starting: ${(lot.starting_bid_cents / 100).toFixed(2)} ${lot.currency}`
                         : 'No bids yet';
 
                     return (
-                        <div key={lot.id} className="rounded-lg border border-gray-200 p-5">
+                        <div
+                            key={lot.id}
+                            className={`rounded-lg border px-5 py-5 transition-colors ${live ? 'border-black' : 'border-gray-200'}`}
+                        >
                             <div className="flex items-start justify-between mb-3">
                                 <div>
                                     <p className="text-xs text-gray-400">Lot #{lot.id}</p>
-                                    <p className="font-medium mt-0.5">{currentBid}</p>
-                                    <p className="text-xs text-gray-500 mt-0.5">{lot.bid_count} bid{lot.bid_count !== 1 ? 's' : ''}</p>
+                                    <p className="font-semibold text-lg mt-0.5">{currentBid}</p>
+                                    <p className="text-xs text-gray-500 mt-0.5">
+                                        {lot.bid_count} bid{lot.bid_count !== 1 ? 's' : ''}
+                                        {live && <span className="ml-2 text-green-700 font-medium">● Live</span>}
+                                    </p>
                                 </div>
                                 <span className="text-xs rounded-full bg-gray-100 px-2 py-0.5 text-gray-600">
                                     {lot.status}
@@ -90,7 +122,7 @@ export default function AuctionRoomPage() {
                                         type="number"
                                         min="0"
                                         step="0.01"
-                                        placeholder="Your bid"
+                                        placeholder={live ? `Min ${((live.nextBidCents) / 100).toFixed(2)}` : 'Your bid'}
                                         value={activeLotId === lot.id ? bidAmount : ''}
                                         onChange={(e) => {
                                             setActiveLotId(lot.id);

@@ -1,6 +1,17 @@
-import { Outlet, NavLink, Link } from 'react-router-dom';
+import { Outlet, NavLink, Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
+import { logout } from '@/lib/auth';
 
 export default function Layout() {
+    const { user, refresh } = useAuth();
+    const navigate = useNavigate();
+
+    const handleLogout = async () => {
+        await logout();
+        await refresh();
+        navigate('/');
+    };
+
     return (
         <div className="min-h-screen bg-white text-gray-900">
             <header className="border-b border-gray-200 px-6 py-4">
@@ -25,6 +36,33 @@ export default function Layout() {
                         >
                             Auctions
                         </NavLink>
+                        {user?.role === 'artist' && (
+                            <NavLink
+                                to="/dashboard"
+                                className={({ isActive }) =>
+                                    isActive ? 'text-black' : 'text-gray-500 hover:text-black'
+                                }
+                            >
+                                My works
+                            </NavLink>
+                        )}
+                        {user ? (
+                            <button
+                                onClick={handleLogout}
+                                className="text-gray-500 hover:text-black"
+                            >
+                                Sign out
+                            </button>
+                        ) : (
+                            <NavLink
+                                to="/login"
+                                className={({ isActive }) =>
+                                    isActive ? 'text-black' : 'text-gray-500 hover:text-black'
+                                }
+                            >
+                                Sign in
+                            </NavLink>
+                        )}
                     </nav>
                 </div>
             </header>
