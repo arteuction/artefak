@@ -12,6 +12,7 @@
         "filament/filament": "^4.0",
         "intervention/image": "^4.3",
         "laravel/framework": "^13.8",
+        "laravel/pulse": "^1.8",
         "laravel/reverb": "^1.12",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^3.0",

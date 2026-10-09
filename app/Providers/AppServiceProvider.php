@@ -22,5 +22,6 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(DomainEvent::class, DomainEventPolicy::class);
 
         Gate::define('admin', fn ($user) => $user->role === 'admin');
+        Gate::define('viewPulse', fn ($user) => $user->role === 'admin');
     }
 }
