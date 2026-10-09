@@ -191,6 +191,8 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         Route::post('/artworks/{artwork}/revisions', [ArtworkController::class, 'storeRevision'])->name('artworks.revisions.store');
         Route::post('/artworks/{artwork}/revisions/{revision}/activate', [ArtworkController::class, 'activateRevision'])->name('artworks.revisions.activate');
         Route::post('/artworks/{artwork}/evidence',  [ArtworkController::class, 'storeEvidence'])->name('artworks.evidence.store');
+        Route::post('/artworks/{artwork}/images/presign', [ArtworkController::class, 'presignImage'])->name('artworks.images.presign');
+        Route::post('/artworks/{artwork}/images/confirm', [ArtworkController::class, 'confirmImage'])->name('artworks.images.confirm');
 
         // Venues — create/update (admin)
         Route::post('/venues',          [VenueController::class, 'store'])->name('venues.store');

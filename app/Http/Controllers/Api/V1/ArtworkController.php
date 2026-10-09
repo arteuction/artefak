@@ -6,8 +6,10 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Data\ArtworkData;
 use App\Domain\Asset\ActivateArtworkRevision;
+use App\Domain\Asset\ConfirmArtworkImageUpload;
 use App\Domain\Asset\CreateArtworkRevision;
 use App\Domain\Asset\PublishArtworkRevision;
+use App\Domain\Asset\RequestArtworkImageUpload;
 use App\Models\ArtworkEvidence;
 use App\Models\ArtworkRevision;
 use App\Http\Controllers\Controller;
@@ -173,6 +175,60 @@ final class ArtworkController extends Controller
         }
 
         return response()->json(['data' => $query->orderByDesc('issued_at')->get()]);
+    }
+
+    /**
+     * POST /api/v1/artworks/{artwork}/images/presign
+     *
+     * Issue a presigned S3 PUT URL for direct-to-S3 image upload.
+     * Owner only. Returns {upload_url, key, expires_in_seconds, max_bytes}.
+     */
+    public function presignImage(Request $request, Artwork $artwork): JsonResponse
+    {
+        if ($artwork->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
+        $data = $request->validate([
+            'extension' => ['nullable', 'in:jpg,jpeg,png,webp'],
+        ]);
+
+        try {
+            $result = (new RequestArtworkImageUpload())->execute(
+                $artwork,
+                $data['extension'] ?? 'jpg',
+            );
+        } catch (\InvalidArgumentException $e) {
+            abort(422, $e->getMessage());
+        }
+
+        return response()->json($result);
+    }
+
+    /**
+     * POST /api/v1/artworks/{artwork}/images/confirm
+     *
+     * Confirm that a presigned upload completed successfully.
+     * Verifies the object exists in S3, then sets status to 'confirmed'.
+     * Owner only.
+     */
+    public function confirmImage(Request $request, Artwork $artwork): JsonResponse
+    {
+        if ($artwork->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
+        try {
+            $artwork = (new ConfirmArtworkImageUpload())->execute($artwork);
+        } catch (\DomainException $e) {
+            abort(422, $e->getMessage());
+        }
+
+        return response()->json([
+            'id'                   => $artwork->id,
+            'primary_image_key'    => $artwork->primary_image_key,
+            'primary_image_status' => $artwork->primary_image_status,
+        ]);
     }
 
     /**

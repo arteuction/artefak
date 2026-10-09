@@ -19,6 +19,7 @@ final class Artwork extends Model
         'year_created', 'description', 'provenance',
         'is_original', 'edition_number', 'edition_total',
         'ar_model_url', 'status',
+        'primary_image_key', 'primary_image_status',
     ];
 
     protected function casts(): array
