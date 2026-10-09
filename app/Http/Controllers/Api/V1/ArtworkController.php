@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Data\ArtworkData;
 use App\Domain\Asset\ActivateArtworkRevision;
 use App\Domain\Asset\CreateArtworkRevision;
 use App\Domain\Asset\PublishArtworkRevision;
@@ -47,14 +48,9 @@ final class ArtworkController extends Controller
             }
         }
 
-        $artwork->load([
-            'artist:id,name',
-            'artLots' => fn ($q) => $q->whereIn('status', ['active', 'sold']),
-            'revisions' => fn ($q) => $q->where('status', 'active'),
-            'approvedSdgClaims',
-        ]);
+        $artwork->load(['artist:id,name']);
 
-        return response()->json($artwork);
+        return response()->json(ArtworkData::fromArtwork($artwork));
     }
 
     /** PATCH /api/v1/artworks/{artwork} */

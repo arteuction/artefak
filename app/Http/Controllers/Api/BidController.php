@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api;
 
+use App\Data\BidData;
 use App\Domain\Auction\BidRejected;
 use App\Domain\Auction\PlaceBid;
 use App\Http\Controllers\Controller;
@@ -48,6 +49,6 @@ final class BidController extends Controller
             throw ValidationException::withMessages(['amount_cents' => $e->getMessage()]);
         }
 
-        return response()->json($bid, 201);
+        return response()->json(BidData::fromBid($bid), 201);
     }
 }

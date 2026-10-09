@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Data\SellNowOfferData;
 use App\Domain\SellNow\AcceptOffer;
 use App\Domain\SellNow\CounterOffer;
 use App\Domain\SellNow\RejectOffer;
@@ -58,7 +59,7 @@ final class SellNowOfferController extends Controller
             abort(422, $e->getMessage());
         }
 
-        return response()->json($offer, 201);
+        return response()->json(SellNowOfferData::fromOffer($offer), 201);
     }
 
     /** POST /api/v1/sell-now-offers/{offer}/counter */

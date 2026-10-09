@@ -147,8 +147,8 @@ final class Phase65ApiTest extends TestCase
         $response = $this->getJson("/api/v1/artworks/{$artwork->id}")->assertOk();
 
         $response->assertJsonStructure([
-            'id', 'title', 'slug', 'status', 'medium', 'user_id',
-            'art_lots', 'revisions',
+            'id', 'title', 'slug', 'status', 'medium',
+            'year_created', 'is_original', 'created_at', 'artist',
         ]);
     }
 

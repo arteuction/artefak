@@ -10,6 +10,7 @@
         "laravel/framework": "^13.8",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^3.0",
+        "spatie/laravel-data": "^4.20",
         "stripe/stripe-php": "^15"
     },
     "require-dev": {

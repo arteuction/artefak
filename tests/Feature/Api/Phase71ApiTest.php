@@ -184,7 +184,7 @@ final class Phase71ApiTest extends TestCase
     {
         $alice = User::factory()->create(['role' => 'buyer']);
         $bob   = User::factory()->create(['role' => 'buyer']);
-        [$item] = $this->makeAuctionItem();
+        [, $item] = $this->makeAuctionItem();
 
         Bid::create([
             'auction_item_id' => $item->id,

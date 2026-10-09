@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Data\UserProfileData;
 use App\Http\Controllers\Controller;
 use App\Models\ArtistProfile;
 use Illuminate\Http\JsonResponse;
@@ -17,13 +18,7 @@ final class ProfileController extends Controller
     {
         $user = $request->user();
 
-        return response()->json([
-            'id'         => $user->id,
-            'name'       => $user->name,
-            'email'      => $user->email,
-            'role'       => $user->role ?? null,
-            'created_at' => $user->created_at,
-        ]);
+        return response()->json(UserProfileData::fromUser($user));
     }
 
     /**
