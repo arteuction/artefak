@@ -20,7 +20,8 @@ final class Bid extends Model
     protected function casts(): array
     {
         return [
-            'amount_cents' => 'integer',
+            'amount_cents'             => 'integer',
+            'authorization_expires_at' => 'datetime',
         ];
     }
 

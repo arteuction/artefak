@@ -45,7 +45,7 @@ final class BidReAuthorizationController
                 item:                   $item,
                 bid:                    $bid,
                 callerId:               $user->id,
-                stripePaymentMethodId:  $request->string('payment_method_id'),
+                stripePaymentMethodId:  (string) $request->string('payment_method_id'),
             );
         } catch (\DomainException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
