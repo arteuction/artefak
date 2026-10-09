@@ -49,6 +49,7 @@ use App\Http\Controllers\Api\V1\AdminTransferOutboxController;
 use App\Http\Controllers\Api\V1\BookFileController;
 use App\Http\Controllers\Api\V1\BookFileUploadController;
 use App\Http\Controllers\Api\V1\ReconciliationController;
+use App\Http\Controllers\Api\V1\ReconciliationMismatchController;
 use App\Http\Controllers\Api\V1\SettlementController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\PublicArtworkController;
@@ -324,6 +325,11 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         Route::get('/admin/reconciliation-runs',                        [ReconciliationController::class, 'index'])->name('admin.reconciliation.index');
         Route::get('/admin/reconciliation-runs/{reconciliationRun}',    [ReconciliationController::class, 'show'])->name('admin.reconciliation.show');
         Route::post('/admin/reconciliation-runs',                       [ReconciliationController::class, 'store'])->name('admin.reconciliation.store');
+
+        // Reconciliation mismatches — list and resolve
+        Route::get('/admin/reconciliation-mismatches',                              [ReconciliationMismatchController::class, 'index'])->name('admin.reconciliation-mismatches.index');
+        Route::get('/admin/reconciliation-mismatches/{reconciliationMismatch}',     [ReconciliationMismatchController::class, 'show'])->name('admin.reconciliation-mismatches.show');
+        Route::patch('/admin/reconciliation-mismatches/{reconciliationMismatch}',   [ReconciliationMismatchController::class, 'update'])->name('admin.reconciliation-mismatches.update');
 
         // ArtMetro route admin (admin/operator)
         Route::post('/admin/artmetro/routes',                                        [ArtmetroAdminController::class, 'store'])->name('admin.artmetro.routes.store');
