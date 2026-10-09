@@ -39,6 +39,7 @@ use App\Http\Controllers\Api\V1\BookAuthorController;
 use App\Http\Controllers\Api\V1\LedgerController;
 use App\Http\Controllers\Api\V1\SplitProfileController;
 use App\Http\Controllers\Api\V1\UserAdminController;
+use App\Http\Controllers\Api\V1\AdminAuctionController;
 use App\Http\Controllers\Api\V1\AdminBookController;
 use App\Http\Controllers\Api\V1\AdminPayoutController;
 use App\Http\Controllers\Api\V1\BookFileController;
@@ -387,6 +388,12 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
 
         // Consignment terminate (cancel by owner/consignor/admin)
         Route::post('/consignments/{consignment}/terminate', [ConsignmentController::class, 'cancel'])->name('consignments.terminate');
+
+        // Admin auction management — create, update, manage items
+        Route::post('/admin/auctions',                               [AdminAuctionController::class, 'store'])->name('admin.auctions.store');
+        Route::patch('/admin/auctions/{auction}',                    [AdminAuctionController::class, 'update'])->name('admin.auctions.update');
+        Route::post('/admin/auctions/{auction}/items',               [AdminAuctionController::class, 'addItem'])->name('admin.auctions.items.store');
+        Route::delete('/admin/auctions/{auction}/items/{item}',      [AdminAuctionController::class, 'removeItem'])->name('admin.auctions.items.destroy');
 
         // Book files — metadata management (owner or admin)
         Route::get('/books/{book}/files',                          [BookFileController::class, 'index'])->name('books.files.index');
