@@ -61,6 +61,7 @@ final class Phase48ApiTest extends TestCase
             app(\App\Application\Settlement\ProcessRefund::class),
             app(\App\Domain\Library\FinalizePaidBookPurchase::class),
             app(\App\Domain\Payment\HandleConnectedAccountPayout::class),
+            app(\App\Domain\Auction\SettleAuction::class),
         );
 
         $this->assertDatabaseHas('connected_account_payouts', [
@@ -81,6 +82,7 @@ final class Phase48ApiTest extends TestCase
             app(\App\Application\Settlement\ProcessRefund::class),
             app(\App\Domain\Library\FinalizePaidBookPurchase::class),
             app(\App\Domain\Payment\HandleConnectedAccountPayout::class),
+            app(\App\Domain\Auction\SettleAuction::class),
         );
 
         $this->assertDatabaseHas('connected_account_payouts', [
@@ -100,6 +102,7 @@ final class Phase48ApiTest extends TestCase
             app(\App\Application\Settlement\ProcessRefund::class),
             app(\App\Domain\Library\FinalizePaidBookPurchase::class),
             app(\App\Domain\Payment\HandleConnectedAccountPayout::class),
+            app(\App\Domain\Auction\SettleAuction::class),
         );
 
         $this->assertDatabaseHas('connected_account_payouts', [
@@ -121,8 +124,9 @@ final class Phase48ApiTest extends TestCase
         $refund  = app(\App\Application\Settlement\ProcessRefund::class);
         $book    = app(\App\Domain\Library\FinalizePaidBookPurchase::class);
 
-        (new HandleStripeWebhook($eventId1))->handle($refund, $book, $handler);
-        (new HandleStripeWebhook($eventId2))->handle($refund, $book, $handler);
+        $settle = app(\App\Domain\Auction\SettleAuction::class);
+        (new HandleStripeWebhook($eventId1))->handle($refund, $book, $handler, $settle);
+        (new HandleStripeWebhook($eventId2))->handle($refund, $book, $handler, $settle);
 
         $this->assertSame(1, ConnectedAccountPayout::where('stripe_payout_id', $payoutId)->count());
     }
@@ -150,6 +154,7 @@ final class Phase48ApiTest extends TestCase
             app(\App\Application\Settlement\ProcessRefund::class),
             app(\App\Domain\Library\FinalizePaidBookPurchase::class),
             app(\App\Domain\Payment\HandleConnectedAccountPayout::class),
+            app(\App\Domain\Auction\SettleAuction::class),
         );
 
         $this->assertSame(0, ConnectedAccountPayout::count());

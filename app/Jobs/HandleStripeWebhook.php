@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Application\Settlement\ProcessRefund;
+use App\Domain\Auction\SettleAuction;
 use App\Domain\Library\FinalizePaidBookPurchase;
 use App\Domain\Payment\HandleConnectedAccountPayout;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -20,7 +21,7 @@ class HandleStripeWebhook implements ShouldQueue
 
     public function __construct(private int $webhookEventId) {}
 
-    public function handle(ProcessRefund $processRefund, FinalizePaidBookPurchase $finalizeBook, HandleConnectedAccountPayout $handlePayout): void
+    public function handle(ProcessRefund $processRefund, FinalizePaidBookPurchase $finalizeBook, HandleConnectedAccountPayout $handlePayout, SettleAuction $settleAuction): void
     {
         $row = DB::table('webhook_events')->find($this->webhookEventId);
 
@@ -34,7 +35,7 @@ class HandleStripeWebhook implements ShouldQueue
 
         try {
             $event = json_decode($row->payload, true, 512, JSON_THROW_ON_ERROR);
-            $this->route($event, $processRefund, $finalizeBook, $handlePayout);
+            $this->route($event, $processRefund, $finalizeBook, $handlePayout, $settleAuction);
 
             DB::table('webhook_events')
                 ->where('id', $this->webhookEventId)
@@ -51,17 +52,65 @@ class HandleStripeWebhook implements ShouldQueue
         }
     }
 
-    private function route(array $event, ProcessRefund $processRefund, FinalizePaidBookPurchase $finalizeBook, HandleConnectedAccountPayout $handlePayout): void
+    private function route(array $event, ProcessRefund $processRefund, FinalizePaidBookPurchase $finalizeBook, HandleConnectedAccountPayout $handlePayout, SettleAuction $settleAuction): void
     {
         match ($event['type']) {
-            'charge.refunded'               => $this->handleChargeRefunded($event, $processRefund),
-            'payment_intent.succeeded'      => $this->handlePaymentIntentSucceeded($event, $finalizeBook),
-            'payment_intent.payment_failed' => $this->handlePaymentFailed($event),
-            'payout.paid'                   => $this->handlePayoutEvent($event, 'paid', $handlePayout),
-            'payout.failed'                 => $this->handlePayoutEvent($event, 'failed', $handlePayout),
-            'payout.canceled'               => $this->handlePayoutEvent($event, 'canceled', $handlePayout),
-            default                         => null,
+            'charge.refunded'                        => $this->handleChargeRefunded($event, $processRefund),
+            'payment_intent.succeeded'               => $this->handlePaymentIntentSucceeded($event, $finalizeBook),
+            'payment_intent.amount_capturable_updated' => $this->handleCapturableUpdated($event, $settleAuction),
+            'payment_intent.payment_failed'          => $this->handlePaymentFailed($event),
+            'payout.paid'                            => $this->handlePayoutEvent($event, 'paid', $handlePayout),
+            'payout.failed'                          => $this->handlePayoutEvent($event, 'failed', $handlePayout),
+            'payout.canceled'                        => $this->handlePayoutEvent($event, 'canceled', $handlePayout),
+            default                                  => null,
         };
+    }
+
+    /**
+     * payment_intent.amount_capturable_updated fires when a manual-capture PI is ready.
+     * For auction winning bids, settle the auction if it is already closed.
+     */
+    private function handleCapturableUpdated(array $event, SettleAuction $settleAuction): void
+    {
+        $pi   = $event['data']['object'];
+        $piId = $pi['id'] ?? null;
+
+        if (! $piId) {
+            return;
+        }
+
+        // Find the bid associated with this PI
+        $bid = DB::table('bids')
+            ->where('stripe_payment_intent_id', $piId)
+            ->where('status', 'won')
+            ->first();
+
+        if (! $bid) {
+            return;
+        }
+
+        // Find the auction item and its auction
+        $item = DB::table('auction_items')
+            ->where('id', $bid->auction_item_id)
+            ->first();
+
+        if (! $item) {
+            return;
+        }
+
+        $auction = DB::table('auctions')
+            ->where('id', $item->auction_id)
+            ->first();
+
+        // Only settle if auction is already closed
+        if (! $auction || $auction->status !== 'closed') {
+            return;
+        }
+
+        $auctionModel = \App\Models\Auction::find($auction->id);
+        if ($auctionModel) {
+            $settleAuction->execute($auctionModel, $event['id']);
+        }
     }
 
     private function handleChargeRefunded(array $event, ProcessRefund $processRefund): void

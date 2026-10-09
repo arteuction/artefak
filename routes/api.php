@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\ArtmetroRouteController;
 use App\Http\Controllers\Api\AuctionController;
 use App\Http\Controllers\Api\BidController;
 use App\Http\Controllers\Api\V1\ArtistApplicationController;
+use App\Http\Controllers\Api\V1\BidReAuthorizationController;
 use App\Http\Controllers\Api\V1\ArtLotController;
 use App\Http\Controllers\Api\V1\EvidenceController;
 use App\Http\Controllers\Api\V1\ReserveController;
@@ -263,6 +264,9 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         // SDG claims — submit (artwork owner) + review (admin/operator)
         Route::post('/artworks/{artwork}/sdg-claims',                           [SdgClaimController::class, 'store'])->name('artworks.sdg-claims.store');
         Route::post('/artworks/{artwork}/sdg-claims/{claim}/review',            [SdgClaimController::class, 'review'])->name('artworks.sdg-claims.review');
+
+        // Bid re-authorization (expired Stripe authorization recovery)
+        Route::post('/auction-items/{item}/re-authorize', [BidReAuthorizationController::class, 'store'])->name('auction-items.re-authorize');
 
         // Fulfillment
         Route::post('/auction-items/{item}/ship',             [FulfillmentController::class, 'shipAuctionItem'])->name('auction-items.ship');
