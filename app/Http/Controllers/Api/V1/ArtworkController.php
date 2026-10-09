@@ -81,6 +81,10 @@ final class ArtworkController extends Controller
     /** POST /api/v1/artworks */
     public function store(Request $request): JsonResponse
     {
+        if (! in_array($request->user()->role, ['artist', 'admin', 'operator'], true)) {
+            abort(403);
+        }
+
         $data = $request->validate([
             'title'          => ['required', 'string', 'max:255'],
             'slug'           => ['required', 'string', 'max:255', 'unique:artworks,slug'],

@@ -81,10 +81,11 @@ final class GoldenPathTest extends TestCase
         ]);
 
         $lot = ArtLot::create([
-            'artwork_id' => $artwork->id,
-            'gallery_id' => $gallery->id,
-            'status'     => 'active',
-            'currency'   => 'EUR',
+            'artwork_id'    => $artwork->id,
+            'gallery_id'    => $gallery->id,
+            'consignor_id'  => $artist->id,
+            'status'        => 'active',
+            'currency'      => 'EUR',
         ]);
 
         // Buyer submits offer via art-lot scoped route

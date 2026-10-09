@@ -65,6 +65,13 @@ final class SellNowOfferController extends Controller
     /** POST /api/v1/sell-now-offers/{offer}/counter */
     public function counter(Request $request, SellNowOffer $offer): JsonResponse
     {
+        // Only the consignor (seller) of the lot may counter
+        $lot = $offer->artLot;
+        $userId = $request->user()->id;
+        if ($lot->consignor_id !== $userId && ! in_array($request->user()->role, ['admin', 'operator'], true)) {
+            abort(403);
+        }
+
         $data = $request->validate([
             'counter_price_cents' => ['required', 'integer', 'min:1'],
         ]);
@@ -79,8 +86,17 @@ final class SellNowOfferController extends Controller
     }
 
     /** POST /api/v1/sell-now-offers/{offer}/accept */
-    public function accept(SellNowOffer $offer): JsonResponse
+    public function accept(Request $request, SellNowOffer $offer): JsonResponse
     {
+        // Buyer accepts a counter; consignor accepts an original offer.
+        // Either party may call accept — but never a third party.
+        $lot    = $offer->artLot;
+        $userId = $request->user()->id;
+        $isParty = $offer->buyer_id === $userId || $lot->consignor_id === $userId;
+        if (! $isParty && ! in_array($request->user()->role, ['admin', 'operator'], true)) {
+            abort(403);
+        }
+
         try {
             $offer = (new AcceptOffer())->execute($offer);
         } catch (InvalidArgumentException $e) {
@@ -91,8 +107,16 @@ final class SellNowOfferController extends Controller
     }
 
     /** POST /api/v1/sell-now-offers/{offer}/reject */
-    public function reject(SellNowOffer $offer): JsonResponse
+    public function reject(Request $request, SellNowOffer $offer): JsonResponse
     {
+        // Either party (buyer or consignor) may reject; third parties cannot.
+        $lot    = $offer->artLot;
+        $userId = $request->user()->id;
+        $isParty = $offer->buyer_id === $userId || $lot->consignor_id === $userId;
+        if (! $isParty && ! in_array($request->user()->role, ['admin', 'operator'], true)) {
+            abort(403);
+        }
+
         try {
             $offer = (new RejectOffer())->execute($offer);
         } catch (InvalidArgumentException $e) {

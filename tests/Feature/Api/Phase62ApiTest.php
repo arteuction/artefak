@@ -106,7 +106,7 @@ final class Phase62ApiTest extends TestCase
 
     public function test_authenticated_user_can_create_artwork(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['role' => 'artist']);
 
         $response = $this->actingAs($user, 'sanctum')
             ->postJson('/api/v1/artworks', [
@@ -126,7 +126,7 @@ final class Phase62ApiTest extends TestCase
 
     public function test_artwork_store_validates_required_fields(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['role' => 'artist']);
 
         $this->actingAs($user, 'sanctum')
             ->postJson('/api/v1/artworks', [])
@@ -136,7 +136,7 @@ final class Phase62ApiTest extends TestCase
 
     public function test_artwork_slug_must_be_unique(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['role' => 'artist']);
         Artwork::create([
             'user_id' => $user->id,
             'title'   => 'First',
