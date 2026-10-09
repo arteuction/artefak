@@ -51,6 +51,7 @@ use App\Http\Controllers\Api\V1\ReconciliationController;
 use App\Http\Controllers\Api\V1\SettlementController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\PublicArtworkController;
+use App\Http\Controllers\Api\V1\ArtistPortfolioController;
 use App\Http\Controllers\Api\V1\BuyerDashboardController;
 use App\Http\Controllers\Api\V1\WatchlistController;
 use Illuminate\Support\Facades\Route;
@@ -109,6 +110,10 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
     // Public artwork search catalog
     Route::get('/search/artworks',           [PublicArtworkController::class, 'index'])->name('search.artworks.index');
     Route::get('/search/artworks/{artwork}', [PublicArtworkController::class, 'show'])->name('search.artworks.show');
+
+    // Public artist portfolios
+    Route::get('/artists',        [ArtistPortfolioController::class, 'index'])->name('artists.index');
+    Route::get('/artists/{slug}', [ArtistPortfolioController::class, 'show'])->name('artists.show');
 
     // Artworks
     Route::get('/artworks',        [ArtworkController::class, 'index'])->name('artworks.index');
