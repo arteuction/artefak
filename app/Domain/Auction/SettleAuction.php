@@ -54,9 +54,20 @@ final class SettleAuction
                 continue;
             }
 
+            // Guard: do not attempt capture on an expired authorization.
+            // ExpireBidAuthorizations command sets payment_status = 'authorization_expired'.
+            if ($bid->payment_status === 'authorization_expired') {
+                logger()->warning('SettleAuction: skipping bid with expired authorization', [
+                    'bid_id'          => $bid->id,
+                    'auction_item_id' => $item->id,
+                ]);
+                continue;
+            }
+
             // 1. Capture the authorized PaymentIntent
             try {
-                $this->stripe->paymentIntents->capture($bid->stripe_payment_intent_id);
+                $pi = $this->stripe->paymentIntents->capture($bid->stripe_payment_intent_id);
+                $bid->update(['payment_status' => 'captured']);
             } catch (\Stripe\Exception\InvalidRequestException $e) {
                 // Already captured (idempotent) or failed — log and skip
                 logger()->warning('SettleAuction: capture skipped', [

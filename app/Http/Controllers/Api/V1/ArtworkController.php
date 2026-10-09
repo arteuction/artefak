@@ -164,7 +164,8 @@ final class ArtworkController extends Controller
 
         $user = $request->user();
         if (! $user || ! in_array($user->role, ['admin', 'operator'], true)) {
-            $query->where('verification_status', 'verified');
+            $query->where('verification_status', 'verified')
+                  ->where('visibility', 'public');
         }
 
         return response()->json(['data' => $query->orderByDesc('issued_at')->get()]);

@@ -20,3 +20,7 @@ Schedule::command('reconciliation:nightly')->dailyAt('02:00')->withoutOverlappin
 // Operational health check — broadcasts admin alerts for failed transfers,
 // stuck domain events, etc. Runs every 5 minutes.
 Schedule::command('arteuction:check-operational-alerts')->everyFiveMinutes()->withoutOverlapping();
+
+// Proactively mark bids whose Stripe authorization has expired (7-day window).
+// Fires an admin alert for each expired winning bid requiring operator action.
+Schedule::command('auction:expire-bid-authorizations')->hourly()->withoutOverlapping();

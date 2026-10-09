@@ -61,6 +61,8 @@ final class PlaceBid
                 'status'          => 'pending',
                 'ip_address'      => $ipAddress ?: null,
             ]);
+            // Stripe uncaptured PaymentIntents expire after 7 days by default.
+            $authorizationExpiresAt = now()->addDays(7);
 
             // Authorize (manual capture) via Stripe — outside the lock window
             // but inside the transaction so we can roll back on Stripe failure.
@@ -78,7 +80,9 @@ final class PlaceBid
             ]);
 
             $bid->stripe_payment_intent_id = $pi->id;
-            $bid->status = 'accepted';
+            $bid->status                   = 'accepted';
+            $bid->authorization_expires_at = $authorizationExpiresAt;
+            $bid->payment_status           = 'authorized';
             $bid->save();
 
             // Outbid any previously accepted bid on this item

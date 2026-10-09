@@ -14,6 +14,7 @@ final class Bid extends Model
         'auction_item_id', 'user_id', 'amount_cents',
         'status', 'stripe_payment_intent_id', 'ip_address',
         'bid_type', 'max_bid_id',
+        'payment_status', 'authorization_expires_at',
     ];
 
     protected function casts(): array
