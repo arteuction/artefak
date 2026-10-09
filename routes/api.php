@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\ArtmetroRouteController;
 use App\Http\Controllers\Api\AuctionController;
 use App\Http\Controllers\Api\BidController;
 use App\Http\Controllers\Api\V1\ArtistApplicationController;
+use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\BidReAuthorizationController;
 use App\Http\Controllers\Api\V1\ArtLotController;
 use App\Http\Controllers\Api\V1\EvidenceController;
@@ -102,6 +103,9 @@ Route::get('/routes/{route}', [ArtmetroRouteController::class, 'show']);
 |--------------------------------------------------------------------------
 */
 Route::prefix('v1')->name('v1.')->group(function (): void {
+
+    // Health check (public — no auth, no rate-limit; used by LB and uptime monitors)
+    Route::get('/health', HealthController::class)->name('health');
 
     // Auth (public, rate-limited: 10 attempts per minute per IP)
     Route::middleware('throttle:10,1')->group(function (): void {
