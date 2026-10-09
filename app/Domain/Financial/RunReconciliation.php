@@ -9,6 +9,10 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 /**
+ * @phpstan-type StripeTransactionMap array<string,int>
+ */
+
+/**
  * Runs a financial reconciliation for a given date range.
  *
  * Internal side: reads settled amounts from `settlements` and `transfer_outbox`.
@@ -22,12 +26,20 @@ use Illuminate\Support\Facades\DB;
  */
 final class RunReconciliation
 {
+    /**
+     * @param  array<string,int>|null  $stripeCharges    PI ID → captured cents; null = sub-check skipped
+     * @param  array<string,int>|null  $stripeRefunds    PI ID → refunded cents; null = sub-check skipped
+     * @param  array<string,int>|null  $stripeTransfers  Transfer ID → amount cents; null = sub-check skipped
+     */
     public function execute(
         \DateTimeInterface $periodStart,
         \DateTimeInterface $periodEnd,
         int                $stripeReceivedCents,
         int                $stripeTransferredCents,
         ?User              $runBy = null,
+        ?array             $stripeCharges   = null,
+        ?array             $stripeRefunds   = null,
+        ?array             $stripeTransfers = null,
     ): ReconciliationRun {
         $run = ReconciliationRun::create([
             'period_start' => $periodStart->format('Y-m-d'),
@@ -44,17 +56,33 @@ final class RunReconciliation
         $internalGross = (int) $internalRow->gross;
         $internalCount = (int) $internalRow->cnt;
 
-        // Completed transfers from outbox
+        // Dispatched transfers from outbox (status 'completed' does not exist — correct is 'dispatched')
         $internalTransferred = (int) DB::table('transfer_outbox')
-            ->where('status', 'completed')
-            ->whereBetween('updated_at', [$periodStart->format('Y-m-d').' 00:00:00', $periodEnd->format('Y-m-d').' 23:59:59'])
+            ->where('status', 'dispatched')
+            ->whereBetween('dispatched_at', [$periodStart->format('Y-m-d').' 00:00:00', $periodEnd->format('Y-m-d').' 23:59:59'])
             ->sum('amount_cents');
 
         // ── Deltas ───────────────────────────────────────────────────────
         $deltaReceived    = $internalGross       - $stripeReceivedCents;
         $deltaTransferred = $internalTransferred - $stripeTransferredCents;
 
-        $status = ($deltaReceived === 0 && $deltaTransferred === 0) ? 'matched' : 'mismatched';
+        // Per-type sub-checks — only when the caller provides detailed Stripe maps
+        // (null means "not provided"; an empty array means "provided but empty").
+        $mismatchCount = 0;
+        if ($stripeCharges !== null || $stripeRefunds !== null || $stripeTransfers !== null) {
+            $mismatchCount = (new ReconciliationSubChecks())->run(
+                run:             $run,
+                stripeCharges:   $stripeCharges   ?? [],
+                stripeRefunds:   $stripeRefunds   ?? [],
+                stripeTransfers: $stripeTransfers ?? [],
+                periodStart:     $periodStart->format('Y-m-d'),
+                periodEnd:       $periodEnd->format('Y-m-d'),
+            );
+        }
+
+        $status = ($deltaReceived === 0 && $deltaTransferred === 0 && $mismatchCount === 0)
+            ? 'matched'
+            : 'mismatched';
 
         $run->update([
             'internal_gross_cents'      => $internalGross,
@@ -64,6 +92,7 @@ final class RunReconciliation
             'stripe_transferred_cents'  => $stripeTransferredCents,
             'delta_received_cents'      => $deltaReceived,
             'delta_transferred_cents'   => $deltaTransferred,
+            'mismatch_count'            => $mismatchCount,
             'status'                    => $status,
             'completed_at'              => now(),
         ]);

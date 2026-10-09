@@ -19,6 +19,7 @@ final class ReconciliationRun extends Model
         'stripe_transferred_cents',
         'delta_received_cents',
         'delta_transferred_cents',
+        'mismatch_count',
         'status',
         'notes',
         'run_by',
