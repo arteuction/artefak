@@ -19,16 +19,17 @@ final class Artwork extends Model
         'year_created', 'description', 'provenance',
         'is_original', 'edition_number', 'edition_total',
         'ar_model_url', 'status',
-        'primary_image_key', 'primary_image_status',
+        'primary_image_key', 'primary_image_status', 'image_derivatives',
     ];
 
     protected function casts(): array
     {
         return [
-            'is_original'    => 'boolean',
-            'year_created'   => 'integer',
-            'edition_number' => 'integer',
-            'edition_total'  => 'integer',
+            'is_original'        => 'boolean',
+            'year_created'       => 'integer',
+            'edition_number'     => 'integer',
+            'edition_total'      => 'integer',
+            'image_derivatives'  => 'array',
         ];
     }
 

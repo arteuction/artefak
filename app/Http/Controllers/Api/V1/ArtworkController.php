@@ -8,6 +8,7 @@ use App\Data\ArtworkData;
 use App\Domain\Asset\ActivateArtworkRevision;
 use App\Domain\Asset\ConfirmArtworkImageUpload;
 use App\Domain\Asset\CreateArtworkRevision;
+use App\Domain\Asset\GenerateArtworkDerivatives;
 use App\Domain\Asset\PublishArtworkRevision;
 use App\Domain\Asset\RequestArtworkImageUpload;
 use App\Models\ArtworkEvidence;
@@ -233,6 +234,29 @@ final class ArtworkController extends Controller
             'primary_image_key'    => $artwork->primary_image_key,
             'primary_image_status' => $artwork->primary_image_status,
         ]);
+    }
+
+    /**
+     * POST /api/v1/artworks/{artwork}/images/derivatives
+     *
+     * Trigger generation of thumb/medium/large WebP derivatives from the confirmed
+     * primary image. Owner or admin only. Kicks off a synchronous or queued job
+     * depending on image size; returns the derivative keys on success.
+     */
+    public function generateDerivatives(Request $request, Artwork $artwork): JsonResponse
+    {
+        $user = $request->user();
+        if ($artwork->user_id !== $user->id && ! in_array($user->role, ['admin', 'operator'], true)) {
+            abort(403);
+        }
+
+        try {
+            $keys = (new GenerateArtworkDerivatives())->execute($artwork);
+        } catch (\InvalidArgumentException $e) {
+            abort(422, $e->getMessage());
+        }
+
+        return response()->json(['derivatives' => $keys]);
     }
 
     /**

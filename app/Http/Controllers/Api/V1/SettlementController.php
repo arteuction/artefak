@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Domain\Settlement\GenerateSettlementStatement;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -75,5 +77,21 @@ final class SettlementController extends Controller
             'settlement' => $settlement,
             'lines'      => $lines,
         ]);
+    }
+
+    /**
+     * GET /api/v1/admin/settlements/{id}/statement
+     *
+     * Downloads a PDF settlement statement for accounting purposes.
+     */
+    public function statement(Request $request, int $id): Response
+    {
+        $this->requireAdmin($request);
+
+        try {
+            return (new GenerateSettlementStatement())->execute($id);
+        } catch (\InvalidArgumentException) {
+            abort(404);
+        }
     }
 }

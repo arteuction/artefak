@@ -192,7 +192,8 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         Route::post('/artworks/{artwork}/revisions/{revision}/activate', [ArtworkController::class, 'activateRevision'])->name('artworks.revisions.activate');
         Route::post('/artworks/{artwork}/evidence',  [ArtworkController::class, 'storeEvidence'])->name('artworks.evidence.store');
         Route::post('/artworks/{artwork}/images/presign', [ArtworkController::class, 'presignImage'])->name('artworks.images.presign');
-        Route::post('/artworks/{artwork}/images/confirm', [ArtworkController::class, 'confirmImage'])->name('artworks.images.confirm');
+        Route::post('/artworks/{artwork}/images/confirm',      [ArtworkController::class, 'confirmImage'])->name('artworks.images.confirm');
+        Route::post('/artworks/{artwork}/images/derivatives',  [ArtworkController::class, 'generateDerivatives'])->name('artworks.images.derivatives');
 
         // Venues — create/update (admin)
         Route::post('/venues',          [VenueController::class, 'store'])->name('venues.store');
@@ -324,8 +325,9 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         Route::get('/admin/audit-log/{adminAuditLog}', [AdminAuditLogController::class, 'show'])->name('admin.audit-log.show');
 
         // Settlements — admin read-only view
-        Route::get('/admin/settlements',       [SettlementController::class, 'index'])->name('admin.settlements.index');
-        Route::get('/admin/settlements/{id}',  [SettlementController::class, 'show'])->name('admin.settlements.show');
+        Route::get('/admin/settlements',                   [SettlementController::class, 'index'])->name('admin.settlements.index');
+        Route::get('/admin/settlements/{id}',              [SettlementController::class, 'show'])->name('admin.settlements.show');
+        Route::get('/admin/settlements/{id}/statement',    [SettlementController::class, 'statement'])->name('admin.settlements.statement');
 
         // Reconciliation runs — admin trigger and view
         Route::get('/admin/reconciliation-runs',                        [ReconciliationController::class, 'index'])->name('admin.reconciliation.index');
