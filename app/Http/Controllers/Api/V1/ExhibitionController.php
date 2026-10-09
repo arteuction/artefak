@@ -50,6 +50,38 @@ final class ExhibitionController extends Controller
         return response()->json($exhibition, 201);
     }
 
+    /**
+     * PATCH /api/v1/exhibitions/{exhibition}
+     *
+     * Gallery staff (for that venue's gallery) or admin/operator.
+     */
+    public function update(Request $request, Exhibition $exhibition): JsonResponse
+    {
+        $user = $request->user();
+        $galleryIds = \App\Models\Gallery::where('venue_id', $exhibition->venue_id)->pluck('id');
+        $isGalleryStaff = $galleryIds->isNotEmpty()
+            && \App\Models\GalleryStaff::whereIn('gallery_id', $galleryIds)
+                ->where('user_id', $user->id)
+                ->where('status', 'active')
+                ->exists();
+
+        if (! $isGalleryStaff && ! in_array($user->role, ['admin', 'operator'], true)) {
+            abort(403, 'Gallery staff or admin required.');
+        }
+
+        $data = $request->validate([
+            'title'       => ['sometimes', 'string', 'max:200'],
+            'starts_at'   => ['sometimes', 'date'],
+            'ends_at'     => ['sometimes', 'date'],
+            'description' => ['nullable', 'string', 'max:5000'],
+            'is_active'   => ['sometimes', 'boolean'],
+        ]);
+
+        $exhibition->update($data);
+
+        return response()->json(['data' => $exhibition->fresh()]);
+    }
+
     public function index(Request $request): JsonResponse
     {
         $query = Exhibition::query();

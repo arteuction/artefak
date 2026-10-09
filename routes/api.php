@@ -39,6 +39,8 @@ use App\Http\Controllers\Api\V1\BookAuthorController;
 use App\Http\Controllers\Api\V1\LedgerController;
 use App\Http\Controllers\Api\V1\SplitProfileController;
 use App\Http\Controllers\Api\V1\UserAdminController;
+use App\Http\Controllers\Api\V1\AdminBookController;
+use App\Http\Controllers\Api\V1\AdminPayoutController;
 use App\Http\Controllers\Api\V1\ReconciliationController;
 use App\Http\Controllers\Api\V1\SettlementController;
 use App\Http\Controllers\Api\V1\ProfileController;
@@ -369,5 +371,17 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
             Route::get('/consumer-lag',         [OperationsController::class, 'consumerLag'])         ->name('consumer-lag');
             Route::post('/transfer-outbox/{id}/retry', [OperationsController::class, 'retryTransfer'])->name('transfer-outbox.retry');
         });
+
+        // Exhibitions — PATCH (gallery staff or admin)
+        Route::patch('/exhibitions/{exhibition}', [ExhibitionController::class, 'update'])->name('exhibitions.update');
+
+        // Admin settlement lines — list and manual disburse trigger
+        Route::get('/admin/settlement-lines',                      [AdminPayoutController::class, 'lines'])->name('admin.settlement-lines.index');
+        Route::post('/admin/settlement-lines/{id}/disburse',       [AdminPayoutController::class, 'disburse'])->name('admin.settlement-lines.disburse');
+
+        // Admin book management — create/update (publish via LibraryController)
+        Route::post('/admin/books',        [AdminBookController::class, 'store'])->name('admin.books.store');
+        Route::patch('/admin/books/{book}', [AdminBookController::class, 'update'])->name('admin.books.update');
     });
 });
+

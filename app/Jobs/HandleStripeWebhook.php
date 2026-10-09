@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Application\Settlement\ProcessRefund;
+use App\Domain\Library\FinalizePaidBookPurchase;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
@@ -18,7 +19,7 @@ class HandleStripeWebhook implements ShouldQueue
 
     public function __construct(private int $webhookEventId) {}
 
-    public function handle(ProcessRefund $processRefund): void
+    public function handle(ProcessRefund $processRefund, FinalizePaidBookPurchase $finalizeBook): void
     {
         $row = DB::table('webhook_events')->find($this->webhookEventId);
 
@@ -32,7 +33,7 @@ class HandleStripeWebhook implements ShouldQueue
 
         try {
             $event = json_decode($row->payload, true, 512, JSON_THROW_ON_ERROR);
-            $this->route($event, $processRefund);
+            $this->route($event, $processRefund, $finalizeBook);
 
             DB::table('webhook_events')
                 ->where('id', $this->webhookEventId)
@@ -49,11 +50,11 @@ class HandleStripeWebhook implements ShouldQueue
         }
     }
 
-    private function route(array $event, ProcessRefund $processRefund): void
+    private function route(array $event, ProcessRefund $processRefund, FinalizePaidBookPurchase $finalizeBook): void
     {
         match ($event['type']) {
             'charge.refunded'               => $this->handleChargeRefunded($event, $processRefund),
-            'payment_intent.succeeded'      => $this->handlePaymentIntentSucceeded($event),
+            'payment_intent.succeeded'      => $this->handlePaymentIntentSucceeded($event, $finalizeBook),
             'payment_intent.payment_failed' => $this->handlePaymentFailed($event),
             default                         => null,
         };
@@ -76,16 +77,32 @@ class HandleStripeWebhook implements ShouldQueue
         }
     }
 
-    private function handlePaymentIntentSucceeded(array $event): void
+    private function handlePaymentIntentSucceeded(array $event, FinalizePaidBookPurchase $finalizeBook): void
     {
-        $pi = $event['data']['object'];
+        $pi   = $event['data']['object'];
         $piId = $pi['id'] ?? null;
 
         if (! $piId) {
             return;
         }
 
-        // Mark settlement as completed (idempotent — status may already be completed)
+        // Route book purchases through FinalizePaidBookPurchase (grants entitlement, creates settlement).
+        $bookPurchase = DB::table('book_purchases')
+            ->where('stripe_payment_intent_id', $piId)
+            ->whereIn('status', ['pending'])
+            ->first();
+
+        if ($bookPurchase !== null) {
+            $finalizeBook->execute(
+                stripePaymentIntentId: $piId,
+                stripeEventId:        $event['id'],
+                amountCents:          (int) ($pi['amount_received'] ?? $pi['amount']),
+                currency:             strtoupper($pi['currency']),
+            );
+            return;
+        }
+
+        // Non-book payment: mark any matching settlement as completed.
         DB::table('settlements')
             ->where('stripe_payment_intent_id', $piId)
             ->where('status', 'pending')
