@@ -8,9 +8,21 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 final class ArtLot extends Model
 {
+    use LogsActivity;
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['status', 'sale_mode', 'split_profile_key', 'reserve_price_cents', 'buy_now_price_cents'])
+            ->logOnlyDirty()
+            ->dontLogEmptyChanges()
+            ->useLogName('art_lot');
+    }
     protected $fillable = [
         'artwork_id', 'consignor_id', 'sale_mode', 'status',
         'reserve_price_cents', 'starting_bid_cents', 'buy_now_price_cents', 'currency',

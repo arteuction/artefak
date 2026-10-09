@@ -9,10 +9,22 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 final class Artwork extends Model
 {
     use SoftDeletes;
+    use LogsActivity;
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['title', 'slug', 'medium', 'status', 'primary_image_status'])
+            ->logOnlyDirty()
+            ->dontLogEmptyChanges()
+            ->useLogName('artwork');
+    }
 
     protected $fillable = [
         'user_id', 'title', 'slug', 'medium', 'dimensions',
