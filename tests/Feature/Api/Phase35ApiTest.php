@@ -67,8 +67,9 @@ final class Phase35ApiTest extends TestCase
     {
         [$owner, $artwork] = $this->makeArtwork();
 
-        ArtworkEvidence::create(['artwork_id' => $artwork->id, 'type' => 'provenance', 'verification_status' => 'verified']);
-        ArtworkEvidence::create(['artwork_id' => $artwork->id, 'type' => 'condition',  'verification_status' => 'pending']);
+        // visibility='public' required for public endpoint (Phase 57: evidence visibility enforcement)
+        ArtworkEvidence::create(['artwork_id' => $artwork->id, 'type' => 'provenance', 'verification_status' => 'verified', 'visibility' => 'public']);
+        ArtworkEvidence::create(['artwork_id' => $artwork->id, 'type' => 'condition',  'verification_status' => 'pending',  'visibility' => 'restricted']);
 
         $this->getJson("/api/v1/artworks/{$artwork->id}/evidence")
             ->assertOk()

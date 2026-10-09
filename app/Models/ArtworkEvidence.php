@@ -11,7 +11,7 @@ final class ArtworkEvidence extends Model
 {
     protected $fillable = [
         'artwork_id', 'type', 'issuer', 'issued_at',
-        'document_path', 'verification_status', 'notes',
+        'document_path', 'verification_status', 'visibility', 'notes',
     ];
 
     protected function casts(): array

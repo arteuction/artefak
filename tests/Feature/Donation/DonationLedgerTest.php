@@ -99,7 +99,9 @@ class DonationLedgerTest extends TestCase
         $this->assertEquals('donation', $donation->type);
         $this->assertEquals(10000, $donation->donated_cents);
         $this->assertEquals(1000,  $donation->deduction_bps);
-        $this->assertEquals(1000,  $donation->max_deductible_cents);
+        // Corrected: max_deductible_cents = donatedCents (provisional upper bound).
+        // The profit-based ceiling is applied at annual assessment, not at donation time.
+        $this->assertEquals(10000, $donation->max_deductible_cents);
         $this->assertEquals('ZKPO_ART31_1', $donation->eligibility_basis);
     }
 
@@ -115,7 +117,8 @@ class DonationLedgerTest extends TestCase
         );
 
         $this->assertEquals(1500, $donation->deduction_bps);
-        $this->assertEquals(3000, $donation->max_deductible_cents); // 20000 * 15%
+        // Corrected: provisional max = full donation; annual assessment applies 15%-of-profit ceiling
+        $this->assertEquals(20000, $donation->max_deductible_cents);
     }
 
     public function test_nhi_child_treatment_records_50_percent(): void
@@ -130,7 +133,8 @@ class DonationLedgerTest extends TestCase
         );
 
         $this->assertEquals(5000, $donation->deduction_bps);
-        $this->assertEquals(5000, $donation->max_deductible_cents);
+        // Corrected: provisional max = full donation (10000), not donated * 50%
+        $this->assertEquals(10000, $donation->max_deductible_cents);
     }
 
     public function test_donation_source_is_optional(): void

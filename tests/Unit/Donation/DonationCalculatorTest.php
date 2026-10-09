@@ -20,11 +20,14 @@ class DonationCalculatorTest extends TestCase
 
     public function test_art31_1_gives_10_percent(): void
     {
+        // ЗКПО чл.31 ал.1: 10% limit is against POSITIVE ACCOUNTING PROFIT,
+        // not the donation amount. maxDeductibleCents at donation time = donatedCents
+        // (provisional upper bound; profit-based ceiling applied at annual assessment).
         $result = $this->calc->calculate(10000, EligibilityBasis::ZKPO_ART31_1);
 
         $this->assertEquals(10000, $result->donatedCents);
         $this->assertEquals(1000, $result->deductionBps);
-        $this->assertEquals(1000, $result->maxDeductibleCents);
+        $this->assertEquals(10000, $result->maxDeductibleCents); // provisional = donated
         $this->assertEquals('10.00%', $result->deductionPercent());
     }
 
@@ -33,7 +36,7 @@ class DonationCalculatorTest extends TestCase
         $result = $this->calc->calculate(10000, EligibilityBasis::ZKPO_ART31_3_PATRONAGE);
 
         $this->assertEquals(1500, $result->deductionBps);
-        $this->assertEquals(1500, $result->maxDeductibleCents);
+        $this->assertEquals(10000, $result->maxDeductibleCents); // provisional = donated
         $this->assertEquals('15.00%', $result->deductionPercent());
     }
 
@@ -42,7 +45,7 @@ class DonationCalculatorTest extends TestCase
         $result = $this->calc->calculate(10000, EligibilityBasis::ZKPO_ART31_2_NHI_CHILD_TREATMENT);
 
         $this->assertEquals(5000, $result->deductionBps);
-        $this->assertEquals(5000, $result->maxDeductibleCents);
+        $this->assertEquals(10000, $result->maxDeductibleCents); // provisional = donated
         $this->assertEquals('50.00%', $result->deductionPercent());
     }
 
@@ -51,14 +54,15 @@ class DonationCalculatorTest extends TestCase
         $result = $this->calc->calculate(10000, EligibilityBasis::ZKPO_ART31_2_ASSISTED_REPRODUCTION);
 
         $this->assertEquals(5000, $result->deductionBps);
-        $this->assertEquals(5000, $result->maxDeductibleCents);
+        $this->assertEquals(10000, $result->maxDeductibleCents); // provisional = donated
     }
 
-    public function test_deductible_rounds_correctly(): void
+    public function test_deductible_equals_donated_not_bps_fraction(): void
     {
-        // 333 cents * 10% = 33.3 → rounds to 33
+        // Corrected: maxDeductibleCents is always the full donation amount (provisional).
+        // The 10% ceiling is only applied against fiscal-year profit at assessment time.
         $result = $this->calc->calculate(333, EligibilityBasis::ZKPO_ART31_1);
-        $this->assertEquals(33, $result->maxDeductibleCents);
+        $this->assertEquals(333, $result->maxDeductibleCents);
     }
 
     public function test_zero_amount_throws(): void

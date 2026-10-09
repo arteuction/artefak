@@ -76,13 +76,15 @@ final class DonorFiscalYearTest extends TestCase
 
     public function test_max_deductible_accumulates_with_donations(): void
     {
-        // ZKPO_ART31_1 = 10% → 10000 donated → 1000 deductible
+        // Corrected: max_deductible_cents is now provisional = donated amount.
+        // The ZKPO Art.31 10% limit is against annual accounting profit,
+        // applied at fiscal-year assessment, not at donation recording time.
         $donation = $this->makeDonation(10000, 'dk-fy-3');
 
         (new AccumulateDonorFiscalYear())->execute($donation);
 
         $row = DonorFiscalYear::first();
-        $this->assertSame(1000, $row->aggregate_max_deductible_cents);
+        $this->assertSame(10000, $row->aggregate_max_deductible_cents);
     }
 
     public function test_different_donors_have_separate_rows(): void
@@ -97,7 +99,7 @@ final class DonorFiscalYearTest extends TestCase
             'currency'              => 'EUR',
             'eligibility_basis'     => 'ZKPO_ART31_1',
             'deduction_bps'         => 1000,
-            'max_deductible_cents'  => 1000,
+            'max_deductible_cents'  => 10000,
             'type'                  => 'donation',
             'status'                => 'confirmed',
             'idempotency_key'       => 'dk-fy-4b',
@@ -166,13 +168,13 @@ final class DonorFiscalYearTest extends TestCase
             idempotencyKey: 'dk-patronage-1',
         );
 
-        // 15% of 10000 = 1500
-        $this->assertSame(1500, $donation->max_deductible_cents);
+        // Corrected: provisional max = full donation (10000), not 15% of donation
+        $this->assertSame(10000, $donation->max_deductible_cents);
 
         (new AccumulateDonorFiscalYear())->execute($donation);
 
         $row = DonorFiscalYear::where('eligibility_basis', 'ZKPO_ART31_3_PATRONAGE')->first();
-        $this->assertSame(1500, $row->aggregate_max_deductible_cents);
+        $this->assertSame(10000, $row->aggregate_max_deductible_cents);
     }
 
     public function test_nhi_child_treatment_yields_50_percent(): void
@@ -193,7 +195,8 @@ final class DonorFiscalYearTest extends TestCase
             idempotencyKey: 'dk-nhi-1',
         );
 
-        $this->assertSame(5000, $donation->max_deductible_cents);
+        // Corrected: provisional max = full donation (10000), not donated * 50%
+        $this->assertSame(10000, $donation->max_deductible_cents);
     }
 
     // -----------------------------------------------------------------------
