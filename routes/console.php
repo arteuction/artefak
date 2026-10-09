@@ -16,3 +16,7 @@ Schedule::command('outbox:dispatch')->everyMinute()->withoutOverlapping();
 // Nightly reconciliation at 02:00 — after Stripe settles overnight payouts.
 // On mismatch the command exits non-zero and logs to Log::error('reconciliation.mismatch').
 Schedule::command('reconciliation:nightly')->dailyAt('02:00')->withoutOverlapping();
+
+// Operational health check — broadcasts admin alerts for failed transfers,
+// stuck domain events, etc. Runs every 5 minutes.
+Schedule::command('arteuction:check-operational-alerts')->everyFiveMinutes()->withoutOverlapping();
