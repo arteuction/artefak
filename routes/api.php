@@ -50,6 +50,7 @@ use App\Http\Controllers\Api\V1\BookFileUploadController;
 use App\Http\Controllers\Api\V1\ReconciliationController;
 use App\Http\Controllers\Api\V1\SettlementController;
 use App\Http\Controllers\Api\V1\ProfileController;
+use App\Http\Controllers\Api\V1\PublicArtworkController;
 use App\Http\Controllers\Api\V1\WatchlistController;
 use Illuminate\Support\Facades\Route;
 
@@ -103,6 +104,10 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         Route::post('/register', [AuthController::class, 'register'])->name('register');
         Route::post('/login',    [AuthController::class, 'login'])->name('login');
     });
+
+    // Public artwork search catalog
+    Route::get('/search/artworks',           [PublicArtworkController::class, 'index'])->name('search.artworks.index');
+    Route::get('/search/artworks/{artwork}', [PublicArtworkController::class, 'show'])->name('search.artworks.show');
 
     // Artworks
     Route::get('/artworks',        [ArtworkController::class, 'index'])->name('artworks.index');
