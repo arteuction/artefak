@@ -42,6 +42,8 @@ use App\Http\Controllers\Api\V1\UserAdminController;
 use App\Http\Controllers\Api\V1\AdminAuctionController;
 use App\Http\Controllers\Api\V1\AdminBookController;
 use App\Http\Controllers\Api\V1\AdminPayoutController;
+use App\Http\Controllers\Api\V1\AdminRulesetController;
+use App\Http\Controllers\Api\V1\AdminTransferOutboxController;
 use App\Http\Controllers\Api\V1\BookFileController;
 use App\Http\Controllers\Api\V1\ReconciliationController;
 use App\Http\Controllers\Api\V1\SettlementController;
@@ -388,6 +390,16 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
 
         // Consignment terminate (cancel by owner/consignor/admin)
         Route::post('/consignments/{consignment}/terminate', [ConsignmentController::class, 'cancel'])->name('consignments.terminate');
+
+        // Admin auction rulesets — CRUD
+        Route::get('/admin/rulesets',                 [AdminRulesetController::class, 'index'])->name('admin.rulesets.index');
+        Route::get('/admin/rulesets/{ruleset}',       [AdminRulesetController::class, 'show'])->name('admin.rulesets.show');
+        Route::post('/admin/rulesets',                [AdminRulesetController::class, 'store'])->name('admin.rulesets.store');
+        Route::patch('/admin/rulesets/{ruleset}',     [AdminRulesetController::class, 'update'])->name('admin.rulesets.update');
+
+        // Admin transfer outbox — read-only view
+        Route::get('/admin/transfer-outbox',          [AdminTransferOutboxController::class, 'index'])->name('admin.transfer-outbox.index');
+        Route::get('/admin/transfer-outbox/{id}',     [AdminTransferOutboxController::class, 'show'])->name('admin.transfer-outbox.show');
 
         // Admin auction management — create, update, manage items
         Route::post('/admin/auctions',                               [AdminAuctionController::class, 'store'])->name('admin.auctions.store');
