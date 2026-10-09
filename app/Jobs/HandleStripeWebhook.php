@@ -6,6 +6,7 @@ namespace App\Jobs;
 
 use App\Application\Settlement\ProcessRefund;
 use App\Domain\Library\FinalizePaidBookPurchase;
+use App\Domain\Payment\HandleConnectedAccountPayout;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
@@ -19,7 +20,7 @@ class HandleStripeWebhook implements ShouldQueue
 
     public function __construct(private int $webhookEventId) {}
 
-    public function handle(ProcessRefund $processRefund, FinalizePaidBookPurchase $finalizeBook): void
+    public function handle(ProcessRefund $processRefund, FinalizePaidBookPurchase $finalizeBook, HandleConnectedAccountPayout $handlePayout): void
     {
         $row = DB::table('webhook_events')->find($this->webhookEventId);
 
@@ -33,7 +34,7 @@ class HandleStripeWebhook implements ShouldQueue
 
         try {
             $event = json_decode($row->payload, true, 512, JSON_THROW_ON_ERROR);
-            $this->route($event, $processRefund, $finalizeBook);
+            $this->route($event, $processRefund, $finalizeBook, $handlePayout);
 
             DB::table('webhook_events')
                 ->where('id', $this->webhookEventId)
@@ -50,12 +51,15 @@ class HandleStripeWebhook implements ShouldQueue
         }
     }
 
-    private function route(array $event, ProcessRefund $processRefund, FinalizePaidBookPurchase $finalizeBook): void
+    private function route(array $event, ProcessRefund $processRefund, FinalizePaidBookPurchase $finalizeBook, HandleConnectedAccountPayout $handlePayout): void
     {
         match ($event['type']) {
             'charge.refunded'               => $this->handleChargeRefunded($event, $processRefund),
             'payment_intent.succeeded'      => $this->handlePaymentIntentSucceeded($event, $finalizeBook),
             'payment_intent.payment_failed' => $this->handlePaymentFailed($event),
+            'payout.paid'                   => $this->handlePayoutEvent($event, 'paid', $handlePayout),
+            'payout.failed'                 => $this->handlePayoutEvent($event, 'failed', $handlePayout),
+            'payout.canceled'               => $this->handlePayoutEvent($event, 'canceled', $handlePayout),
             default                         => null,
         };
     }
@@ -107,6 +111,29 @@ class HandleStripeWebhook implements ShouldQueue
             ->where('stripe_payment_intent_id', $piId)
             ->where('status', 'pending')
             ->update(['status' => 'completed', 'updated_at' => now()]);
+    }
+
+    private function handlePayoutEvent(array $event, string $status, HandleConnectedAccountPayout $handlePayout): void
+    {
+        $payout    = $event['data']['object'];
+        $payoutId  = $payout['id'] ?? null;
+        $accountId = $event['account'] ?? null; // present on connected-account events
+
+        if (! $payoutId || ! $accountId) {
+            return;
+        }
+
+        $handlePayout->execute(
+            stripePayoutId:  $payoutId,
+            stripeAccountId: $accountId,
+            stripeEventId:   $event['id'],
+            amountCents:     (int) ($payout['amount'] ?? 0),
+            currency:        strtoupper($payout['currency'] ?? 'BGN'),
+            status:          $status,
+            failureCode:     $payout['failure_code'] ?? null,
+            failureMessage:  $payout['failure_message'] ?? null,
+            arrivalDate:     isset($payout['arrival_date']) ? (int) $payout['arrival_date'] : null,
+        );
     }
 
     private function handlePaymentFailed(array $event): void

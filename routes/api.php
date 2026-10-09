@@ -42,6 +42,7 @@ use App\Http\Controllers\Api\V1\UserAdminController;
 use App\Http\Controllers\Api\V1\AdminAuctionController;
 use App\Http\Controllers\Api\V1\AdminBookController;
 use App\Http\Controllers\Api\V1\AdminPayoutController;
+use App\Http\Controllers\Api\V1\AdminConnectedPayoutController;
 use App\Http\Controllers\Api\V1\AdminRulesetController;
 use App\Http\Controllers\Api\V1\AdminTransferOutboxController;
 use App\Http\Controllers\Api\V1\BookFileController;
@@ -400,6 +401,10 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         // Admin transfer outbox — read-only view
         Route::get('/admin/transfer-outbox',          [AdminTransferOutboxController::class, 'index'])->name('admin.transfer-outbox.index');
         Route::get('/admin/transfer-outbox/{id}',     [AdminTransferOutboxController::class, 'show'])->name('admin.transfer-outbox.show');
+
+        // Admin connected-account payouts — read-only reconciliation view
+        Route::get('/admin/connected-payouts',        [AdminConnectedPayoutController::class, 'index'])->name('admin.connected-payouts.index');
+        Route::get('/admin/connected-payouts/{id}',   [AdminConnectedPayoutController::class, 'show'])->name('admin.connected-payouts.show');
 
         // Admin auction management — create, update, manage items
         Route::post('/admin/auctions',                               [AdminAuctionController::class, 'store'])->name('admin.auctions.store');
