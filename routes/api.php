@@ -51,6 +51,7 @@ use App\Http\Controllers\Api\V1\ReconciliationController;
 use App\Http\Controllers\Api\V1\SettlementController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\PublicArtworkController;
+use App\Http\Controllers\Api\V1\BuyerDashboardController;
 use App\Http\Controllers\Api\V1\WatchlistController;
 use Illuminate\Support\Facades\Route;
 
@@ -231,6 +232,11 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         Route::get('/watchlist',                      [WatchlistController::class, 'index'])->name('watchlist.index');
         Route::post('/watchlist',                     [WatchlistController::class, 'store'])->name('watchlist.store');
         Route::delete('/watchlist/{type}/{id}',       [WatchlistController::class, 'destroy'])->name('watchlist.destroy');
+
+        // Buyer dashboard
+        Route::get('/my/won-items',                   [BuyerDashboardController::class, 'wonItems'])->name('buyer.won-items');
+        Route::get('/my/bids',                        [BuyerDashboardController::class, 'myBids'])->name('buyer.bids');
+        Route::get('/auction-items/{item}/bid-history', [BuyerDashboardController::class, 'bidHistory'])->name('auction-items.bid-history');
 
         // Auth — logout
         Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
