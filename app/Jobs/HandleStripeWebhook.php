@@ -177,7 +177,7 @@ class HandleStripeWebhook implements ShouldQueue
             stripeAccountId: $accountId,
             stripeEventId:   $event['id'],
             amountCents:     (int) ($payout['amount'] ?? 0),
-            currency:        strtoupper($payout['currency'] ?? 'BGN'),
+            currency:        strtoupper($payout['currency'] ?? 'EUR'),
             status:          $status,
             failureCode:     $payout['failure_code'] ?? null,
             failureMessage:  $payout['failure_message'] ?? null,
