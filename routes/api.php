@@ -117,6 +117,10 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
     Route::get('/search/artworks',           [PublicArtworkController::class, 'index'])->name('search.artworks.index');
     Route::get('/search/artworks/{artwork}', [PublicArtworkController::class, 'show'])->name('search.artworks.show');
 
+    // Linked Art JSON-LD (Phase 94)
+    Route::get('/artworks/{artwork}/linked-art', [\App\Http\Controllers\Api\V1\LinkedArtController::class, 'show'])
+        ->name('artworks.linked-art');
+
     // Public artist portfolios
     Route::get('/artists',        [ArtistPortfolioController::class, 'index'])->name('artists.index');
     Route::get('/artists/{slug}', [ArtistPortfolioController::class, 'show'])->name('artists.show');
