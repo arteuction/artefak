@@ -46,6 +46,7 @@ use App\Http\Controllers\Api\V1\AdminConnectedPayoutController;
 use App\Http\Controllers\Api\V1\AdminRulesetController;
 use App\Http\Controllers\Api\V1\AdminTransferOutboxController;
 use App\Http\Controllers\Api\V1\BookFileController;
+use App\Http\Controllers\Api\V1\BookFileUploadController;
 use App\Http\Controllers\Api\V1\ReconciliationController;
 use App\Http\Controllers\Api\V1\SettlementController;
 use App\Http\Controllers\Api\V1\ProfileController;
@@ -417,6 +418,11 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         Route::post('/books/{book}/files',                         [BookFileController::class, 'store'])->name('books.files.store');
         Route::patch('/books/{book}/files/{bookFile}',             [BookFileController::class, 'update'])->name('books.files.update');
         Route::delete('/books/{book}/files/{bookFile}',            [BookFileController::class, 'destroy'])->name('books.files.destroy');
+
+        // Book file presigned upload/download (S3 two-phase upload + entitlement-gated download)
+        Route::post('/books/{book}/files/upload-intent',           [BookFileUploadController::class, 'uploadIntent'])->name('books.files.upload-intent');
+        Route::post('/book-files/{bookFile}/complete',             [BookFileUploadController::class, 'complete'])->name('book-files.complete');
+        Route::get('/my-books/{book}/download-url',                [BookFileUploadController::class, 'downloadUrl'])->name('my-books.download-url');
     });
 });
 
