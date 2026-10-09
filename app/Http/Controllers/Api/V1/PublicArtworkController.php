@@ -47,10 +47,10 @@ final class PublicArtworkController extends Controller
             ->select('artworks.*')
             ->with(['artist:id,name']);
 
-        // Full-text search
+        // Full-text search via Scout (Meilisearch in production, collection driver in test/dev)
         if (! empty($validated['q'])) {
-            $term = $validated['q'];
-            $query->whereRaw('MATCH(artworks.title, artworks.description) AGAINST(? IN BOOLEAN MODE)', [$term . '*']);
+            $matchIds = Artwork::search($validated['q'])->keys();
+            $query->whereIn('artworks.id', $matchIds->isEmpty() ? [0] : $matchIds);
         }
 
         // Medium filter

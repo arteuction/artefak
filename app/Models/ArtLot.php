@@ -8,12 +8,31 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Laravel\Scout\Searchable;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
 
 final class ArtLot extends Model
 {
     use LogsActivity;
+    use Searchable;
+
+    public function toSearchableArray(): array
+    {
+        return [
+            'id'                  => $this->id,
+            'artwork_id'          => $this->artwork_id,
+            'status'              => $this->status,
+            'sale_mode'           => $this->sale_mode,
+            'buy_now_price_cents' => $this->buy_now_price_cents,
+            'currency'            => $this->currency,
+        ];
+    }
+
+    public function shouldBeSearchable(): bool
+    {
+        return $this->status === 'active';
+    }
 
     public function getActivitylogOptions(): LogOptions
     {
