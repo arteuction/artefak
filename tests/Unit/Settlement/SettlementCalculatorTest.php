@@ -105,7 +105,10 @@ final class SettlementCalculatorTest extends TestCase
         $this->assertSame('EUR', $r->ops->currency);
     }
 
-    /** Non-EUR must throw */
+    /**
+     * Non-EUR must throw — Bulgaria adopted EUR on 2026-01-01;
+     * BGN no longer exists as a currency.
+     */
     public function test_non_eur_gross_throws(): void
     {
         $this->expectException(\InvalidArgumentException::class);

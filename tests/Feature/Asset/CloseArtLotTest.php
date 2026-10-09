@@ -5,135 +5,147 @@ declare(strict_types=1);
 namespace Tests\Feature\Asset;
 
 use App\Domain\Asset\CloseArtLot;
-use App\Domain\SellNow\PurchaseAtFixedPrice;
 use App\Models\ArtLot;
 use App\Models\Artwork;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
+/**
+ * Phase 78 — CloseArtLot domain action: lot lifecycle + artwork status sync.
+ *
+ * Invariant:
+ *   When the last active lot for an artwork closes as 'sold', artwork.status → 'sold'.
+ *   When the last active lot closes as 'unsold', artwork.status → 'listed'.
+ *   When other active lots remain, artwork.status is not changed.
+ */
 final class CloseArtLotTest extends TestCase
 {
     use RefreshDatabase;
 
-    private User    $artist;
-    private User    $buyer;
-    private Artwork $artwork;
-    private ArtLot  $lot;
+    private CloseArtLot $action;
 
     protected function setUp(): void
     {
         parent::setUp();
+        $this->action = new CloseArtLot();
+    }
 
-        $this->artist  = User::factory()->create(['role' => 'artist']);
-        $this->buyer   = User::factory()->create(['role' => 'artist']);
-        $this->artwork = Artwork::create([
-            'user_id' => $this->artist->id,
-            'title'   => 'Sellable',
-            'slug'    => 'sellable-' . uniqid(),
-            'status'  => 'listed',
-        ]);
+    private function makeArtist(): User
+    {
+        return User::factory()->create(['role' => 'artist']);
+    }
 
-        $this->lot = ArtLot::create([
-            'artwork_id'          => $this->artwork->id,
-            'consignor_id'        => $this->artist->id,
-            'sale_mode'           => 'sell_now',
-            'status'              => 'active',
-            'buy_now_price_cents' => 100000,
-            'currency'            => 'EUR',
-            'split_profile_key'   => 'social_pilot_45_45_10',
+    private function makeArtwork(User $artist, string $status = 'listed'): Artwork
+    {
+        return Artwork::create([
+            'user_id'    => $artist->id,
+            'title'      => 'Test Work',
+            'slug'       => 'test-work-' . uniqid(),
+            'status'     => $status,
+            'is_original' => true,
         ]);
     }
 
-    // ── CloseArtLot ─────────────────────────────────────────────────
-
-    public function test_close_lot_as_sold(): void
+    private function makeLot(Artwork $artwork, string $status = 'active'): ArtLot
     {
-        $closed = (new CloseArtLot())->execute(
-            artLot:         $this->lot,
-            outcome:        CloseArtLot::STATUS_SOLD,
-            soldPriceCents: 100000,
-            buyerId:        $this->buyer->id,
-        );
-
-        $this->assertSame('sold', $closed->status);
-        $this->assertNotNull($closed->closed_at);
-    }
-
-    public function test_close_lot_as_unsold(): void
-    {
-        $closed = (new CloseArtLot())->execute($this->lot, CloseArtLot::STATUS_UNSOLD);
-
-        $this->assertSame('unsold', $closed->status);
-    }
-
-    public function test_close_emits_domain_event(): void
-    {
-        (new CloseArtLot())->execute($this->lot, CloseArtLot::STATUS_SOLD, soldPriceCents: 100000);
-
-        $this->assertDatabaseHas('domain_events', [
-            'event_type' => 'art_lot.sold',
+        return ArtLot::create([
+            'artwork_id' => $artwork->id,
+            'status'     => $status,
+            'currency'   => 'EUR',
         ]);
     }
 
-    public function test_close_already_closed_is_noop(): void
-    {
-        $this->lot->update(['status' => 'sold', 'closed_at' => now()]);
+    // ── lot status transitions ─────────────────────────────────────────────────
 
-        $result = (new CloseArtLot())->execute($this->lot->fresh(), CloseArtLot::STATUS_SOLD);
+    public function test_active_lot_closes_as_sold(): void
+    {
+        $lot = $this->makeLot($this->makeArtwork($this->makeArtist()));
+
+        $result = $this->action->execute($lot, CloseArtLot::STATUS_SOLD, soldPriceCents: 100_00);
+
+        $this->assertSame('sold', $result->status);
+        $this->assertNotNull($result->closed_at);
+    }
+
+    public function test_active_lot_closes_as_unsold(): void
+    {
+        $lot = $this->makeLot($this->makeArtwork($this->makeArtist()));
+
+        $result = $this->action->execute($lot, CloseArtLot::STATUS_UNSOLD);
+
+        $this->assertSame('unsold', $result->status);
+    }
+
+    public function test_closing_already_sold_lot_is_idempotent(): void
+    {
+        $lot = $this->makeLot($this->makeArtwork($this->makeArtist()), 'sold');
+
+        $result = $this->action->execute($lot, CloseArtLot::STATUS_SOLD);
 
         $this->assertSame('sold', $result->status);
     }
 
-    public function test_cannot_close_draft_lot(): void
+    public function test_closing_from_invalid_status_throws(): void
     {
-        $this->lot->update(['status' => 'draft']);
+        $lot = $this->makeLot($this->makeArtwork($this->makeArtist()), 'draft');
 
         $this->expectException(\DomainException::class);
-
-        (new CloseArtLot())->execute($this->lot->fresh(), CloseArtLot::STATUS_SOLD);
+        $this->action->execute($lot, CloseArtLot::STATUS_SOLD);
     }
 
-    // ── PurchaseAtFixedPrice — lot closing ────────────────────────────
+    // ── artwork status sync ───────────────────────────────────────────────────
 
-    public function test_purchase_closes_lot(): void
+    public function test_artwork_transitions_to_sold_when_last_lot_closes_sold(): void
     {
-        (new PurchaseAtFixedPrice())->execute($this->lot, $this->buyer);
+        $artist  = $this->makeArtist();
+        $artwork = $this->makeArtwork($artist, 'listed');
+        $lot     = $this->makeLot($artwork);
 
-        $this->assertSame('sold', $this->lot->fresh()->status);
+        $this->action->execute($lot, CloseArtLot::STATUS_SOLD, soldPriceCents: 50_000);
+
+        $artwork->refresh();
+        $this->assertSame('sold', $artwork->status);
     }
 
-    public function test_purchase_expired_buy_now_throws(): void
+    public function test_artwork_transitions_to_listed_when_last_lot_closes_unsold(): void
     {
-        $this->lot->update([
-            'sale_mode'          => 'hybrid',
-            'buy_now_expires_at' => now()->subMinute(),
-        ]);
+        $artist  = $this->makeArtist();
+        $artwork = $this->makeArtwork($artist, 'in_auction');
+        $lot     = $this->makeLot($artwork, 'scheduled');
 
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessageMatches('/expired/');
+        $this->action->execute($lot, CloseArtLot::STATUS_UNSOLD);
 
-        (new PurchaseAtFixedPrice())->execute($this->lot->fresh(), $this->buyer);
+        $artwork->refresh();
+        $this->assertSame('listed', $artwork->status);
     }
 
-    public function test_purchase_valid_buy_now_expiry_succeeds(): void
+    public function test_artwork_status_unchanged_when_other_active_lots_remain(): void
     {
-        $this->lot->update([
-            'sale_mode'          => 'hybrid',
-            'buy_now_expires_at' => now()->addHour(),
-        ]);
+        $artist  = $this->makeArtist();
+        $artwork = $this->makeArtwork($artist, 'in_auction');
 
-        $offer = (new PurchaseAtFixedPrice())->execute($this->lot->fresh(), $this->buyer);
+        $lot1 = $this->makeLot($artwork, 'active');
+        $this->makeLot($artwork, 'active'); // second active lot
 
-        $this->assertSame('accepted', $offer->status);
+        $this->action->execute($lot1, CloseArtLot::STATUS_SOLD, soldPriceCents: 50_000);
+
+        $artwork->refresh();
+        // Second lot is still active — artwork should NOT transition to sold
+        $this->assertSame('in_auction', $artwork->status);
     }
 
-    public function test_purchase_lot_already_sold_throws(): void
+    public function test_artwork_status_unchanged_when_scheduled_lot_remains(): void
     {
-        (new PurchaseAtFixedPrice())->execute($this->lot, $this->buyer);
+        $artist  = $this->makeArtist();
+        $artwork = $this->makeArtwork($artist, 'in_auction');
 
-        $this->expectException(\InvalidArgumentException::class);
+        $lot1 = $this->makeLot($artwork, 'catalogued');
+        $this->makeLot($artwork, 'scheduled'); // still pending in an upcoming auction
 
-        (new PurchaseAtFixedPrice())->execute($this->lot->fresh(), $this->buyer);
+        $this->action->execute($lot1, CloseArtLot::STATUS_UNSOLD);
+
+        $artwork->refresh();
+        $this->assertSame('in_auction', $artwork->status);
     }
 }

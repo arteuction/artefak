@@ -84,14 +84,14 @@ final class GoldenPathTest extends TestCase
             'artwork_id' => $artwork->id,
             'gallery_id' => $gallery->id,
             'status'     => 'active',
-            'currency'   => 'BGN',
+            'currency'   => 'EUR',
         ]);
 
         // Buyer submits offer via art-lot scoped route
         $offerRes = $this->actingAs($buyer)
             ->postJson("/api/v1/art-lots/{$lot->id}/sell-now-offers", [
                 'offered_price_cents' => 100_000,
-                'currency'            => 'BGN',
+                'currency'            => 'EUR',
             ]);
         $offerRes->assertCreated();
         $offerId = $offerRes->json('id');
@@ -142,7 +142,7 @@ final class GoldenPathTest extends TestCase
             'artwork_id'         => $artwork->id,
             'auction_id'         => $auction->id,
             'status'             => 'active',
-            'currency'           => 'BGN',
+            'currency'           => 'EUR',
             'starting_bid_cents' => 50_000,
         ]);
 

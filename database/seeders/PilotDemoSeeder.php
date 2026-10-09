@@ -93,7 +93,7 @@ final class PilotDemoSeeder extends Seeder
             if ($artwork->status === 'listed') {
                 ArtLot::firstOrCreate(
                     ['artwork_id' => $artwork->id, 'gallery_id' => $gallery->id],
-                    ['status' => 'active', 'currency' => 'BGN'],
+                    ['status' => 'active', 'currency' => 'EUR'],
                 );
             }
         }
@@ -104,7 +104,7 @@ final class PilotDemoSeeder extends Seeder
             [
                 'title'      => 'Autumn Sale 2025',
                 'status'     => 'scheduled',
-                'currency'   => 'BGN',
+                'currency'   => 'EUR',
                 'starts_at'  => now()->addDays(7),
                 'ends_at'    => now()->addDays(10),
             ],
@@ -114,7 +114,7 @@ final class PilotDemoSeeder extends Seeder
             if ($artwork->status === 'in_auction') {
                 ArtLot::firstOrCreate(
                     ['artwork_id' => $artwork->id, 'auction_id' => $auction->id],
-                    ['status' => 'active', 'currency' => 'BGN', 'starting_bid_cents' => 50_000],
+                    ['status' => 'active', 'currency' => 'EUR', 'starting_bid_cents' => 50_000],
                 );
             }
         }

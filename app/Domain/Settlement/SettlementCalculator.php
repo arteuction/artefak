@@ -16,13 +16,14 @@ namespace App\Domain\Settlement;
  */
 final class SettlementCalculator
 {
+    /** Bulgaria adopted EUR on 2026-01-01; all ARTeuCtion settlements are in EUR. */
     private const CURRENCY = 'EUR';
 
     public function calculate(Money $gross, SplitProfile $profile): SettlementResult
     {
         if ($gross->currency !== self::CURRENCY) {
             throw new \InvalidArgumentException(
-                "Only EUR is accepted for P0 settlement, got: {$gross->currency}"
+                "Only EUR is accepted for settlement, got: {$gross->currency}"
             );
         }
 

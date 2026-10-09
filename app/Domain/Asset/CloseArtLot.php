@@ -6,6 +6,7 @@ namespace App\Domain\Asset;
 
 use App\Domain\Outbox\AppendDomainEvent;
 use App\Models\ArtLot;
+use App\Models\Artwork;
 
 /**
  * Close an ArtLot — transitions to 'sold' or 'unsold'.
@@ -58,6 +59,44 @@ final class CloseArtLot
             idempotencyKey: $key,
         );
 
+        $this->syncArtworkStatus($artLot, $outcome);
+
         return $artLot->refresh();
+    }
+
+    /**
+     * Sync artwork.status based on remaining active lots.
+     *
+     * sold outcome:   artwork → 'sold' only when no other active/scheduled lots remain
+     * unsold outcome: artwork → 'listed' when it has no remaining active commercial lots
+     */
+    private function syncArtworkStatus(ArtLot $artLot, string $outcome): void
+    {
+        $artwork = $artLot->artwork;
+
+        if ($artwork === null) {
+            return;
+        }
+
+        $hasOtherActiveLots = Artwork::query()
+            ->join('art_lots', 'art_lots.artwork_id', '=', 'artworks.id')
+            ->where('artworks.id', $artwork->id)
+            ->where('art_lots.id', '!=', $artLot->id)
+            ->whereIn('art_lots.status', ['active', 'scheduled', 'catalogued'])
+            ->exists();
+
+        if ($hasOtherActiveLots) {
+            return;
+        }
+
+        $newArtworkStatus = match ($outcome) {
+            self::STATUS_SOLD   => 'sold',
+            self::STATUS_UNSOLD => 'listed',
+            default             => null,
+        };
+
+        if ($newArtworkStatus !== null && $artwork->status !== $newArtworkStatus) {
+            $artwork->update(['status' => $newArtworkStatus]);
+        }
     }
 }
