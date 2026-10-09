@@ -6,11 +6,14 @@
         "build": "vite build",
         "dev": "vite",
         "generate:api-types": "npx @hey-api/openapi-ts@0.67.1 --input resources/js/api/openapi.json --output resources/js/api/generated --client @hey-api/client-axios",
-        "check:api-types": "php artisan scramble:export --path=resources/js/api/openapi.json --env=testing && npm run generate:api-types"
+        "check:api-types": "php artisan scramble:export --path=resources/js/api/openapi.json --env=testing && npm run generate:api-types",
+        "test:e2e": "playwright test",
+        "test:e2e:headed": "playwright test --headed"
     },
     "devDependencies": {
         "@hey-api/client-axios": "^0.9.1",
         "@hey-api/openapi-ts": "^0.67.1",
+        "@playwright/test": "^1.64.0",
         "@tailwindcss/vite": "^4.0.0",
         "@types/react": "^19.3.0",
         "@types/react-dom": "^19.3.0",
