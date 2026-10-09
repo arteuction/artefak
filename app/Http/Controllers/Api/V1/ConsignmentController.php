@@ -9,6 +9,7 @@ use App\Domain\Asset\ApproveConsignment;
 use App\Domain\Asset\CreateConsignment;
 use App\Domain\Asset\CreateLotFromConsignment;
 use App\Domain\Asset\RequestConsignmentChanges;
+use Illuminate\Support\Facades\DB;
 use App\Models\ArtLot;
 use App\Http\Controllers\Controller;
 use App\Models\Artwork;
@@ -160,5 +161,50 @@ final class ConsignmentController extends Controller
         }
 
         return response()->json($consignment);
+    }
+
+    /**
+     * POST /api/v1/consignments/{consignment}/cancel
+     *
+     * Owner or consignor can cancel a draft/pending/active consignment.
+     * Cannot cancel if there are non-terminal ArtLots attached.
+     */
+    public function cancel(Request $request, Consignment $consignment): JsonResponse
+    {
+        $user = $request->user();
+        $isOwner = $consignment->owner_id === $user->id || $consignment->consignor_id === $user->id;
+        $isAdmin = in_array($user->role, ['admin', 'operator'], true);
+
+        if (! $isOwner && ! $isAdmin) {
+            abort(403);
+        }
+
+        if ($consignment->status === 'terminated') {
+            return response()->json(['message' => 'Already terminated.', 'data' => $consignment]);
+        }
+
+        if ($consignment->status === 'completed') {
+            abort(422, 'A completed consignment cannot be terminated.');
+        }
+
+        // Guard: active art lots block cancellation
+        $activeLots = ArtLot::where('consignment_id', $consignment->id)
+            ->whereNotIn('status', ['sold', 'unsold', 'archived', 'draft'])
+            ->count();
+
+        if ($activeLots > 0) {
+            abort(422, "Cannot cancel: consignment has {$activeLots} active lot(s).");
+        }
+
+        DB::transaction(function () use ($consignment): void {
+            $consignment->update(['status' => 'terminated']);
+
+            // Archive any draft lots tied to this consignment
+            ArtLot::where('consignment_id', $consignment->id)
+                ->where('status', 'draft')
+                ->update(['status' => 'archived', 'updated_at' => now()]);
+        });
+
+        return response()->json(['message' => 'Consignment terminated.', 'data' => $consignment->fresh()]);
     }
 }

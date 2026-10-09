@@ -41,6 +41,7 @@ use App\Http\Controllers\Api\V1\SplitProfileController;
 use App\Http\Controllers\Api\V1\UserAdminController;
 use App\Http\Controllers\Api\V1\AdminBookController;
 use App\Http\Controllers\Api\V1\AdminPayoutController;
+use App\Http\Controllers\Api\V1\BookFileController;
 use App\Http\Controllers\Api\V1\ReconciliationController;
 use App\Http\Controllers\Api\V1\SettlementController;
 use App\Http\Controllers\Api\V1\ProfileController;
@@ -119,7 +120,8 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
     Route::get('/galleries/{gallery}/staff',    [GalleryStaffController::class, 'index'])->name('galleries.staff.index');
 
     // SDG claims (public read — approved only)
-    Route::get('/artworks/{artwork}/sdg-claims', [SdgClaimController::class, 'index'])->name('artworks.sdg-claims.index');
+    Route::get('/artworks/{artwork}/sdg-claims',              [SdgClaimController::class, 'index'])->name('artworks.sdg-claims.index');
+    Route::get('/artworks/{artwork}/sdg-claims/{claim}',      [SdgClaimController::class, 'show'])->name('artworks.sdg-claims.show');
 
     // Venues (public read)
     Route::get('/venues',         [VenueController::class, 'index'])->name('venues.index');
@@ -382,6 +384,15 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         // Admin book management — create/update (publish via LibraryController)
         Route::post('/admin/books',        [AdminBookController::class, 'store'])->name('admin.books.store');
         Route::patch('/admin/books/{book}', [AdminBookController::class, 'update'])->name('admin.books.update');
+
+        // Consignment terminate (cancel by owner/consignor/admin)
+        Route::post('/consignments/{consignment}/terminate', [ConsignmentController::class, 'cancel'])->name('consignments.terminate');
+
+        // Book files — metadata management (owner or admin)
+        Route::get('/books/{book}/files',                          [BookFileController::class, 'index'])->name('books.files.index');
+        Route::post('/books/{book}/files',                         [BookFileController::class, 'store'])->name('books.files.store');
+        Route::patch('/books/{book}/files/{bookFile}',             [BookFileController::class, 'update'])->name('books.files.update');
+        Route::delete('/books/{book}/files/{bookFile}',            [BookFileController::class, 'destroy'])->name('books.files.destroy');
     });
 });
 

@@ -96,4 +96,11 @@ final class SdgClaimController extends Controller
 
         return response()->json($claim->fresh());
     }
+
+    /** GET /api/v1/artworks/{artwork}/sdg-claims/{claim} */
+    public function show(Artwork $artwork, ArtworkSdgClaim $claim): JsonResponse
+    {
+        abort_if($claim->artwork_id !== $artwork->id, 404);
+        return response()->json(['data' => $claim]);
+    }
 }
