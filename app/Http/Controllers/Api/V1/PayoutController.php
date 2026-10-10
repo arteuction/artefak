@@ -176,8 +176,9 @@ final class PayoutController extends Controller
      * the artwork's owner has enabled public_collector_profile (future).
      * Returns: sale date, sale mode (auction/sell_now), price band, gallery.
      */
-    public function artworkSalesHistory(int $artworkId): JsonResponse
+    public function artworkSalesHistory(\App\Models\Artwork $artwork): JsonResponse
     {
+        $artworkId = $artwork->id;
         // OwnershipTransfers are the canonical record of sales.
         // Join via art_lots to reach artwork_id.
         $transfers = DB::table('ownership_transfers')

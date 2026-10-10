@@ -103,9 +103,9 @@ final class Phase65ApiTest extends TestCase
 
         $response->assertJsonStructure([
             'data' => [
-                '*' => ['id', 'title', 'slug', 'status', 'medium', 'user_id'],
+                '*' => ['id', 'title', 'slug', 'status', 'medium'],
             ],
-            'total', 'current_page', 'last_page',
+            'meta' => ['total', 'current_page', 'last_page'],
         ]);
     }
 
