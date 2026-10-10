@@ -212,6 +212,9 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
     // Authenticated mutations
     Route::middleware('auth:sanctum')->group(function (): void {
 
+        // GDPR data portability (Art. 20)
+        Route::get('/my/export', [\App\Http\Controllers\Api\V1\DataPortabilityController::class, 'export'])->name('my.export');
+
         // Artworks
         Route::get('/my/artworks',            [ArtworkController::class, 'mine'])->name('my.artworks');
         Route::post('/artworks',              [ArtworkController::class, 'store'])->name('artworks.store');
