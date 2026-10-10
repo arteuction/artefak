@@ -34,7 +34,7 @@ final class IiifManifestController extends Controller
         $artwork->load('artist:id,name');
 
         $baseUrl     = rtrim(config('app.url'), '/');
-        $manifestId  = "{$baseUrl}/api/v1/artworks/{$artwork->id}/iiif/manifest";
+        $manifestId  = "{$baseUrl}/api/v1/artworks/{$artwork->slug}/iiif/manifest";
         $canvasId    = "{$manifestId}/canvas/1";
         $annoPageId  = "{$canvasId}/page/1";
         $annoId      = "{$annoPageId}/anno/1";

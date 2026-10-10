@@ -30,7 +30,7 @@ final class LinkedArtController extends Controller
         $artwork->load('artist:id,name');
 
         $baseUrl = rtrim(config('app.url'), '/');
-        $id      = "{$baseUrl}/api/v1/artworks/{$artwork->id}/linked-art";
+        $id      = "{$baseUrl}/api/v1/artworks/{$artwork->slug}/linked-art";
 
         $document = [
             '@context'   => 'https://linked.art/ns/v1/linked-art.json',

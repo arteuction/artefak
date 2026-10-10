@@ -6,8 +6,10 @@ namespace Tests\Feature\Payment;
 
 use App\Application\Settlement\ProcessRefund;
 use App\Domain\Auction\SettleAuction;
+use App\Domain\Fulfillment\ConfirmSellNowPayment;
 use App\Domain\Library\FinalizePaidBookPurchase;
 use App\Domain\Payment\HandleConnectedAccountPayout;
+use App\Domain\SellNow\CreateSellNowSettlement;
 use App\Jobs\HandleStripeWebhook;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Queue\Events\JobProcessed;
@@ -40,15 +42,19 @@ final class PaymentLifecycleTest extends TestCase
     private FinalizePaidBookPurchase   $finalizeBook;
     private HandleConnectedAccountPayout $handlePayout;
     private SettleAuction              $settleAuction;
+    private ConfirmSellNowPayment      $confirmSellNow;
+    private CreateSellNowSettlement    $createSellNowSettlement;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->processRefund  = $this->app->make(ProcessRefund::class);
-        $this->finalizeBook   = $this->app->make(FinalizePaidBookPurchase::class);
-        $this->handlePayout   = $this->app->make(HandleConnectedAccountPayout::class);
-        $this->settleAuction  = $this->app->make(SettleAuction::class);
+        $this->processRefund           = $this->app->make(ProcessRefund::class);
+        $this->finalizeBook            = $this->app->make(FinalizePaidBookPurchase::class);
+        $this->handlePayout            = $this->app->make(HandleConnectedAccountPayout::class);
+        $this->settleAuction           = $this->app->make(SettleAuction::class);
+        $this->confirmSellNow          = $this->app->make(ConfirmSellNowPayment::class);
+        $this->createSellNowSettlement = $this->app->make(CreateSellNowSettlement::class);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -141,7 +147,7 @@ final class PaymentLifecycleTest extends TestCase
     private function runJob(int $webhookEventId): void
     {
         $job = new HandleStripeWebhook($webhookEventId);
-        $job->handle($this->processRefund, $this->finalizeBook, $this->handlePayout, $this->settleAuction);
+        $job->handle($this->processRefund, $this->finalizeBook, $this->handlePayout, $this->settleAuction, $this->confirmSellNow, $this->createSellNowSettlement);
     }
 
     // ── A. payment_intent.succeeded → settlement completed ────────────────────
