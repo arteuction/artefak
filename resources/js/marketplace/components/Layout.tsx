@@ -12,58 +12,52 @@ export default function Layout() {
         navigate('/');
     };
 
+    const navLinkClass = ({ isActive }: { isActive: boolean }) =>
+        isActive
+            ? 'text-[var(--color-text)] font-medium'
+            : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors';
+
     return (
-        <div className="min-h-screen bg-white text-gray-900">
-            <header className="border-b border-gray-200 px-6 py-4">
-                <div className="mx-auto max-w-7xl flex items-center justify-between">
-                    <Link to="/" className="text-2xl font-semibold tracking-tight">
+        <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
+            <header className="border-b border-[var(--color-border)] px-6 py-4 sticky top-0 bg-[var(--color-bg)] z-10">
+                <div className="mx-auto max-w-7xl flex items-center justify-between gap-6">
+                    <Link
+                        to="/"
+                        className="text-xl font-semibold tracking-tight shrink-0 hover:opacity-80 transition-opacity"
+                    >
                         ARTeuCtion
                     </Link>
-                    <nav className="flex items-center gap-6 text-sm font-medium">
-                        <NavLink
-                            to="/artworks"
-                            className={({ isActive }) =>
-                                isActive ? 'text-black' : 'text-gray-500 hover:text-black'
-                            }
-                        >
-                            Artworks
-                        </NavLink>
-                        <NavLink
-                            to="/auctions"
-                            className={({ isActive }) =>
-                                isActive ? 'text-black' : 'text-gray-500 hover:text-black'
-                            }
-                        >
-                            Auctions
-                        </NavLink>
+
+                    <nav className="flex items-center gap-5 text-sm">
+                        <NavLink to="/artworks" className={navLinkClass}>Artworks</NavLink>
+                        <NavLink to="/auctions" className={navLinkClass}>Auctions</NavLink>
                         {user?.role === 'artist' && (
-                            <NavLink
-                                to="/dashboard"
-                                className={({ isActive }) =>
-                                    isActive ? 'text-black' : 'text-gray-500 hover:text-black'
-                                }
-                            >
-                                My works
-                            </NavLink>
+                            <NavLink to="/dashboard" className={navLinkClass}>My works</NavLink>
                         )}
+                    </nav>
+
+                    <div className="flex items-center gap-3 text-sm shrink-0">
                         {user ? (
-                            <button
-                                onClick={handleLogout}
-                                className="text-gray-500 hover:text-black"
-                            >
-                                Sign out
-                            </button>
+                            <>
+                                <span className="text-[var(--color-text-muted)] hidden sm:block truncate max-w-[160px]">
+                                    {user.name}
+                                </span>
+                                <button
+                                    onClick={handleLogout}
+                                    className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+                                >
+                                    Sign out
+                                </button>
+                            </>
                         ) : (
                             <NavLink
                                 to="/login"
-                                className={({ isActive }) =>
-                                    isActive ? 'text-black' : 'text-gray-500 hover:text-black'
-                                }
+                                className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
                             >
                                 Sign in
                             </NavLink>
                         )}
-                    </nav>
+                    </div>
                 </div>
             </header>
 
@@ -71,7 +65,7 @@ export default function Layout() {
                 <Outlet />
             </main>
 
-            <footer className="border-t border-gray-200 px-6 py-6 text-center text-xs text-gray-400">
+            <footer className="border-t border-[var(--color-border)] px-6 py-6 text-center text-xs text-[var(--color-text-faint)]">
                 &copy; {new Date().getFullYear()} ARTeuCtion
             </footer>
         </div>

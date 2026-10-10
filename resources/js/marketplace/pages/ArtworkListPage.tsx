@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import type { Artwork, PaginatedResponse } from '@/lib/api';
 import ArtworkCard from '@/components/ArtworkCard';
+import { Button, EmptyState, Input, Spinner } from '@/components/ui';
 
 export default function ArtworkListPage() {
     const [page, setPage] = useState(1);
@@ -25,17 +26,17 @@ export default function ArtworkListPage() {
             <h1 className="text-3xl font-semibold mb-6">Artworks</h1>
 
             <div className="flex gap-3 mb-6">
-                <input
+                <Input
                     type="search"
                     placeholder="Search artworks…"
                     value={search}
                     onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                    className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                    className="flex-1"
                 />
                 <select
                     value={medium}
                     onChange={(e) => { setMedium(e.target.value); setPage(1); }}
-                    className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                    className="rounded-[var(--radius-sm)] border border-[var(--color-border)] px-3 py-2 text-sm bg-[var(--color-bg)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
                 >
                     <option value="">All media</option>
                     <option value="painting">Painting</option>
@@ -48,16 +49,8 @@ export default function ArtworkListPage() {
             </div>
 
             {isLoading && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {Array.from({ length: 8 }).map((_, i) => (
-                        <div key={i} className="rounded-lg border border-gray-100 animate-pulse">
-                            <div className="aspect-square bg-gray-100" />
-                            <div className="p-4 space-y-2">
-                                <div className="h-3 bg-gray-100 rounded w-1/2" />
-                                <div className="h-4 bg-gray-100 rounded w-3/4" />
-                            </div>
-                        </div>
-                    ))}
+                <div className="flex justify-center py-16">
+                    <Spinner size="lg" />
                 </div>
             )}
 
@@ -65,7 +58,14 @@ export default function ArtworkListPage() {
                 <p className="text-red-600 text-sm">Failed to load artworks. Please try again.</p>
             )}
 
-            {data && (
+            {data && data.data.length === 0 && (
+                <EmptyState
+                    title="No artworks found"
+                    description={search || medium ? 'Try different search terms or filters.' : 'Artworks will appear here once artists submit their work.'}
+                />
+            )}
+
+            {data && data.data.length > 0 && (
                 <>
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                         {data.data.map((artwork) => (
@@ -73,29 +73,27 @@ export default function ArtworkListPage() {
                         ))}
                     </div>
 
-                    {data.data.length === 0 && (
-                        <p className="text-gray-500 text-sm text-center py-12">No artworks found.</p>
-                    )}
-
                     {data.meta.last_page > 1 && (
-                        <div className="flex justify-center gap-2 mt-8">
-                            <button
+                        <div className="flex justify-center items-center gap-3 mt-8">
+                            <Button
+                                variant="secondary"
+                                size="sm"
                                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                                 disabled={page === 1}
-                                className="px-4 py-2 rounded-md border border-gray-300 text-sm disabled:opacity-40 hover:bg-gray-50"
                             >
                                 Previous
-                            </button>
-                            <span className="px-4 py-2 text-sm text-gray-500">
+                            </Button>
+                            <span className="text-sm text-[var(--color-text-muted)]">
                                 {page} / {data.meta.last_page}
                             </span>
-                            <button
+                            <Button
+                                variant="secondary"
+                                size="sm"
                                 onClick={() => setPage((p) => Math.min(data.meta.last_page, p + 1))}
                                 disabled={page === data.meta.last_page}
-                                className="px-4 py-2 rounded-md border border-gray-300 text-sm disabled:opacity-40 hover:bg-gray-50"
                             >
                                 Next
-                            </button>
+                            </Button>
                         </div>
                     )}
                 </>
