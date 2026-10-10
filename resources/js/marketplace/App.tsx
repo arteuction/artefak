@@ -9,6 +9,7 @@ import ArtistProfilePage from './pages/ArtistProfilePage';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/artist/DashboardPage';
 import ArtworkCreatePage from './pages/artist/ArtworkCreatePage';
+import ArtworkEditPage from './pages/artist/ArtworkEditPage';
 import NotFoundPage from './pages/NotFoundPage';
 
 export default function App() {
@@ -25,6 +26,7 @@ export default function App() {
                     <Route path="login" element={<LoginPage />} />
                     <Route path="dashboard" element={<DashboardPage />} />
                     <Route path="dashboard/artworks/new" element={<ArtworkCreatePage />} />
+                    <Route path="dashboard/artworks/:slug/edit" element={<ArtworkEditPage />} />
                     <Route path="*" element={<NotFoundPage />} />
                 </Route>
             </Routes>
