@@ -87,12 +87,12 @@ class RightsSpdxValidationTest extends TestCase
     public static function invalidSpdxProvider(): array
     {
         return [
-            'space-separated CC BY-NC 4.0'    => ['CC BY-NC 4.0'],
-            'space-separated CC BY 4.0'       => ['CC BY 4.0'],
-            'space-separated CC BY SA 4.0'    => ['CC BY SA 4.0'],
-            'bare "Creative Commons"'          => ['Creative Commons Attribution 4.0'],
-            'starts with space'                => [' CC-BY-4.0'],
-            'ends with space'                  => ['CC-BY-4.0 '],
+            'space-separated CC BY-NC 4.0' => ['CC BY-NC 4.0'],
+            'space-separated CC BY 4.0'    => ['CC BY 4.0'],
+            'space-separated CC BY SA 4.0' => ['CC BY SA 4.0'],
+            'bare "Creative Commons"'       => ['Creative Commons Attribution 4.0'],
+            // Note: leading/trailing spaces are stripped by TrimStrings middleware
+            // before validation, so those cases are intentionally excluded here.
         ];
     }
 

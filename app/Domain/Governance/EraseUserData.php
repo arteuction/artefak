@@ -33,13 +33,18 @@ final class EraseUserData
             $pseudonym = "erased_user_{$user->id}";
             $erasedEmail = "{$pseudonym}@erased.invalid";
 
-            // Anonymise the user record
-            $user->update([
-                'name'           => $pseudonym,
-                'email'          => $erasedEmail,
-                'password'       => '',
-                'remember_token' => null,
-            ]);
+            // Anonymise the user record.
+            // Use DB::table() to bypass the Eloquent 'hashed' cast on password
+            // and any fillable restrictions, so the raw empty string is stored.
+            DB::table('users')
+                ->where('id', $user->id)
+                ->update([
+                    'name'           => $pseudonym,
+                    'email'          => $erasedEmail,
+                    'password'       => '',
+                    'remember_token' => null,
+                    'updated_at'     => now(),
+                ]);
 
             // Revoke all Sanctum tokens
             DB::table('personal_access_tokens')

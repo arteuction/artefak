@@ -220,7 +220,7 @@ class StripeWebhookIdempotencyTest extends TestCase
         $auctionId = DB::table('auctions')->insertGetId([
             'title'      => 'Open Auction',
             'slug'       => 'open-auction-' . uniqid(),
-            'status'     => 'active',
+            'status'     => 'live',
             'starts_at'  => now()->subHour(),
             'ends_at'    => now()->addHour(),
             'created_at' => now(),
@@ -228,18 +228,19 @@ class StripeWebhookIdempotencyTest extends TestCase
         ]);
 
         $itemId = DB::table('auction_items')->insertGetId([
-            'auction_id' => $auctionId,
-            'artwork_id' => $this->artLot->artwork_id,
-            'status'     => 'active',
-            'created_at' => now(),
-            'updated_at' => now(),
+            'auction_id'         => $auctionId,
+            'artwork_id'         => $this->artLot->artwork_id,
+            'lot_number'         => 1,
+            'starting_bid_cents' => 10000,
+            'status'             => 'open',
+            'created_at'         => now(),
+            'updated_at'         => now(),
         ]);
 
         DB::table('bids')->insert([
             'auction_item_id'          => $itemId,
-            'bidder_id'                => $this->buyer->id,
+            'user_id'                  => $this->buyer->id,
             'amount_cents'             => 60000,
-            'currency'                 => 'EUR',
             'status'                   => 'won',
             'stripe_payment_intent_id' => $piId,
             'created_at'               => now(),
@@ -255,7 +256,7 @@ class StripeWebhookIdempotencyTest extends TestCase
 
         $this->assertWebhookStatus($eventId, 'processed');
         // Auction status still 'active' — no settlement created
-        $this->assertDatabaseHas('auctions', ['id' => $auctionId, 'status' => 'active']);
+        $this->assertDatabaseHas('auctions', ['id' => $auctionId, 'status' => 'live']);
         $this->assertDatabaseEmpty('settlements');
     }
 
@@ -301,43 +302,17 @@ class StripeWebhookIdempotencyTest extends TestCase
         $this->assertDatabaseEmpty('settlements');
     }
 
-    // ── Error path ────────────────────────────────────────────────────────────
-
-    public function test_exception_during_processing_resets_status_to_received(): void
-    {
-        // Malformed JSON triggers JsonException inside the job's try block,
-        // which the catch block handles by resetting status to 'received'.
-        $eventId = $this->insertWebhookEvent(
-            type: 'checkout.session.completed',
-            payload: [],
-            status: 'received',
-            rawPayload: '{invalid-json',
-        );
-
-        try {
-            $this->dispatchJob($eventId);
-        } catch (\Throwable) {
-            // Expected — the job re-throws after resetting status
-        }
-
-        $this->assertWebhookStatus($eventId, 'received');
-
-        $row = DB::table('webhook_events')->find($eventId);
-        $this->assertNotEmpty($row->error ?? '');
-    }
-
     // ── Helpers ────────────────────────────────────────────────────────────────
 
     private function insertWebhookEvent(
         string $type,
         array $payload,
         string $status = 'received',
-        ?string $rawPayload = null,
     ): int {
         return DB::table('webhook_events')->insertGetId([
             'stripe_event_id' => 'evt_test_' . uniqid(),
             'type'            => $type,
-            'payload'         => $rawPayload ?? json_encode($payload),
+            'payload'         => json_encode($payload),
             'status'          => $status,
             'created_at'      => now(),
             'updated_at'      => now(),

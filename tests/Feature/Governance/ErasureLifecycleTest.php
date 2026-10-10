@@ -319,13 +319,14 @@ class ErasureLifecycleTest extends TestCase
         ]);
 
         DB::table('ledger_entries')->insert([
-            'settlement_id' => $settlementId,
-            'type'          => 'credit',
-            'amount_cents'  => 4500,
-            'currency'      => 'EUR',
-            'note'          => 'artist share',
-            'created_at'    => now(),
-            'updated_at'    => now(),
+            'settlement_id'   => $settlementId,
+            'type'            => 'credit',
+            'amount_cents'    => 4500,
+            'currency'        => 'EUR',
+            'note'            => 'artist share',
+            'idempotency_key' => 'test-ledger-' . uniqid(),
+            'created_at'      => now(),
+            'updated_at'      => now(),
         ]);
 
         $this->eraser->execute($this->user);
