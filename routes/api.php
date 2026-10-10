@@ -58,6 +58,7 @@ use App\Http\Controllers\Api\V1\ArtistPortfolioController;
 use App\Http\Controllers\Api\V1\BuyerDashboardController;
 use App\Http\Controllers\Api\V1\SellNowCheckoutController;
 use App\Http\Controllers\Api\V1\WatchlistController;
+use App\Http\Controllers\Api\V1\RightsController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -136,6 +137,7 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
     Route::get('/artworks',        [ArtworkController::class, 'index'])->name('artworks.index');
     Route::get('/artworks/{artwork}', [ArtworkController::class, 'show'])->name('artworks.show');
     Route::get('/artworks/{artwork}/evidence', [ArtworkController::class, 'indexEvidence'])->name('artworks.evidence.index');
+    Route::get('/artworks/{artwork}/rights',   [RightsController::class, 'show'])->name('artworks.rights.show');
 
     // Artwork sales history (public — privacy-preserving, no buyer identity)
     Route::get('/artworks/{artwork}/sales-history', [PayoutController::class, 'artworkSalesHistory'])->name('artworks.sales-history');
@@ -213,6 +215,7 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         Route::post('/artworks/{artwork}/images/presign', [ArtworkController::class, 'presignImage'])->name('artworks.images.presign');
         Route::post('/artworks/{artwork}/images/confirm',      [ArtworkController::class, 'confirmImage'])->name('artworks.images.confirm');
         Route::post('/artworks/{artwork}/images/derivatives',  [ArtworkController::class, 'generateDerivatives'])->name('artworks.images.derivatives');
+        Route::patch('/artworks/{artwork}/rights', [RightsController::class, 'update'])->name('artworks.rights.update');
 
         // Venues — create/update (admin)
         Route::post('/venues',          [VenueController::class, 'store'])->name('venues.store');

@@ -51,16 +51,18 @@ final class Artwork extends Model
         'is_original', 'edition_number', 'edition_total',
         'ar_model_url', 'status',
         'primary_image_key', 'primary_image_status', 'image_derivatives',
+        'license_spdx', 'resale_royalty_bps', 'rights_statement',
     ];
 
     protected function casts(): array
     {
         return [
-            'is_original'        => 'boolean',
-            'year_created'       => 'integer',
-            'edition_number'     => 'integer',
-            'edition_total'      => 'integer',
-            'image_derivatives'  => 'array',
+            'is_original'          => 'boolean',
+            'year_created'         => 'integer',
+            'edition_number'       => 'integer',
+            'edition_total'        => 'integer',
+            'image_derivatives'    => 'array',
+            'resale_royalty_bps'   => 'integer',
         ];
     }
 
