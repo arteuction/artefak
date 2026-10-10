@@ -98,8 +98,7 @@ export default function AuctionRoomPage() {
 
     const bidMutation = useMutation({
         mutationFn: async ({ lotId, amount }: { lotId: number; amount: number }) => {
-            const res = await api.post('/bids', {
-                auction_item_id: lotId,
+            const res = await api.post(`/auctions/${id}/items/${lotId}/bids`, {
                 amount_cents: Math.round(amount * 100),
             });
             return res.data;

@@ -82,7 +82,7 @@ export default function OfferListPage() {
     const { data, isLoading } = useQuery({
         queryKey: ['my-offers'],
         queryFn: async () => {
-            const res = await api.get<PaginatedResponse<SellNowOffer>>('/sell-now-offers');
+            const res = await api.get<PaginatedResponse<SellNowOffer>>('/my/sell-now-offers');
             return res.data;
         },
         enabled: !!user,

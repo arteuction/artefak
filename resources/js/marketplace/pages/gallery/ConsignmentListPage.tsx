@@ -26,19 +26,19 @@ export default function ConsignmentListPage() {
     const { data, isLoading } = useQuery({
         queryKey: ['gallery-consignments'],
         queryFn: async () => {
-            const res = await api.get<PaginatedResponse<GalleryConsignment>>('/gallery/consignments');
+            const res = await api.get<PaginatedResponse<GalleryConsignment>>('/consignments');
             return res.data;
         },
         enabled: user?.role === 'admin',
     });
 
     const approveMutation = useMutation({
-        mutationFn: async (id: number) => api.post(`/gallery/consignments/${id}/approve`),
+        mutationFn: async (id: number) => api.post(`/consignments/${id}/approve`),
         onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['gallery-consignments'] }),
     });
 
     const rejectMutation = useMutation({
-        mutationFn: async (id: number) => api.post(`/gallery/consignments/${id}/reject`),
+        mutationFn: async (id: number) => api.post(`/consignments/${id}/terminate`),
         onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['gallery-consignments'] }),
     });
 

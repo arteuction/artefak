@@ -114,19 +114,33 @@ export type VenueArtwork = {
     qr_token: string | null;
 };
 
+export type BookAuthor = {
+    id: number;
+    name: string;
+    role: string | null;
+    royalty_bps: number | null;
+};
+
 export type Publication = {
     id: number;
     title: string;
     slug: string;
-    author: string | null;
     description: string | null;
-    cover_image_url: string | null;
-    file_format: string | null;
+    short_description: string | null;
+    isbn: string | null;
+    publisher: string | null;
+    language: string | null;
     page_count: number | null;
+    publication_year: number | null;
     price_cents: number;
     currency: string;
-    status: 'draft' | 'published' | 'archived';
+    is_free: boolean;
+    status: 'draft' | 'pending_review' | 'published' | 'rejected' | 'unpublished';
+    is_featured: boolean;
     created_at: string;
+    book_authors?: Array<{ author: BookAuthor; role: string | null }>;
+    files?: Array<{ id: number; type: string; size_bytes: number | null; version: string | null }>;
+    // entitlement computed by backend when authenticated
     access?: 'none' | 'purchased' | 'free';
 };
 

@@ -27,7 +27,7 @@ export default function DashboardPage() {
     const { data, isLoading } = useQuery({
         queryKey: ['my-artworks'],
         queryFn: async () => {
-            const res = await api.get<PaginatedResponse<Artwork>>('/artworks/mine');
+            const res = await api.get<PaginatedResponse<Artwork>>('/my/artworks');
             return res.data;
         },
         enabled: user?.role === 'artist',

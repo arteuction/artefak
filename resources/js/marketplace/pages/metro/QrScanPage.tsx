@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import axios from 'axios';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/lib/api';
 import type { VenueArtwork } from '@/lib/api';
 import { Spinner } from '@/components/ui';
 
@@ -13,7 +13,10 @@ export default function QrScanPage() {
     const { data, isLoading, isError } = useQuery({
         queryKey: ['qr-scan', token],
         queryFn: async () => {
-            const res = await api.get<VenueArtwork>(`/metro/scan`, { params: { token } });
+            const res = await axios.get<VenueArtwork>(`/api/artifacts/${token}`, {
+                headers: { Accept: 'application/json' },
+                withCredentials: true,
+            });
             return res.data;
         },
         enabled: !!token,

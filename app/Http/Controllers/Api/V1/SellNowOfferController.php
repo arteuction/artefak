@@ -106,6 +106,48 @@ final class SellNowOfferController extends Controller
         return response()->json($offer);
     }
 
+    /**
+     * GET /api/v1/my/sell-now-offers
+     *
+     * Authenticated buyer's own offers across all lots, with artwork title/slug.
+     */
+    public function myOffers(Request $request): JsonResponse
+    {
+        $offers = SellNowOffer::with(['artLot.artwork:id,title,slug'])
+            ->where('buyer_id', $request->user()->id)
+            ->orderByDesc('created_at')
+            ->paginate(20);
+
+        return response()->json($offers->through(function (SellNowOffer $offer) {
+            $data = SellNowOfferData::fromOffer($offer);
+            $artwork = $offer->artLot?->artwork;
+            return array_merge($data->toArray(), [
+                'artwork' => $artwork ? ['id' => $artwork->id, 'title' => $artwork->title, 'slug' => $artwork->slug] : null,
+            ]);
+        }));
+    }
+
+    /**
+     * GET /api/v1/my/gallery-offers
+     *
+     * Pending sell-now offers on lots where the authenticated user is the consignor (gallery staff/admin).
+     */
+    public function galleryOffers(Request $request): JsonResponse
+    {
+        $offers = SellNowOffer::with(['artLot.artwork:id,title,slug'])
+            ->whereHas('artLot', fn ($q) => $q->where('consignor_id', $request->user()->id))
+            ->orderByDesc('created_at')
+            ->paginate(20);
+
+        return response()->json($offers->through(function (SellNowOffer $offer) {
+            $data = SellNowOfferData::fromOffer($offer);
+            $artwork = $offer->artLot?->artwork;
+            return array_merge($data->toArray(), [
+                'artwork' => $artwork ? ['id' => $artwork->id, 'title' => $artwork->title, 'slug' => $artwork->slug] : null,
+            ]);
+        }));
+    }
+
     /** POST /api/v1/sell-now-offers/{offer}/reject */
     public function reject(Request $request, SellNowOffer $offer): JsonResponse
     {

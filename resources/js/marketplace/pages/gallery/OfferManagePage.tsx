@@ -118,7 +118,7 @@ export default function OfferManagePage() {
     const { data, isLoading } = useQuery({
         queryKey: ['gallery-offers'],
         queryFn: async () => {
-            const res = await api.get<PaginatedResponse<SellNowOffer>>('/gallery/offers');
+            const res = await api.get<PaginatedResponse<SellNowOffer>>('/my/gallery-offers');
             return res.data;
         },
         enabled: user?.role === 'admin',

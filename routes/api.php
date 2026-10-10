@@ -201,10 +201,13 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
     Route::middleware('auth:sanctum')->group(function (): void {
 
         // Artworks
+        Route::get('/my/artworks',            [ArtworkController::class, 'mine'])->name('my.artworks');
         Route::post('/artworks',              [ArtworkController::class, 'store'])->name('artworks.store');
         Route::patch('/artworks/{artwork}',   [ArtworkController::class, 'update'])->name('artworks.update');
+        Route::post('/artworks/{artwork}/submit', [ArtworkController::class, 'submit'])->name('artworks.submit');
         Route::post('/artworks/{artwork}/revisions', [ArtworkController::class, 'storeRevision'])->name('artworks.revisions.store');
         Route::post('/artworks/{artwork}/revisions/{revision}/activate', [ArtworkController::class, 'activateRevision'])->name('artworks.revisions.activate');
+        Route::get('/artworks/{artwork}/lots',        [ArtworkController::class, 'lots'])->name('artworks.lots.index');
         Route::post('/artworks/{artwork}/evidence',  [ArtworkController::class, 'storeEvidence'])->name('artworks.evidence.store');
         Route::post('/artworks/{artwork}/images/presign', [ArtworkController::class, 'presignImage'])->name('artworks.images.presign');
         Route::post('/artworks/{artwork}/images/confirm',      [ArtworkController::class, 'confirmImage'])->name('artworks.images.confirm');
@@ -224,6 +227,8 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         Route::post('/art-lots/{artLot}/transitions/{transition}', [ArtLotController::class, 'transition'])->name('art-lots.transition');
 
         // Sell Now offers
+        Route::get('/my/sell-now-offers',                 [SellNowOfferController::class, 'myOffers'])->name('my.sell-now-offers');
+        Route::get('/my/gallery-offers',                  [SellNowOfferController::class, 'galleryOffers'])->name('my.gallery-offers');
         Route::get('/art-lots/{artLot}/sell-now-offers',  [SellNowOfferController::class, 'index'])
              ->name('sell-now-offers.index');
         Route::post('/art-lots/{artLot}/sell-now-offers', [SellNowOfferController::class, 'store'])

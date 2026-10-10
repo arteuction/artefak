@@ -20,14 +20,14 @@ export default function PublicationDetailPage() {
     const { data: pub, isLoading } = useQuery({
         queryKey: ['publication', slug],
         queryFn: async () => {
-            const res = await api.get<Publication>(`/publications/${slug}`);
+            const res = await api.get<Publication>(`/books/${slug}`);
             return res.data;
         },
         enabled: !!slug,
     });
 
     const purchaseMutation = useMutation({
-        mutationFn: async () => api.post(`/publications/${pub!.id}/purchase`),
+        mutationFn: async () => api.post(`/books/${pub!.id}/purchase`),
         onSuccess: () => {
             setPurchasing(false);
             void queryClient.invalidateQueries({ queryKey: ['publication', slug] });
@@ -39,7 +39,7 @@ export default function PublicationDetailPage() {
 
     const downloadMutation = useMutation({
         mutationFn: async () => {
-            const res = await api.get<{ url: string }>(`/publications/${pub!.id}/download`);
+            const res = await api.get<{ url: string }>(`/my-books/${pub!.id}/download-url`);
             return res.data;
         },
         onSuccess: ({ url }) => {
@@ -62,7 +62,7 @@ export default function PublicationDetailPage() {
         return <p className="text-red-600">Publication not found.</p>;
     }
 
-    const isFree = pub.price_cents === 0;
+    const isFree = pub.is_free || pub.price_cents === 0;
     const hasPurchased = pub.access === 'purchased' || pub.access === 'free' || isFree;
     const canDownload = hasPurchased && pub.status === 'published';
 
@@ -78,18 +78,14 @@ export default function PublicationDetailPage() {
             </nav>
 
             <div className="flex gap-8 flex-col sm:flex-row">
-                {/* Cover */}
+                {/* Cover placeholder */}
                 <div className="w-40 shrink-0 aspect-[2/3] rounded-[var(--radius-md)] overflow-hidden bg-[var(--color-bg-muted)] flex items-center justify-center self-start">
-                    {pub.cover_image_url ? (
-                        <img src={pub.cover_image_url} alt={pub.title} className="w-full h-full object-cover" />
-                    ) : (
-                        <svg viewBox="0 0 64 96" className="w-16 h-24 text-[var(--color-text-faint)]" fill="currentColor">
-                            <rect x="4" y="4" width="56" height="88" rx="4" fill="none" stroke="currentColor" strokeWidth="3"/>
-                            <line x1="12" y1="20" x2="52" y2="20" stroke="currentColor" strokeWidth="2"/>
-                            <line x1="12" y1="30" x2="52" y2="30" stroke="currentColor" strokeWidth="2"/>
-                            <line x1="12" y1="40" x2="40" y2="40" stroke="currentColor" strokeWidth="2"/>
-                        </svg>
-                    )}
+                    <svg viewBox="0 0 64 96" className="w-16 h-24 text-[var(--color-text-faint)]" fill="currentColor">
+                        <rect x="4" y="4" width="56" height="88" rx="4" fill="none" stroke="currentColor" strokeWidth="3"/>
+                        <line x1="12" y1="20" x2="52" y2="20" stroke="currentColor" strokeWidth="2"/>
+                        <line x1="12" y1="30" x2="52" y2="30" stroke="currentColor" strokeWidth="2"/>
+                        <line x1="12" y1="40" x2="40" y2="40" stroke="currentColor" strokeWidth="2"/>
+                    </svg>
                 </div>
 
                 {/* Content */}
@@ -101,8 +97,10 @@ export default function PublicationDetailPage() {
                         )}
                     </div>
 
-                    {pub.author && (
-                        <p className="text-[var(--color-text-muted)] mb-4">{pub.author}</p>
+                    {pub.book_authors && pub.book_authors.length > 0 && (
+                        <p className="text-[var(--color-text-muted)] mb-4">
+                            {pub.book_authors[0].author.name}
+                        </p>
                     )}
 
                     {pub.description && (
@@ -113,12 +111,6 @@ export default function PublicationDetailPage() {
 
                     {/* Metadata */}
                     <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm mb-6">
-                        {pub.file_format && (
-                            <>
-                                <dt className="text-[var(--color-text-faint)]">Format</dt>
-                                <dd className="font-medium uppercase">{pub.file_format}</dd>
-                            </>
-                        )}
                         {pub.page_count && (
                             <>
                                 <dt className="text-[var(--color-text-faint)]">Pages</dt>

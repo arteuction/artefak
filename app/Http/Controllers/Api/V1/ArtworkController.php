@@ -291,4 +291,42 @@ final class ArtworkController extends Controller
 
         return response()->json($evidence, 201);
     }
+
+    /** GET /api/v1/my/artworks — authenticated artist's own artworks, all statuses */
+    public function mine(Request $request): JsonResponse
+    {
+        $artworks = Artwork::with('artist:id,name')
+            ->where('user_id', $request->user()->id)
+            ->orderByDesc('created_at')
+            ->paginate(50);
+
+        return response()->json($artworks);
+    }
+
+    /** POST /api/v1/artworks/{artwork}/submit — artist submits draft for review (sets status to listed) */
+    public function submit(Request $request, Artwork $artwork): JsonResponse
+    {
+        if ($artwork->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
+        if ($artwork->status !== 'draft') {
+            return response()->json(['message' => 'Only draft artworks can be submitted.'], 422);
+        }
+
+        $artwork->update(['status' => 'listed']);
+
+        return response()->json($artwork->fresh());
+    }
+
+    /** GET /api/v1/artworks/{artwork}/lots — ArtLots associated with this artwork */
+    public function lots(Artwork $artwork): JsonResponse
+    {
+        $lots = \App\Models\ArtLot::where('artwork_id', $artwork->id)
+            ->orderByDesc('created_at')
+            ->get(['id', 'artwork_id', 'auction_id', 'status', 'reserve_price_cents',
+                   'starting_bid_cents', 'current_bid_cents', 'bid_count', 'currency']);
+
+        return response()->json(['data' => $lots]);
+    }
 }

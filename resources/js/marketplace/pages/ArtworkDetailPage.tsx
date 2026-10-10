@@ -55,10 +55,8 @@ export default function ArtworkDetailPage() {
 
     const offerMutation = useMutation({
         mutationFn: async () => {
-            const res = await api.post('/sell-now-offers', {
-                art_lot_id: activeLot?.id,
+            const res = await api.post(`/art-lots/${activeLot!.id}/sell-now-offers`, {
                 offered_price_cents: Math.round(parseFloat(offerPrice) * 100),
-                currency: 'EUR',
                 notes: offerNote || undefined,
             });
             return res.data;
