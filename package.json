@@ -8,7 +8,9 @@
         "generate:api-types": "npx @hey-api/openapi-ts@0.67.1 --input resources/js/api/openapi.json --output resources/js/api/generated --client @hey-api/client-axios",
         "check:api-types": "php artisan scramble:export --path=resources/js/api/openapi.json --env=testing && npm run generate:api-types",
         "test:e2e": "playwright test",
-        "test:e2e:headed": "playwright test --headed"
+        "test:e2e:headed": "playwright test --headed",
+        "audit:prod": "npm audit --omit=dev --audit-level=high",
+        "audit:all": "npm audit --audit-level=critical"
     },
     "devDependencies": {
         "@hey-api/client-axios": "^0.9.1",
