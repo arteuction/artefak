@@ -190,6 +190,9 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
     Route::get('/donation-recipients',                [DonationRecipientController::class, 'index'])->name('donation-recipients.index');
     Route::get('/donation-recipients/{donationRecipient}', [DonationRecipientController::class, 'show'])->name('donation-recipients.show');
 
+    // Governance policies (public read)
+    Route::get('/governance/policies', [\App\Http\Controllers\Api\V1\GovernanceController::class, 'policies'])->name('governance.policies');
+
     // Institutions (public read)
     Route::get('/institutions',                 [\App\Http\Controllers\Api\V1\InstitutionController::class, 'index'])->name('institutions.index');
     Route::get('/institutions/{institution}',   [\App\Http\Controllers\Api\V1\InstitutionController::class, 'show'])->name('institutions.show');
@@ -214,6 +217,12 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
 
         // GDPR data portability (Art. 20)
         Route::get('/my/export', [\App\Http\Controllers\Api\V1\DataPortabilityController::class, 'export'])->name('my.export');
+
+        // Governance — consent management + erasure (GDPR Art. 7, 17)
+        Route::get('/my/consents',                                             [\App\Http\Controllers\Api\V1\GovernanceController::class, 'myConsents'])->name('governance.my-consents');
+        Route::post('/governance/policies/{governancePolicy}/consent',         [\App\Http\Controllers\Api\V1\GovernanceController::class, 'consent'])->name('governance.consent');
+        Route::delete('/governance/policies/{governancePolicy}/consent',       [\App\Http\Controllers\Api\V1\GovernanceController::class, 'withdrawConsent'])->name('governance.consent.withdraw');
+        Route::post('/my/erasure-request',                                     [\App\Http\Controllers\Api\V1\GovernanceController::class, 'requestErasure'])->name('governance.erasure');
 
         // Artworks
         Route::get('/my/artworks',            [ArtworkController::class, 'mine'])->name('my.artworks');
