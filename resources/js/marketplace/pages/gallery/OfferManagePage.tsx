@@ -7,21 +7,25 @@ import { useAuth } from '@/context/AuthContext';
 import { Badge, Button, EmptyState, Input, Spinner } from '@/components/ui';
 
 const STATUS_VARIANT: Record<string, 'default' | 'live' | 'sold' | 'draft' | 'auction'> = {
-    pending:   'auction',
-    countered: 'default',
-    accepted:  'sold',
-    rejected:  'draft',
-    expired:   'draft',
-    paid:      'sold',
+    submitted:  'auction',
+    countered:  'default',
+    accepted:   'sold',
+    rejected:   'draft',
+    expired:    'draft',
+    paid:       'sold',
+    delivered:  'sold',
+    closed:     'draft',
 };
 
 const STATUS_LABEL: Record<string, string> = {
-    pending:   'Pending',
-    countered: 'Countered',
-    accepted:  'Accepted',
-    rejected:  'Rejected',
-    expired:   'Expired',
-    paid:      'Paid',
+    submitted:  'Submitted',
+    countered:  'Countered',
+    accepted:   'Accepted',
+    rejected:   'Rejected',
+    expired:    'Expired',
+    paid:       'Paid',
+    delivered:  'Delivered',
+    closed:     'Closed',
 };
 
 function formatEur(cents: number, currency = 'EUR'): string {
@@ -195,7 +199,7 @@ export default function OfferManagePage() {
                                     <Badge variant={STATUS_VARIANT[offer.status] ?? 'default'}>
                                         {STATUS_LABEL[offer.status] ?? offer.status}
                                     </Badge>
-                                    {offer.status === 'pending' && (
+                                    {offer.status === 'submitted' && (
                                         <button
                                             onClick={() => setExpandedId(expandedId === offer.id ? null : offer.id)}
                                             className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
@@ -206,7 +210,7 @@ export default function OfferManagePage() {
                                 </div>
                             </div>
 
-                            {expandedId === offer.id && offer.status === 'pending' && (
+                            {expandedId === offer.id && offer.status === 'submitted' && (
                                 <CounterOfferForm
                                     offer={offer}
                                     onDone={() => { setExpandedId(null); refresh(); }}

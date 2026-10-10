@@ -99,8 +99,9 @@ export type SellNowOffer = {
     art_lot_id: number;
     offered_price_cents: number;
     counter_price_cents: number | null;
+    agreed_price_cents: number | null;
     currency: string;
-    status: 'pending' | 'countered' | 'accepted' | 'rejected' | 'expired' | 'paid';
+    status: 'submitted' | 'countered' | 'accepted' | 'rejected' | 'expired' | 'paid' | 'delivered' | 'closed';
     notes: string | null;
     expires_at: string | null;
     created_at: string;

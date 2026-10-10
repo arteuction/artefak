@@ -6,21 +6,25 @@ import { useAuth } from '@/context/AuthContext';
 import { Badge, Button, EmptyState, Spinner } from '@/components/ui';
 
 const STATUS_VARIANT: Record<string, 'default' | 'live' | 'sold' | 'draft' | 'auction'> = {
-    pending:   'default',
-    countered: 'auction',
-    accepted:  'sold',
-    rejected:  'draft',
-    expired:   'draft',
-    paid:      'sold',
+    submitted:  'default',
+    countered:  'auction',
+    accepted:   'sold',
+    rejected:   'draft',
+    expired:    'draft',
+    paid:       'sold',
+    delivered:  'sold',
+    closed:     'draft',
 };
 
 const STATUS_LABEL: Record<string, string> = {
-    pending:   'Pending',
-    countered: 'Countered',
-    accepted:  'Accepted',
-    rejected:  'Rejected',
-    expired:   'Expired',
-    paid:      'Paid',
+    submitted:  'Submitted',
+    countered:  'Countered',
+    accepted:   'Accepted',
+    rejected:   'Rejected',
+    expired:    'Expired',
+    paid:       'Paid',
+    delivered:  'Delivered',
+    closed:     'Closed',
 };
 
 function formatEur(cents: number, currency = 'EUR'): string {
@@ -155,7 +159,7 @@ export default function OfferListPage() {
                                                 {formatEur(offer.offered_price_cents, offer.currency)}
                                             </span>
                                         </span>
-                                        {offer.expires_at && offer.status === 'pending' && (
+                                        {offer.expires_at && offer.status === 'submitted' && (
                                             <span className="text-xs text-[var(--color-text-faint)]">
                                                 · expires{' '}
                                                 {new Date(offer.expires_at).toLocaleDateString('en-GB', {
@@ -182,7 +186,7 @@ export default function OfferListPage() {
                                 </Badge>
                             </div>
 
-                            {offer.status === 'countered' && offer.counter_price_cents != null && (
+                            {offer.status === 'countered' && offer.counter_price_cents != null && offer.counter_price_cents > 0 && (
                                 <CounterOfferRow offer={offer} onAction={refreshOffers} />
                             )}
                         </div>

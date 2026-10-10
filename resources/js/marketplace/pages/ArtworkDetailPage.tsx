@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
-import type { Artwork } from '@/lib/api';
+import type { Artwork, SellNowOffer } from '@/lib/api';
 import { Badge, Button, Input, Spinner } from '@/components/ui';
 import { useJsonLd } from '@/lib/useJsonLd';
 import { useDocTitle } from '@/lib/useDocTitle';
@@ -53,6 +53,22 @@ export default function ArtworkDetailPage() {
 
     const activeLot = lots?.find((l) => l.status === 'active');
 
+    const queryClient = useQueryClient();
+
+    const { data: existingOffers } = useQuery({
+        queryKey: ['lot-offers', activeLot?.id],
+        queryFn: async () => {
+            const res = await api.get<{ data: SellNowOffer[] }>(
+                `/art-lots/${activeLot!.id}/sell-now-offers`,
+            );
+            return res.data.data;
+        },
+        enabled: !!activeLot && user?.role === 'buyer',
+    });
+
+    const TERMINAL_STATUSES: SellNowOffer['status'][] = ['rejected', 'expired', 'closed'];
+    const activeOffer = existingOffers?.find((o) => !TERMINAL_STATUSES.includes(o.status));
+
     const offerMutation = useMutation({
         mutationFn: async () => {
             const res = await api.post(`/art-lots/${activeLot!.id}/sell-now-offers`, {
@@ -65,6 +81,8 @@ export default function ArtworkDetailPage() {
             setShowOfferModal(false);
             setOfferPrice('');
             setOfferNote('');
+            void queryClient.invalidateQueries({ queryKey: ['artwork-lots', slug] });
+            void queryClient.invalidateQueries({ queryKey: ['lot-offers', activeLot?.id] });
         },
     });
 
@@ -165,9 +183,20 @@ export default function ArtworkDetailPage() {
                     )}
 
                     {artwork.status === 'listed' && activeLot && user?.role === 'buyer' && (
-                        <Button onClick={() => setShowOfferModal(true)} size="lg">
-                            Make an offer
-                        </Button>
+                        activeOffer ? (
+                            <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] px-4 py-3 text-sm">
+                                <p className="text-[var(--color-text-muted)]">
+                                    You have an active offer on this artwork.{' '}
+                                    <span className="font-medium text-[var(--color-text)] capitalize">
+                                        {activeOffer.status}
+                                    </span>
+                                </p>
+                            </div>
+                        ) : (
+                            <Button onClick={() => setShowOfferModal(true)} size="lg">
+                                Make an offer
+                            </Button>
+                        )
                     )}
 
                     {artwork.status === 'listed' && !user && (
