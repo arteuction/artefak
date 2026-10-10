@@ -46,7 +46,7 @@ class PremisRecordTest extends TestCase
 
     public function test_fixity_uses_sha256(): void
     {
-        $artwork = $this->makeArtwork(['image_url' => 'https://cdn.example.com/img.jpg']);
+        $artwork = $this->makeArtwork(['primary_image_key' => 'https://cdn.example.com/img.jpg']);
         $record  = $this->builder->execute($artwork);
 
         $fixity = $record['premis:objectCharacteristics']['premis:fixity'];
@@ -56,7 +56,7 @@ class PremisRecordTest extends TestCase
 
     public function test_fixity_digest_empty_when_no_image(): void
     {
-        $artwork = $this->makeArtwork(['image_url' => null]);
+        $artwork = $this->makeArtwork(['primary_image_key' => null]);
         $record  = $this->builder->execute($artwork);
 
         $fixity = $record['premis:objectCharacteristics']['premis:fixity'];

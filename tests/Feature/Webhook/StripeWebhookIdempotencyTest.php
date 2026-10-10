@@ -22,11 +22,13 @@ use Tests\TestCase;
 /**
  * Phase 141 — Payment-state verification.
  *
- * Invariants verified:
+ * Tests rely on DB state assertions, not mocks, because domain services
+ * are `final` classes. The invariants under test are:
+ *
  *   1. Replaying checkout.session.completed cannot double-settle a SellNow offer.
  *   2. payment_intent.succeeded after SellNow settlement leaves ledger unchanged.
  *   3. checkout.session.completed with a non-accepted offer is silently skipped.
- *   4. payment_intent.amount_capturable_updated with open (not closed) auction is skipped.
+ *   4. payment_intent.amount_capturable_updated with open auction is skipped.
  *   5. Webhook rows with status != 'received' are no-ops (idempotency guard).
  *   6. Webhook error resets status to 'received' so retries can proceed.
  */
@@ -72,12 +74,12 @@ class StripeWebhookIdempotencyTest extends TestCase
             status: 'processed',
         );
 
-        $confirmSellNow = $this->mock(ConfirmSellNowPayment::class);
-        $confirmSellNow->shouldNotReceive('execute');
-
         $this->dispatchJob($eventId);
 
+        // Webhook status must remain 'processed' — early return fired
         $this->assertWebhookStatus($eventId, 'processed');
+        // No settlements created
+        $this->assertDatabaseMissing('settlements', ['stripe_event_id' => $this->latestStripeEventId($eventId)]);
     }
 
     public function test_processing_webhook_is_no_op(): void
@@ -87,9 +89,6 @@ class StripeWebhookIdempotencyTest extends TestCase
             payload: $this->checkoutSessionPayload('cs_test_2', 'pi_test_2', offerId: 999),
             status: 'processing',
         );
-
-        $confirmSellNow = $this->mock(ConfirmSellNowPayment::class);
-        $confirmSellNow->shouldNotReceive('execute');
 
         $this->dispatchJob($eventId);
 
@@ -113,16 +112,12 @@ class StripeWebhookIdempotencyTest extends TestCase
             payload: $this->checkoutSessionPayload('cs_submitted_1', 'pi_sub_1', offerId: $offer->id),
         );
 
-        $confirmSellNow = $this->mock(ConfirmSellNowPayment::class);
-        $confirmSellNow->shouldNotReceive('execute');
-
-        $settlement = $this->mock(CreateSellNowSettlement::class);
-        $settlement->shouldNotReceive('execute');
-
         $this->dispatchJob($eventId);
 
         $this->assertWebhookStatus($eventId, 'processed');
         $this->assertSame('submitted', $offer->fresh()->status);
+        // No settlement must have been created
+        $this->assertDatabaseEmpty('settlements');
     }
 
     public function test_checkout_session_completed_skips_already_paid_offer(): void
@@ -142,16 +137,11 @@ class StripeWebhookIdempotencyTest extends TestCase
             payload: $this->checkoutSessionPayload('cs_paid_1', 'pi_paid_1', offerId: $offer->id),
         );
 
-        $confirmSellNow = $this->mock(ConfirmSellNowPayment::class);
-        $confirmSellNow->shouldNotReceive('execute');
-
-        $settlement = $this->mock(CreateSellNowSettlement::class);
-        $settlement->shouldNotReceive('execute');
-
         $this->dispatchJob($eventId);
 
         $this->assertWebhookStatus($eventId, 'processed');
         $this->assertSame('paid', $offer->fresh()->status);
+        $this->assertDatabaseEmpty('settlements');
     }
 
     public function test_checkout_session_completed_skips_mismatched_session_id(): void
@@ -169,12 +159,10 @@ class StripeWebhookIdempotencyTest extends TestCase
             payload: $this->checkoutSessionPayload('cs_different_session', 'pi_1', offerId: $offer->id),
         );
 
-        $confirmSellNow = $this->mock(ConfirmSellNowPayment::class);
-        $confirmSellNow->shouldNotReceive('execute');
-
         $this->dispatchJob($eventId);
 
         $this->assertWebhookStatus($eventId, 'processed');
+        $this->assertDatabaseEmpty('settlements');
     }
 
     // ── Double-settlement prevention ───────────────────────────────────────────
@@ -183,27 +171,13 @@ class StripeWebhookIdempotencyTest extends TestCase
      * payment_intent.succeeded for a PI that belongs to an already-completed
      * SellNow settlement must not change the settlement status.
      *
-     * The non-book path in handlePaymentIntentSucceeded does:
-     *   UPDATE settlements SET status='completed' WHERE ... AND status='pending'
-     * A SellNow settlement is created with status='completed', so the WHERE
-     * guard prevents any update.  This test verifies that invariant explicitly.
+     * The WHERE status='pending' guard prevents any update.
      */
     public function test_payment_intent_succeeded_does_not_alter_completed_sell_now_settlement(): void
     {
         $piId = 'pi_sellnow_completed_1';
 
-        $settlementId = DB::table('settlements')->insertGetId([
-            'stripe_payment_intent_id' => $piId,
-            'gross_cents'              => 50000,
-            'artist_cents'             => 22500,
-            'fund_cents'               => 22500,
-            'ops_cents'                => 5000,
-            'currency'                 => 'EUR',
-            'status'                   => 'completed',
-            'stripe_event_id'          => 'evt_original',
-            'created_at'               => now(),
-            'updated_at'               => now(),
-        ]);
+        $settlementId = $this->insertSettlement($piId, 'completed');
 
         $eventId = $this->insertWebhookEvent(
             type: 'payment_intent.succeeded',
@@ -222,18 +196,7 @@ class StripeWebhookIdempotencyTest extends TestCase
     {
         $piId = 'pi_pending_settlement_1';
 
-        $settlementId = DB::table('settlements')->insertGetId([
-            'stripe_payment_intent_id' => $piId,
-            'gross_cents'              => 30000,
-            'artist_cents'             => 13500,
-            'fund_cents'               => 13500,
-            'ops_cents'                => 3000,
-            'currency'                 => 'EUR',
-            'status'                   => 'pending',
-            'stripe_event_id'          => 'evt_pending',
-            'created_at'               => now(),
-            'updated_at'               => now(),
-        ]);
+        $settlementId = $this->insertSettlement($piId, 'pending');
 
         $eventId = $this->insertWebhookEvent(
             type: 'payment_intent.succeeded',
@@ -258,6 +221,8 @@ class StripeWebhookIdempotencyTest extends TestCase
             'title'      => 'Open Auction',
             'slug'       => 'open-auction-' . uniqid(),
             'status'     => 'active',
+            'starts_at'  => now()->subHour(),
+            'ends_at'    => now()->addHour(),
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -281,9 +246,6 @@ class StripeWebhookIdempotencyTest extends TestCase
             'updated_at'               => now(),
         ]);
 
-        $settleAuction = $this->mock(SettleAuction::class);
-        $settleAuction->shouldNotReceive('execute');
-
         $eventId = $this->insertWebhookEvent(
             type: 'payment_intent.amount_capturable_updated',
             payload: $this->paymentIntentPayload($piId, 60000),
@@ -292,13 +254,13 @@ class StripeWebhookIdempotencyTest extends TestCase
         $this->dispatchJob($eventId);
 
         $this->assertWebhookStatus($eventId, 'processed');
+        // Auction status still 'active' — no settlement created
+        $this->assertDatabaseHas('auctions', ['id' => $auctionId, 'status' => 'active']);
+        $this->assertDatabaseEmpty('settlements');
     }
 
     public function test_capturable_updated_skips_when_no_matching_bid(): void
     {
-        $settleAuction = $this->mock(SettleAuction::class);
-        $settleAuction->shouldNotReceive('execute');
-
         $eventId = $this->insertWebhookEvent(
             type: 'payment_intent.amount_capturable_updated',
             payload: $this->paymentIntentPayload('pi_no_bid_' . uniqid(), 60000),
@@ -307,14 +269,14 @@ class StripeWebhookIdempotencyTest extends TestCase
         $this->dispatchJob($eventId);
 
         $this->assertWebhookStatus($eventId, 'processed');
+        $this->assertDatabaseEmpty('settlements');
     }
 
     // ── Replay / idempotency ───────────────────────────────────────────────────
 
     /**
-     * Simulates replay: the second webhook event for the same checkout session
-     * must be a no-op because the offer's status is no longer 'accepted'.
-     * (After first processing it becomes 'paid'.)
+     * Second checkout.session.completed for same offer is a no-op because
+     * offer status is already 'paid' after the first processing.
      */
     public function test_replayed_checkout_session_is_no_op_after_offer_paid(): void
     {
@@ -333,61 +295,73 @@ class StripeWebhookIdempotencyTest extends TestCase
             payload: $this->checkoutSessionPayload('cs_replay_1', 'pi_replay_1', offerId: $offer->id),
         );
 
-        $confirmSellNow = $this->mock(ConfirmSellNowPayment::class);
-        $confirmSellNow->shouldNotReceive('execute');
-
-        $createSettlement = $this->mock(CreateSellNowSettlement::class);
-        $createSettlement->shouldNotReceive('execute');
-
         $this->dispatchJob($replayEventId);
 
         $this->assertWebhookStatus($replayEventId, 'processed');
+        $this->assertDatabaseEmpty('settlements');
     }
 
     // ── Error path ────────────────────────────────────────────────────────────
 
     public function test_exception_during_processing_resets_status_to_received(): void
     {
-        $offer = SellNowOffer::create([
-            'art_lot_id'                 => $this->artLot->id,
-            'buyer_id'                   => $this->buyer->id,
-            'offered_price_cents'        => 50000,
-            'agreed_price_cents'         => 50000,
-            'status'                     => 'accepted',
-            'stripe_checkout_session_id' => 'cs_fail_1',
-        ]);
-
+        // Malformed JSON triggers JsonException inside the job's try block,
+        // which the catch block handles by resetting status to 'received'.
         $eventId = $this->insertWebhookEvent(
             type: 'checkout.session.completed',
-            payload: $this->checkoutSessionPayload('cs_fail_1', 'pi_fail_1', offerId: $offer->id),
+            payload: [],
+            status: 'received',
+            rawPayload: '{invalid-json',
         );
-
-        $confirmSellNow = $this->mock(ConfirmSellNowPayment::class);
-        $confirmSellNow->shouldReceive('execute')->andThrow(new \RuntimeException('Stripe timeout'));
 
         try {
             $this->dispatchJob($eventId);
-        } catch (\RuntimeException) {
-            // expected
+        } catch (\Throwable) {
+            // Expected — the job re-throws after resetting status
         }
 
         $this->assertWebhookStatus($eventId, 'received');
 
         $row = DB::table('webhook_events')->find($eventId);
-        $this->assertStringContainsString('Stripe timeout', $row->error ?? '');
+        $this->assertNotEmpty($row->error ?? '');
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────────
 
-    private function insertWebhookEvent(string $type, array $payload, string $status = 'received'): int
-    {
+    private function insertWebhookEvent(
+        string $type,
+        array $payload,
+        string $status = 'received',
+        ?string $rawPayload = null,
+    ): int {
         return DB::table('webhook_events')->insertGetId([
             'stripe_event_id' => 'evt_test_' . uniqid(),
             'type'            => $type,
-            'payload'         => json_encode($payload),
+            'payload'         => $rawPayload ?? json_encode($payload),
             'status'          => $status,
             'created_at'      => now(),
             'updated_at'      => now(),
+        ]);
+    }
+
+    private function insertSettlement(string $piId, string $status): int
+    {
+        return DB::table('settlements')->insertGetId([
+            'stripe_payment_intent_id' => $piId,
+            'stripe_event_id'          => 'evt_original_' . uniqid(),
+            'gross_cents'              => 50000,
+            'artist_cents'             => 22500,
+            'fund_cents'               => 22500,
+            'ops_cents'                => 5000,
+            'currency'                 => 'EUR',
+            'status'                   => $status,
+            'profile_key'              => 'social_pilot_45_45_10',
+            'profile_version'          => 1,
+            'artist_bps'               => 4500,
+            'fund_bps'                 => 4500,
+            'ops_bps'                  => 1000,
+            'created_at'               => now(),
+            'updated_at'               => now(),
         ]);
     }
 
@@ -409,6 +383,11 @@ class StripeWebhookIdempotencyTest extends TestCase
         $row = DB::table('webhook_events')->find($id);
         $this->assertSame($expected, $row->status ?? null,
             "Expected webhook_events.status={$expected}");
+    }
+
+    private function latestStripeEventId(int $webhookId): string
+    {
+        return DB::table('webhook_events')->where('id', $webhookId)->value('stripe_event_id') ?? '';
     }
 
     private function checkoutSessionPayload(

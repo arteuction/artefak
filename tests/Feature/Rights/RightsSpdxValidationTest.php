@@ -7,6 +7,7 @@ namespace Tests\Feature\Rights;
 use App\Models\Artwork;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -41,11 +42,11 @@ class RightsSpdxValidationTest extends TestCase
 
     // ── Valid identifiers ─────────────────────────────────────────────────────
 
-    /** @dataProvider validSpdxProvider */
+    #[DataProvider('validSpdxProvider')]
     public function test_valid_spdx_identifier_is_accepted(string $spdx): void
     {
         $response = $this->actingAs($this->artist)->patchJson(
-            "/api/v1/artworks/{$this->artwork->id}/rights",
+            "/api/v1/artworks/{$this->artwork->slug}/rights",
             ['license_spdx' => $spdx],
         );
 
@@ -71,11 +72,11 @@ class RightsSpdxValidationTest extends TestCase
 
     // ── Invalid identifiers (space-separated, colloquial forms) ───────────────
 
-    /** @dataProvider invalidSpdxProvider */
+    #[DataProvider('invalidSpdxProvider')]
     public function test_invalid_spdx_identifier_is_rejected(string $spdx): void
     {
         $response = $this->actingAs($this->artist)->patchJson(
-            "/api/v1/artworks/{$this->artwork->id}/rights",
+            "/api/v1/artworks/{$this->artwork->slug}/rights",
             ['license_spdx' => $spdx],
         );
 
@@ -102,7 +103,7 @@ class RightsSpdxValidationTest extends TestCase
         $this->artwork->update(['license_spdx' => 'CC-BY-4.0']);
 
         $response = $this->actingAs($this->artist)->patchJson(
-            "/api/v1/artworks/{$this->artwork->id}/rights",
+            "/api/v1/artworks/{$this->artwork->slug}/rights",
             ['license_spdx' => null],
         );
 
@@ -117,7 +118,7 @@ class RightsSpdxValidationTest extends TestCase
         $other = User::factory()->create(['role' => 'buyer']);
 
         $response = $this->actingAs($other)->patchJson(
-            "/api/v1/artworks/{$this->artwork->id}/rights",
+            "/api/v1/artworks/{$this->artwork->slug}/rights",
             ['license_spdx' => 'MIT'],
         );
 
@@ -129,7 +130,7 @@ class RightsSpdxValidationTest extends TestCase
         $admin = User::factory()->create(['role' => 'admin']);
 
         $response = $this->actingAs($admin)->patchJson(
-            "/api/v1/artworks/{$this->artwork->id}/rights",
+            "/api/v1/artworks/{$this->artwork->slug}/rights",
             ['license_spdx' => 'MIT'],
         );
 
@@ -142,7 +143,7 @@ class RightsSpdxValidationTest extends TestCase
     public function test_resale_royalty_bps_max_5000(): void
     {
         $response = $this->actingAs($this->artist)->patchJson(
-            "/api/v1/artworks/{$this->artwork->id}/rights",
+            "/api/v1/artworks/{$this->artwork->slug}/rights",
             ['resale_royalty_bps' => 5001],
         );
 
@@ -153,7 +154,7 @@ class RightsSpdxValidationTest extends TestCase
     public function test_resale_royalty_bps_at_boundary_5000_is_accepted(): void
     {
         $response = $this->actingAs($this->artist)->patchJson(
-            "/api/v1/artworks/{$this->artwork->id}/rights",
+            "/api/v1/artworks/{$this->artwork->slug}/rights",
             ['resale_royalty_bps' => 5000],
         );
 
@@ -164,7 +165,7 @@ class RightsSpdxValidationTest extends TestCase
     public function test_resale_royalty_bps_negative_is_rejected(): void
     {
         $response = $this->actingAs($this->artist)->patchJson(
-            "/api/v1/artworks/{$this->artwork->id}/rights",
+            "/api/v1/artworks/{$this->artwork->slug}/rights",
             ['resale_royalty_bps' => -1],
         );
 

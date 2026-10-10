@@ -69,8 +69,9 @@ class ErasureLifecycleTest extends TestCase
     {
         $this->eraser->execute($this->user);
 
-        $fresh = $this->user->fresh();
-        $this->assertSame('', $fresh->password);
+        // Read raw value — the Eloquent 'hashed' cast would re-hash on access
+        $rawPassword = DB::table('users')->where('id', $this->user->id)->value('password');
+        $this->assertSame('', (string) $rawPassword);
     }
 
     public function test_remember_token_is_nulled(): void
@@ -79,8 +80,8 @@ class ErasureLifecycleTest extends TestCase
 
         $this->eraser->execute($this->user);
 
-        $fresh = $this->user->fresh();
-        $this->assertNull($fresh->remember_token);
+        $rawToken = DB::table('users')->where('id', $this->user->id)->value('remember_token');
+        $this->assertNull($rawToken);
     }
 
     public function test_user_row_is_not_hard_deleted(): void
@@ -131,6 +132,7 @@ class ErasureLifecycleTest extends TestCase
             'user_id'    => $this->user->id,
             'name'       => 'My App',
             'key_hash'   => hash('sha256', 'key1'),
+            'key_prefix' => substr(hash('sha256', 'key1'), 0, 12),
             'scopes'     => '["read"]',
             'is_active'  => true,
             'created_at' => now(),
@@ -159,11 +161,11 @@ class ErasureLifecycleTest extends TestCase
         ]);
 
         DB::table('user_consents')->insert([
-            'user_id'    => $this->user->id,
-            'policy_id'  => $policyId,
-            'consented_at' => now()->subDays(10),
-            'created_at' => now(),
-            'updated_at' => now(),
+            'user_id'              => $this->user->id,
+            'governance_policy_id' => $policyId,
+            'consented_at'         => now()->subDays(10),
+            'created_at'           => now(),
+            'updated_at'           => now(),
         ]);
 
         $this->eraser->execute($this->user);
@@ -188,12 +190,12 @@ class ErasureLifecycleTest extends TestCase
 
         $withdrawnAt = now()->subDays(5)->toDateTimeString();
         DB::table('user_consents')->insert([
-            'user_id'      => $this->user->id,
-            'policy_id'    => $policyId,
-            'consented_at' => now()->subDays(20),
-            'withdrawn_at' => $withdrawnAt,
-            'created_at'   => now(),
-            'updated_at'   => now(),
+            'user_id'              => $this->user->id,
+            'governance_policy_id' => $policyId,
+            'consented_at'         => now()->subDays(20),
+            'withdrawn_at'         => $withdrawnAt,
+            'created_at'           => now(),
+            'updated_at'           => now(),
         ]);
 
         $this->eraser->execute($this->user);
@@ -279,6 +281,11 @@ class ErasureLifecycleTest extends TestCase
             'ops_cents'                => 5000,
             'currency'                 => 'EUR',
             'status'                   => 'completed',
+            'profile_key'              => 'social_pilot_45_45_10',
+            'profile_version'          => 1,
+            'artist_bps'               => 4500,
+            'fund_bps'                 => 4500,
+            'ops_bps'                  => 1000,
             'created_at'               => now(),
             'updated_at'               => now(),
         ]);
@@ -302,6 +309,11 @@ class ErasureLifecycleTest extends TestCase
             'ops_cents'                => 1000,
             'currency'                 => 'EUR',
             'status'                   => 'completed',
+            'profile_key'              => 'social_pilot_45_45_10',
+            'profile_version'          => 1,
+            'artist_bps'               => 4500,
+            'fund_bps'                 => 4500,
+            'ops_bps'                  => 1000,
             'created_at'               => now(),
             'updated_at'               => now(),
         ]);

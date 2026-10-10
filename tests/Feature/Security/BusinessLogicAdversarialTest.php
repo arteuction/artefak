@@ -62,9 +62,10 @@ class BusinessLogicAdversarialTest extends TestCase
 
     public function test_offer_with_negative_price_is_rejected(): void
     {
-        $response = $this->actingAs($this->buyer)->postJson('/api/v1/artworks/' . $this->artwork->id . '/offers', [
-            'offered_price_cents' => -1,
-        ]);
+        $response = $this->actingAs($this->buyer)->postJson(
+            "/api/v1/art-lots/{$this->artLot->id}/sell-now-offers",
+            ['offered_price_cents' => -1],
+        );
 
         $response->assertStatus(422);
         $this->assertDatabaseMissing('sell_now_offers', ['buyer_id' => $this->buyer->id, 'offered_price_cents' => -1]);
@@ -72,9 +73,10 @@ class BusinessLogicAdversarialTest extends TestCase
 
     public function test_offer_with_zero_price_is_rejected(): void
     {
-        $response = $this->actingAs($this->buyer)->postJson('/api/v1/artworks/' . $this->artwork->id . '/offers', [
-            'offered_price_cents' => 0,
-        ]);
+        $response = $this->actingAs($this->buyer)->postJson(
+            "/api/v1/art-lots/{$this->artLot->id}/sell-now-offers",
+            ['offered_price_cents' => 0],
+        );
 
         $response->assertStatus(422);
     }
@@ -82,9 +84,10 @@ class BusinessLogicAdversarialTest extends TestCase
     public function test_offer_with_excessively_large_price_is_rejected(): void
     {
         // PHP_INT_MAX / SQL bigint overflow attempt
-        $response = $this->actingAs($this->buyer)->postJson('/api/v1/artworks/' . $this->artwork->id . '/offers', [
-            'offered_price_cents' => 999_999_999_999_999,
-        ]);
+        $response = $this->actingAs($this->buyer)->postJson(
+            "/api/v1/art-lots/{$this->artLot->id}/sell-now-offers",
+            ['offered_price_cents' => 999_999_999_999_999],
+        );
 
         // Must reject with validation error, NOT a 500 from integer overflow
         $response->assertStatus(422);
@@ -92,9 +95,10 @@ class BusinessLogicAdversarialTest extends TestCase
 
     public function test_offer_with_string_price_is_rejected(): void
     {
-        $response = $this->actingAs($this->buyer)->postJson('/api/v1/artworks/' . $this->artwork->id . '/offers', [
-            'offered_price_cents' => 'free',
-        ]);
+        $response = $this->actingAs($this->buyer)->postJson(
+            "/api/v1/art-lots/{$this->artLot->id}/sell-now-offers",
+            ['offered_price_cents' => 'free'],
+        );
 
         $response->assertStatus(422);
     }
@@ -114,7 +118,7 @@ class BusinessLogicAdversarialTest extends TestCase
         ]);
 
         // Attacker tries to accept it (only seller can accept)
-        $response = $this->actingAs($this->attacker)->postJson("/api/v1/offers/{$offer}/accept");
+        $response = $this->actingAs($this->attacker)->postJson("/api/v1/sell-now-offers/{$offer}/accept");
 
         $response->assertStatus(403);
         $this->assertDatabaseHas('sell_now_offers', ['id' => $offer, 'status' => 'submitted']);
@@ -123,7 +127,7 @@ class BusinessLogicAdversarialTest extends TestCase
     public function test_attacker_cannot_update_another_users_artwork_rights(): void
     {
         $response = $this->actingAs($this->attacker)->patchJson(
-            "/api/v1/artworks/{$this->artwork->id}/rights",
+            "/api/v1/artworks/{$this->artwork->slug}/rights",
             ['license_spdx' => 'CC0-1.0'],
         );
 
@@ -132,7 +136,7 @@ class BusinessLogicAdversarialTest extends TestCase
 
     public function test_unauthenticated_user_cannot_submit_offer(): void
     {
-        $response = $this->postJson('/api/v1/artworks/' . $this->artwork->id . '/offers', [
+        $response = $this->postJson("/api/v1/art-lots/{$this->artLot->id}/sell-now-offers", [
             'offered_price_cents' => 80000,
         ]);
 
@@ -152,7 +156,7 @@ class BusinessLogicAdversarialTest extends TestCase
             'updated_at'          => now(),
         ]);
 
-        $response = $this->actingAs($this->seller)->postJson("/api/v1/offers/{$offerId}/accept");
+        $response = $this->actingAs($this->seller)->postJson("/api/v1/sell-now-offers/{$offerId}/accept");
 
         // Must fail — cannot accept a rejected offer
         $response->assertStatus(422);
@@ -163,7 +167,7 @@ class BusinessLogicAdversarialTest extends TestCase
     {
         $this->artLot->update(['status' => 'sold']);
 
-        $response = $this->actingAs($this->buyer)->postJson('/api/v1/artworks/' . $this->artwork->id . '/offers', [
+        $response = $this->actingAs($this->buyer)->postJson("/api/v1/art-lots/{$this->artLot->id}/sell-now-offers", [
             'offered_price_cents' => 80000,
         ]);
 
@@ -183,7 +187,7 @@ class BusinessLogicAdversarialTest extends TestCase
             'updated_at'          => now(),
         ]);
 
-        $response = $this->actingAs($this->attacker)->postJson("/api/v1/offers/{$offerId}/reject");
+        $response = $this->actingAs($this->attacker)->postJson("/api/v1/sell-now-offers/{$offerId}/reject");
 
         $response->assertStatus(403);
         $this->assertDatabaseHas('sell_now_offers', ['id' => $offerId, 'status' => 'submitted']);
@@ -193,11 +197,14 @@ class BusinessLogicAdversarialTest extends TestCase
 
     public function test_buyer_cannot_inject_agreed_price_via_offer_submission(): void
     {
-        $response = $this->actingAs($this->buyer)->postJson('/api/v1/artworks/' . $this->artwork->id . '/offers', [
-            'offered_price_cents' => 80000,
-            'agreed_price_cents'  => 1,      // attacker tries to set agreed price to 1 cent
-            'status'              => 'accepted', // attacker tries to pre-accept
-        ]);
+        $response = $this->actingAs($this->buyer)->postJson(
+            "/api/v1/art-lots/{$this->artLot->id}/sell-now-offers",
+            [
+                'offered_price_cents' => 80000,
+                'agreed_price_cents'  => 1,      // attacker tries to set agreed price to 1 cent
+                'status'              => 'accepted', // attacker tries to pre-accept
+            ],
+        );
 
         if ($response->status() === 201 || $response->status() === 200) {
             // If accepted, agreed_price_cents must NOT be 1 (injected value)

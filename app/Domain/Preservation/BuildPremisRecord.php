@@ -63,7 +63,7 @@ final class BuildPremisRecord
 
     private function fixityBlock(Artwork $artwork): array
     {
-        $imageUrl = $artwork->image_url ?? '';
+        $imageUrl = $artwork->primary_image_key ?? '';
 
         return [
             'premis:messageDigestAlgorithm' => 'SHA-256',
