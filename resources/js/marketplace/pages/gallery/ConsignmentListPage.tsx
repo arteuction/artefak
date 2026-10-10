@@ -29,7 +29,7 @@ export default function ConsignmentListPage() {
             const res = await api.get<PaginatedResponse<GalleryConsignment>>('/consignments');
             return res.data;
         },
-        enabled: user?.role === 'admin',
+        enabled: !!user,
     });
 
     const approveMutation = useMutation({
@@ -42,15 +42,21 @@ export default function ConsignmentListPage() {
         onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['gallery-consignments'] }),
     });
 
-    if (!user || user.role !== 'admin') {
+    if (!user) {
         return (
             <div className="text-center py-16">
-                <p className="text-[var(--color-text-muted)]">
-                    Gallery workspace requires gallery staff access.
-                </p>
+                <p className="text-[var(--color-text-muted)] mb-4">Sign in to view consignments.</p>
+                <Link
+                    to="/login"
+                    className="inline-flex items-center rounded-[var(--radius-sm)] bg-[var(--color-accent)] text-[var(--color-accent-fg)] px-4 py-2 text-sm font-medium hover:bg-[var(--color-accent-hover)] transition-colors"
+                >
+                    Sign in
+                </Link>
             </div>
         );
     }
+
+    const isAdmin = user.role === 'admin';
 
     return (
         <div>
@@ -103,7 +109,7 @@ export default function ConsignmentListPage() {
                                 </Badge>
                             </div>
 
-                            {c.status === 'pending' && (
+                            {c.status === 'pending' && isAdmin && (
                                 <div className="flex gap-2 mt-3">
                                     <Button
                                         size="sm"
