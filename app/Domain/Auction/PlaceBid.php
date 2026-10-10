@@ -37,7 +37,8 @@ final class PlaceBid
         string      $stripePaymentMethodId,
         string      $ipAddress = '',
     ): Bid {
-        $bid = DB::transaction(function () use ($item, $bidderId, $amountCents, $stripePaymentMethodId, $ipAddress): Bid {
+        $previousLeader = null;
+        $bid = DB::transaction(function () use ($item, $bidderId, $amountCents, $stripePaymentMethodId, $ipAddress, &$previousLeader): Bid {
             /** @var AuctionItem $locked */
             $locked = AuctionItem::lockForUpdate()->findOrFail($item->id);
 
