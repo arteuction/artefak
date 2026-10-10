@@ -180,6 +180,7 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
     // Impact events (public read)
     Route::get('/impact-events',                  [ImpactEventController::class, 'index'])->name('impact-events.index');
     Route::get('/impact-events/{impactEvent}',    [ImpactEventController::class, 'show'])->name('impact-events.show');
+    Route::get('/impact-events/{impactEvent}/evidence', [\App\Http\Controllers\Api\V1\ImpactEvidenceController::class, 'index'])->name('impact-events.evidence.index');
 
     // Donation recipients (public: active list; admin: all)
     Route::get('/donation-recipients',                [DonationRecipientController::class, 'index'])->name('donation-recipients.index');
@@ -423,6 +424,9 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
 
         // Impact events — record against approved SDG claim (admin/operator)
         Route::post('/sdg-claims/{claim}/impact-events', [ImpactRecordController::class, 'store'])->name('sdg-claims.impact-events.store');
+
+        // Impact evidence attachments — admin only
+        Route::post('/impact-events/{impactEvent}/evidence', [\App\Http\Controllers\Api\V1\ImpactEvidenceController::class, 'store'])->name('impact-events.evidence.store');
 
         // Domain events — operator only
         Route::middleware('can:viewAny,App\Models\DomainEvent')->group(function (): void {

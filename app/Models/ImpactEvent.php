@@ -62,6 +62,11 @@ final class ImpactEvent extends Model
         return $this->belongsTo(ImpactEvent::class, 'reverses_impact_event_id');
     }
 
+    public function evidence(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(ImpactEvidence::class);
+    }
+
     public function sdgGoal(): SdgGoal
     {
         return SdgGoal::from($this->sdg_number);
