@@ -49,7 +49,7 @@ final class Phase71ApiTest extends TestCase
         $artwork = $this->makeArtwork($owner);
 
         $this->actingAs($other, 'sanctum')
-            ->patchJson("/api/v1/artworks/{$artwork->id}", ['title' => 'Hijacked Title'])
+            ->patchJson("/api/v1/artworks/{$artwork->slug}", ['title' => 'Hijacked Title'])
             ->assertForbidden();
 
         $this->assertSame($artwork->title, $artwork->fresh()->title);
@@ -62,7 +62,7 @@ final class Phase71ApiTest extends TestCase
         $artwork = $this->makeArtwork($owner);
 
         $this->actingAs($other, 'sanctum')
-            ->postJson("/api/v1/artworks/{$artwork->id}/evidence", [
+            ->postJson("/api/v1/artworks/{$artwork->slug}/evidence", [
                 'label'      => 'Malicious proof',
                 'visibility' => 'public',
             ])
@@ -76,7 +76,7 @@ final class Phase71ApiTest extends TestCase
         $artwork = $this->makeArtwork($owner);
 
         $this->actingAs($other, 'sanctum')
-            ->postJson("/api/v1/artworks/{$artwork->id}/revisions", [
+            ->postJson("/api/v1/artworks/{$artwork->slug}/revisions", [
                 'title'       => 'Stolen title',
                 'description' => 'Not mine',
             ])
@@ -98,7 +98,7 @@ final class Phase71ApiTest extends TestCase
 
         // Draft artworks must not be visible to other artists
         $this->actingAs($other, 'sanctum')
-            ->getJson("/api/v1/artworks/{$artwork->id}")
+            ->getJson("/api/v1/artworks/{$artwork->slug}")
             ->assertForbidden();
     }
 
@@ -264,7 +264,7 @@ final class Phase71ApiTest extends TestCase
             ['artwork_id' => $artwork->id, 'type' => 'ownership',    'issuer' => 'Private contract', 'visibility' => 'restricted', 'created_at' => now(), 'updated_at' => now()],
         ]);
 
-        $response = $this->getJson("/api/v1/artworks/{$artwork->id}")
+        $response = $this->getJson("/api/v1/artworks/{$artwork->slug}")
             ->assertOk();
 
         $evidenceIssuers = collect($response->json('evidence') ?? [])->pluck('issuer');
@@ -283,7 +283,7 @@ final class Phase71ApiTest extends TestCase
         ]);
 
         $response = $this->actingAs($other, 'sanctum')
-            ->getJson("/api/v1/artworks/{$artwork->id}")
+            ->getJson("/api/v1/artworks/{$artwork->slug}")
             ->assertOk();
 
         $evidenceIssuers = collect($response->json('evidence') ?? [])->pluck('issuer');

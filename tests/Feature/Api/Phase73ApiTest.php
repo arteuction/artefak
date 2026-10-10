@@ -85,7 +85,7 @@ final class Phase73ApiTest extends TestCase
             'is_original' => true,
         ]);
 
-        $response = $this->getJson("/api/v1/artworks/{$artwork->id}");
+        $response = $this->getJson("/api/v1/artworks/{$artwork->slug}");
 
         $response->assertStatus(200)
             ->assertJsonStructure([
@@ -114,7 +114,7 @@ final class Phase73ApiTest extends TestCase
             'status'  => 'listed',
         ]);
 
-        $response = $this->getJson("/api/v1/artworks/{$artwork->id}");
+        $response = $this->getJson("/api/v1/artworks/{$artwork->slug}");
 
         $response->assertStatus(200)
             ->assertJsonPath('artist.id', $artist->id)
@@ -132,7 +132,7 @@ final class Phase73ApiTest extends TestCase
             'status'  => 'listed',
         ]);
 
-        $response = $this->getJson("/api/v1/artworks/{$artwork->id}");
+        $response = $this->getJson("/api/v1/artworks/{$artwork->slug}");
 
         $response->assertStatus(200);
         // The raw user_id is not a field in ArtworkData — the artist relation is used
@@ -151,10 +151,10 @@ final class Phase73ApiTest extends TestCase
         ]);
 
         // Public access → 403
-        $this->getJson("/api/v1/artworks/{$artwork->id}")->assertStatus(403);
+        $this->getJson("/api/v1/artworks/{$artwork->slug}")->assertStatus(403);
 
         // Owner access → 200 with correct shape
-        $response = $this->actingAs($artist)->getJson("/api/v1/artworks/{$artwork->id}");
+        $response = $this->actingAs($artist)->getJson("/api/v1/artworks/{$artwork->slug}");
         $response->assertStatus(200)->assertJsonPath('status', 'draft');
     }
 

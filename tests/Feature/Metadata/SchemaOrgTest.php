@@ -36,7 +36,7 @@ final class SchemaOrgTest extends TestCase
     {
         $artwork = $this->listedArtwork();
 
-        $this->getJson("/api/v1/search/artworks/{$artwork->id}")
+        $this->getJson("/api/v1/search/artworks/{$artwork->slug}")
             ->assertOk()
             ->assertJsonStructure(['data', 'schema_org']);
     }
@@ -45,7 +45,7 @@ final class SchemaOrgTest extends TestCase
     {
         $artwork = $this->listedArtwork();
 
-        $body = $this->getJson("/api/v1/search/artworks/{$artwork->id}")->json();
+        $body = $this->getJson("/api/v1/search/artworks/{$artwork->slug}")->json();
 
         $this->assertSame('https://schema.org', $body['schema_org']['@context']);
         $this->assertSame('VisualArtwork', $body['schema_org']['@type']);
@@ -55,7 +55,7 @@ final class SchemaOrgTest extends TestCase
     {
         $artwork = $this->listedArtwork();
 
-        $schema = $this->getJson("/api/v1/search/artworks/{$artwork->id}")->json('schema_org');
+        $schema = $this->getJson("/api/v1/search/artworks/{$artwork->slug}")->json('schema_org');
 
         $this->assertSame('Schema Test Work', $schema['name']);
         $this->assertSame('painting', $schema['artMedium']);
@@ -65,7 +65,7 @@ final class SchemaOrgTest extends TestCase
     {
         $artwork = $this->listedArtwork(['year_created' => 1985]);
 
-        $schema = $this->getJson("/api/v1/search/artworks/{$artwork->id}")->json('schema_org');
+        $schema = $this->getJson("/api/v1/search/artworks/{$artwork->slug}")->json('schema_org');
 
         $this->assertSame('1985', $schema['dateCreated']);
     }
@@ -74,7 +74,7 @@ final class SchemaOrgTest extends TestCase
     {
         $artwork = $this->listedArtwork();
 
-        $schema = $this->getJson("/api/v1/search/artworks/{$artwork->id}")->json('schema_org');
+        $schema = $this->getJson("/api/v1/search/artworks/{$artwork->slug}")->json('schema_org');
 
         $additionalProps = collect($schema['additionalProperty'] ?? []);
         $iiif = $additionalProps->firstWhere('name', 'iiifManifest');
@@ -87,7 +87,7 @@ final class SchemaOrgTest extends TestCase
     {
         $artwork = $this->listedArtwork(['is_original' => true]);
 
-        $schema = $this->getJson("/api/v1/search/artworks/{$artwork->id}")->json('schema_org');
+        $schema = $this->getJson("/api/v1/search/artworks/{$artwork->slug}")->json('schema_org');
 
         $this->assertSame('original', $schema['artEdition']);
     }

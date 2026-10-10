@@ -128,7 +128,7 @@ final class Phase45ApiTest extends TestCase
             'status'      => 'pending',
         ]);
 
-        $this->getJson("/api/v1/artworks/{$artwork1->id}/sdg-claims/{$claim->id}")
+        $this->getJson("/api/v1/artworks/{$artwork1->slug}/sdg-claims/{$claim->id}")
             ->assertNotFound();
     }
 

@@ -29,7 +29,7 @@ final class QrCodeTest extends TestCase
             'is_original' => true,
         ]);
 
-        $response = $this->get("/api/v1/artworks/{$artwork->id}/qr");
+        $response = $this->get("/api/v1/artworks/{$artwork->slug}/qr");
         $response->assertOk();
         $this->assertStringContainsString('image/svg+xml', $response->headers->get('Content-Type'));
         $this->assertStringContainsString('<svg', $response->getContent());
@@ -47,6 +47,6 @@ final class QrCodeTest extends TestCase
             'is_original' => true,
         ]);
 
-        $this->getJson("/api/v1/artworks/{$artwork->id}/qr")->assertNotFound();
+        $this->getJson("/api/v1/artworks/{$artwork->slug}/qr")->assertNotFound();
     }
 }

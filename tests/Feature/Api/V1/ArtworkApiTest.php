@@ -52,7 +52,7 @@ final class ArtworkApiTest extends TestCase
             'status'  => 'listed',
         ]);
 
-        $this->getJson("/api/v1/artworks/{$artwork->id}")
+        $this->getJson("/api/v1/artworks/{$artwork->slug}")
             ->assertOk()
             ->assertJsonFragment(['title' => 'My Piece']);
     }
