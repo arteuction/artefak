@@ -62,6 +62,17 @@ export type Auction = {
     created_at: string;
 };
 
+export type GalleryConsignment = {
+    id: number;
+    artwork_id: number;
+    gallery_id: number;
+    status: 'pending' | 'active' | 'completed' | 'rejected';
+    commission_bps: number;
+    notes: string | null;
+    created_at: string;
+    artwork?: { id: number; title: string; slug: string; status: string; medium: string | null };
+};
+
 export type SellNowOffer = {
     id: number;
     art_lot_id: number;

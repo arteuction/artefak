@@ -11,6 +11,8 @@ import DashboardPage from './pages/artist/DashboardPage';
 import ArtworkCreatePage from './pages/artist/ArtworkCreatePage';
 import ArtworkEditPage from './pages/artist/ArtworkEditPage';
 import OfferListPage from './pages/buyer/OfferListPage';
+import ConsignmentListPage from './pages/gallery/ConsignmentListPage';
+import OfferManagePage from './pages/gallery/OfferManagePage';
 import NotFoundPage from './pages/NotFoundPage';
 
 export default function App() {
@@ -29,6 +31,8 @@ export default function App() {
                     <Route path="dashboard/artworks/new" element={<ArtworkCreatePage />} />
                     <Route path="dashboard/artworks/:slug/edit" element={<ArtworkEditPage />} />
                     <Route path="offers" element={<OfferListPage />} />
+                    <Route path="gallery/consignments" element={<ConsignmentListPage />} />
+                    <Route path="gallery/offers" element={<OfferManagePage />} />
                     <Route path="*" element={<NotFoundPage />} />
                 </Route>
             </Routes>
