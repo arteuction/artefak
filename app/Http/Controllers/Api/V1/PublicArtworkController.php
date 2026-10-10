@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Domain\Metadata\SchemaOrgArtwork;
 use App\Http\Controllers\Controller;
 use App\Models\Artwork;
 use Illuminate\Http\JsonResponse;
@@ -131,6 +132,11 @@ final class PublicArtworkController extends Controller
             'sdgClaims:artwork_id,sdg_number,status',
         ]);
 
-        return response()->json(['data' => $artwork]);
+        $schemaOrg = (new SchemaOrgArtwork())->build($artwork);
+
+        return response()->json([
+            'data'      => $artwork,
+            'schema_org' => $schemaOrg,
+        ]);
     }
 }
