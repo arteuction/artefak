@@ -123,6 +123,10 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
     Route::get('/artworks/{artwork}/linked-art', [\App\Http\Controllers\Api\V1\LinkedArtController::class, 'show'])
         ->name('artworks.linked-art');
 
+    // Europeana EDM + IIIF Manifest (Phase 128)
+    Route::get('/artworks/{artwork}/edm',           [\App\Http\Controllers\Api\V1\EuropeanaEdmController::class, 'show'])->name('artworks.edm');
+    Route::get('/artworks/{artwork}/iiif/manifest2', [\App\Http\Controllers\Api\V1\IiifManifestController::class, 'show'])->name('artworks.iiif.manifest2');
+
     // IIIF Image API 3.0 + Presentation API 3.0 (Phase 97)
     Route::get('/artworks/{artwork}/iiif/info.json', [\App\Http\Controllers\Api\V1\IiifController::class, 'info'])
         ->name('artworks.iiif.info');
