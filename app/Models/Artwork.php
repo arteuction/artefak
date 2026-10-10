@@ -64,6 +64,11 @@ final class Artwork extends Model
         ];
     }
 
+    public function getRouteKeyName(): string
+    {
+        return 'slug';
+    }
+
     public function artist(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
