@@ -228,13 +228,12 @@ class StripeWebhookIdempotencyTest extends TestCase
         ]);
 
         $itemId = DB::table('auction_items')->insertGetId([
-            'auction_id'         => $auctionId,
-            'artwork_id'         => $this->artLot->artwork_id,
-            'lot_number'         => 1,
-            'starting_bid_cents' => 10000,
-            'status'             => 'open',
-            'created_at'         => now(),
-            'updated_at'         => now(),
+            'auction_id' => $auctionId,
+            'art_lot_id' => $this->artLot->id,
+            'lot_number' => 1,
+            'status'     => 'open',
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
         DB::table('bids')->insert([
