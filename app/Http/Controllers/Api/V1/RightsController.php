@@ -42,7 +42,9 @@ final class RightsController extends Controller
         }
 
         $data = $request->validate([
-            'license_spdx'       => ['nullable', 'string', 'max:100'],
+            // SPDX identifiers use hyphens, not spaces: "CC-BY-NC-4.0" not "CC BY-NC 4.0".
+            // Pattern: identifier token optionally followed by WITH exception-token.
+            'license_spdx'       => ['nullable', 'string', 'max:100', 'regex:/^[A-Za-z0-9][A-Za-z0-9.\-+]*(\s+WITH\s+[A-Za-z0-9][A-Za-z0-9.\-+]*)?$/'],
             'resale_royalty_bps' => ['nullable', 'integer', 'min:0', 'max:5000'],
             'rights_statement'   => ['nullable', 'string', 'max:512'],
         ]);
