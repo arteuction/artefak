@@ -278,6 +278,16 @@ final class LibraryController extends Controller
      * Creates (or retrieves) a Stripe Checkout Session for a pending book purchase.
      * Idempotent: re-uses an open session if one already exists.
      */
+    /**
+     * Create a Stripe Checkout Session for a book purchase.
+     *
+     * Idempotent: re-uses an open session if one already exists.
+     * Returns `{already_purchased: true}` when the user already owns the book.
+     *
+     * @response 200 {"url": "https://checkout.stripe.com/pay/cs_test_..."}
+     * @response 200 {"already_purchased": true}
+     * @response 422 {"message": "This book is free — no payment required."}
+     */
     public function checkoutSession(Request $request, Book $book): JsonResponse
     {
         abort_if($book->status !== 'published', 404);

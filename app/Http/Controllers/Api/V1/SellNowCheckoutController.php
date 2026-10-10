@@ -21,6 +21,16 @@ use Stripe\StripeClient;
  */
 final class SellNowCheckoutController extends Controller
 {
+    /**
+     * Create a Stripe Checkout Session for an accepted Sell Now offer.
+     *
+     * Returns a Stripe-hosted checkout URL. Idempotent: if an open session
+     * already exists it is returned without creating a new one.
+     *
+     * @response 200 {"url": "https://checkout.stripe.com/pay/cs_test_..."}
+     * @response 403 {"message": "This action is unauthorized."}
+     * @response 422 {"message": "Payment is only available for accepted offers."}
+     */
     public function create(Request $request, SellNowOffer $offer): JsonResponse
     {
         $user = $request->user();
