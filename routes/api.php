@@ -121,6 +121,12 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
     Route::get('/artworks/{artwork}/linked-art', [\App\Http\Controllers\Api\V1\LinkedArtController::class, 'show'])
         ->name('artworks.linked-art');
 
+    // IIIF Image API 3.0 + Presentation API 3.0 (Phase 97)
+    Route::get('/artworks/{artwork}/iiif/info.json', [\App\Http\Controllers\Api\V1\IiifController::class, 'info'])
+        ->name('artworks.iiif.info');
+    Route::get('/artworks/{artwork}/iiif/manifest', [\App\Http\Controllers\Api\V1\IiifController::class, 'manifest'])
+        ->name('artworks.iiif.manifest');
+
     // Public artist portfolios
     Route::get('/artists',        [ArtistPortfolioController::class, 'index'])->name('artists.index');
     Route::get('/artists/{slug}', [ArtistPortfolioController::class, 'show'])->name('artists.show');
