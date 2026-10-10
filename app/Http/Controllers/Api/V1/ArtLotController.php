@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\Asset\TransitionArtLot;
+use App\Domain\Provenance\BuildProvenanceGraph;
 use App\Domain\SellNow\PurchaseAtFixedPrice;
 use App\Http\Controllers\Controller;
 use App\Models\ArtLot;
@@ -105,16 +106,20 @@ final class ArtLotController extends Controller
     /**
      * GET /api/v1/art-lots/{artLot}/provenance
      *
-     * Public ownership history for this lot — channel, price band, date.
-     * Buyer/seller identity intentionally withheld.
+     * W3C PROV-O JSON-LD provenance graph for this lot.
+     * Includes the artwork entity, every domain event as a prov:Activity,
+     * and all participating prov:Agent nodes.
+     * Buyer/seller identity is included only as opaque agent IRIs.
+     *
+     * @unauthenticated
+     * @response array{@context: array, @graph: array}
      */
-    public function provenance(ArtLot $artLot): JsonResponse
+    public function provenance(ArtLot $artLot, BuildProvenanceGraph $builder): JsonResponse
     {
-        $transfers = $artLot->ownershipTransfers()
-            ->orderBy('transferred_at')
-            ->get(['id', 'channel', 'transfer_price_cents', 'currency', 'transferred_at']);
+        $graph = $builder->execute($artLot);
 
-        return response()->json(['data' => $transfers]);
+        return response()->json($graph)
+            ->header('Content-Type', 'application/ld+json');
     }
 
     /**
