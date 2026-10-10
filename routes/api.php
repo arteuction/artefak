@@ -190,6 +190,10 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
     Route::get('/donation-recipients',                [DonationRecipientController::class, 'index'])->name('donation-recipients.index');
     Route::get('/donation-recipients/{donationRecipient}', [DonationRecipientController::class, 'show'])->name('donation-recipients.show');
 
+    // Institutions (public read)
+    Route::get('/institutions',                 [\App\Http\Controllers\Api\V1\InstitutionController::class, 'index'])->name('institutions.index');
+    Route::get('/institutions/{institution}',   [\App\Http\Controllers\Api\V1\InstitutionController::class, 'show'])->name('institutions.show');
+
     // Impact projects (public read + public stats)
     Route::get('/impact-projects/stats',              [ImpactProjectController::class, 'stats'])->name('impact-projects.stats');
     Route::get('/impact-projects',                    [ImpactProjectController::class, 'index'])->name('impact-projects.index');
@@ -351,6 +355,11 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         // Donation recipients — admin create/update
         Route::post('/donation-recipients',                          [DonationRecipientController::class, 'store'])->name('donation-recipients.store');
         Route::patch('/donation-recipients/{donationRecipient}',     [DonationRecipientController::class, 'update'])->name('donation-recipients.update');
+
+        // Institutions — admin create/update/link artworks
+        Route::post('/institutions',                                    [\App\Http\Controllers\Api\V1\InstitutionController::class, 'store'])->name('institutions.store');
+        Route::patch('/institutions/{institution}',                     [\App\Http\Controllers\Api\V1\InstitutionController::class, 'update'])->name('institutions.update');
+        Route::post('/institutions/{institution}/artworks',             [\App\Http\Controllers\Api\V1\InstitutionController::class, 'attachArtwork'])->name('institutions.artworks.attach');
 
         // Admin audit log (admin/operator)
         Route::get('/admin/audit-log',          [AdminAuditLogController::class, 'index'])->name('admin.audit-log.index');
