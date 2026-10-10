@@ -4,8 +4,6 @@ import { api } from '@/lib/api';
 import type { Artwork, PaginatedResponse } from '@/lib/api';
 import ArtworkCard from '@/components/ArtworkCard';
 
-const STATUSES = ['listed', 'in_auction'] as const;
-
 export default function ArtworkListPage() {
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState('');

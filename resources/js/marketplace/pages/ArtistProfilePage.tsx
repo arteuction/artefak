@@ -4,8 +4,6 @@ import { api } from '@/lib/api';
 import type { Artwork, PaginatedResponse } from '@/lib/api';
 import ArtworkCard from '@/components/ArtworkCard';
 
-type Artist = { id: number; name: string; email: string; created_at: string };
-
 export default function ArtistProfilePage() {
     const { id } = useParams<{ id: string }>();
 

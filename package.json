@@ -5,6 +5,7 @@
     "scripts": {
         "build": "vite build",
         "dev": "vite",
+        "typecheck": "tsc --noEmit",
         "generate:api-types": "npx @hey-api/openapi-ts@0.67.1 --input resources/js/api/openapi.json --output resources/js/api/generated --client @hey-api/client-axios",
         "check:api-types": "php artisan scramble:export --path=resources/js/api/openapi.json --env=testing && npm run generate:api-types",
         "test:e2e": "playwright test",

@@ -270,3 +270,26 @@ jobs:
           " 2>&1 | grep -q "Duplicate entry" \
             && echo "PASS: duplicate idempotency_key correctly rejected" \
             || (echo "FAIL: duplicate key was accepted — UNIQUE constraint missing" && exit 1)
+
+  # ── Job 3: frontend typecheck + build ─────────────────────────────────────
+  frontend:
+    name: Node · TypeScript · Vite build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: npm ci
+        run: npm ci --legacy-peer-deps
+
+      - name: TypeScript typecheck
+        run: npm run typecheck
+
+      - name: Vite production build
+        run: npm run build

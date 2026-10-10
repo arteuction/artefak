@@ -13,11 +13,10 @@
     "resolveJsonModule": true,
     "allowImportingTsExtensions": true,
     "noEmit": true,
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["resources/js/marketplace/*"]
+      "@/*": ["./resources/js/marketplace/*"]
     }
   },
-  "include": ["resources/js/**/*.ts", "resources/js/**/*.tsx"],
+  "include": ["resources/js/**/*.ts", "resources/js/**/*.tsx", "resources/js/vite-env.d.ts"],
   "exclude": ["node_modules", "vendor", "public"]
 }
