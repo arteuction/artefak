@@ -51,10 +51,10 @@ final class GoldenPathTest extends TestCase
             ->assertJsonPath('title', 'Sunrise Over Sofia')
             ->assertJsonPath('status', 'draft');
 
-        $artworkId = $response->json('id');
+        $artworkSlug = $response->json('slug');
 
         $this->actingAs($artist)
-            ->getJson("/api/v1/artworks/{$artworkId}")
+            ->getJson("/api/v1/artworks/{$artworkSlug}")
             ->assertOk()
             ->assertJsonPath('artist.id', $artist->id);
     }

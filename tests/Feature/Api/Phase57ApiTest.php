@@ -320,7 +320,7 @@ final class Phase57ApiTest extends TestCase
             ],
         ]);
 
-        $response = $this->getJson("/api/v1/artworks/{$artwork->id}/evidence");
+        $response = $this->getJson("/api/v1/artworks/{$artwork->slug}/evidence");
 
         $response->assertOk();
         $data = $response->json('data');
@@ -360,7 +360,7 @@ final class Phase57ApiTest extends TestCase
         }
 
         $response = $this->actingAs($admin)
-            ->getJson("/api/v1/artworks/{$artwork->id}/evidence");
+            ->getJson("/api/v1/artworks/{$artwork->slug}/evidence");
 
         $response->assertOk();
         $this->assertCount(3, $response->json('data'), 'Admin must see all visibility levels');

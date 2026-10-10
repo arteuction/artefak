@@ -55,7 +55,7 @@ final class Phase35ApiTest extends TestCase
         [$owner, $artwork] = $this->makeArtwork();
 
         $this->actingAs($owner, 'sanctum')
-            ->postJson("/api/v1/artworks/{$artwork->id}/evidence", [
+            ->postJson("/api/v1/artworks/{$artwork->slug}/evidence", [
                 'type'   => 'authenticity',
                 'issuer' => 'National Gallery',
             ])
@@ -71,7 +71,7 @@ final class Phase35ApiTest extends TestCase
         ArtworkEvidence::create(['artwork_id' => $artwork->id, 'type' => 'provenance', 'verification_status' => 'verified', 'visibility' => 'public']);
         ArtworkEvidence::create(['artwork_id' => $artwork->id, 'type' => 'condition',  'verification_status' => 'pending',  'visibility' => 'restricted']);
 
-        $this->getJson("/api/v1/artworks/{$artwork->id}/evidence")
+        $this->getJson("/api/v1/artworks/{$artwork->slug}/evidence")
             ->assertOk()
             ->assertJsonCount(1, 'data');
     }
@@ -85,7 +85,7 @@ final class Phase35ApiTest extends TestCase
         ArtworkEvidence::create(['artwork_id' => $artwork->id, 'type' => 'condition',  'verification_status' => 'pending']);
 
         $this->actingAs($admin, 'sanctum')
-            ->getJson("/api/v1/artworks/{$artwork->id}/evidence")
+            ->getJson("/api/v1/artworks/{$artwork->slug}/evidence")
             ->assertOk()
             ->assertJsonCount(2, 'data');
     }

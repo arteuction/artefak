@@ -106,7 +106,7 @@ final class Phase45ApiTest extends TestCase
             'status'      => 'approved',
         ]);
 
-        $this->getJson("/api/v1/artworks/{$artwork->id}/sdg-claims/{$claim->id}")
+        $this->getJson("/api/v1/artworks/{$artwork->slug}/sdg-claims/{$claim->id}")
             ->assertOk()
             ->assertJsonPath('data.sdg_number', 4);
     }
