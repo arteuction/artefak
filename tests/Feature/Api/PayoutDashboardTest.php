@@ -168,7 +168,7 @@ final class PayoutDashboardTest extends TestCase
         $owner   = User::factory()->create();
         $artwork = \App\Models\Artwork::create(['user_id' => $owner->id, 'title' => 'H', 'slug' => 'h-hist', 'status' => 'listed']);
 
-        $this->getJson("/api/v1/artworks/{$artwork->id}/sales-history")->assertOk();
+        $this->getJson("/api/v1/artworks/{$artwork->slug}/sales-history")->assertOk();
     }
 
     public function test_artwork_sales_history_returns_transfers(): void
@@ -199,7 +199,7 @@ final class PayoutDashboardTest extends TestCase
             'updated_at'           => now(),
         ]);
 
-        $response = $this->getJson("/api/v1/artworks/{$artwork->id}/sales-history")->assertOk();
+        $response = $this->getJson("/api/v1/artworks/{$artwork->slug}/sales-history")->assertOk();
         $data     = $response->json('data');
 
         $this->assertCount(1, $data);

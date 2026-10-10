@@ -135,7 +135,7 @@ final class ArtworkImageUploadTest extends TestCase
     {
         $artwork = $this->makeArtwork($this->makeArtist());
 
-        $this->postJson("/api/v1/artworks/{$artwork->id}/images/confirm")
+        $this->postJson("/api/v1/artworks/{$artwork->slug}/images/confirm")
             ->assertUnauthorized();
     }
 
@@ -147,7 +147,7 @@ final class ArtworkImageUploadTest extends TestCase
         $artwork = $this->makeArtwork($artist);
 
         $this->actingAs($other)
-            ->postJson("/api/v1/artworks/{$artwork->id}/images/confirm")
+            ->postJson("/api/v1/artworks/{$artwork->slug}/images/confirm")
             ->assertForbidden();
     }
 
@@ -166,7 +166,7 @@ final class ArtworkImageUploadTest extends TestCase
         Storage::disk('s3')->put($key, 'fake-image-bytes');
 
         $this->actingAs($artist)
-            ->postJson("/api/v1/artworks/{$artwork->id}/images/confirm")
+            ->postJson("/api/v1/artworks/{$artwork->slug}/images/confirm")
             ->assertOk()
             ->assertJsonPath('primary_image_status', 'confirmed')
             ->assertJsonPath('primary_image_key', $key);
@@ -186,7 +186,7 @@ final class ArtworkImageUploadTest extends TestCase
         // File never uploaded to fake S3
 
         $this->actingAs($artist)
-            ->postJson("/api/v1/artworks/{$artwork->id}/images/confirm")
+            ->postJson("/api/v1/artworks/{$artwork->slug}/images/confirm")
             ->assertUnprocessable();
     }
 
@@ -196,7 +196,7 @@ final class ArtworkImageUploadTest extends TestCase
     {
         $artwork = $this->makeArtwork($this->makeArtist());
 
-        $this->postJson("/api/v1/artworks/{$artwork->id}/images/presign")
+        $this->postJson("/api/v1/artworks/{$artwork->slug}/images/presign")
             ->assertUnauthorized();
     }
 
@@ -207,7 +207,7 @@ final class ArtworkImageUploadTest extends TestCase
         $artwork = $this->makeArtwork($artist);
 
         $this->actingAs($other)
-            ->postJson("/api/v1/artworks/{$artwork->id}/images/presign")
+            ->postJson("/api/v1/artworks/{$artwork->slug}/images/presign")
             ->assertForbidden();
     }
 
@@ -219,7 +219,7 @@ final class ArtworkImageUploadTest extends TestCase
         $artwork = $this->makeArtwork($artist);
 
         $this->actingAs($artist)
-            ->postJson("/api/v1/artworks/{$artwork->id}/images/presign", ['extension' => 'gif'])
+            ->postJson("/api/v1/artworks/{$artwork->slug}/images/presign", ['extension' => 'gif'])
             ->assertUnprocessable();
     }
 }

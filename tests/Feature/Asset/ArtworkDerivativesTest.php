@@ -124,7 +124,7 @@ final class ArtworkDerivativesTest extends TestCase
         $artist  = $this->artist();
         $artwork = $this->artworkWithConfirmedImage($artist);
 
-        $this->postJson("/api/v1/artworks/{$artwork->id}/images/derivatives")
+        $this->postJson("/api/v1/artworks/{$artwork->slug}/images/derivatives")
             ->assertUnauthorized();
     }
 
@@ -135,7 +135,7 @@ final class ArtworkDerivativesTest extends TestCase
         $art   = $this->artworkWithConfirmedImage($owner);
 
         $this->actingAs($other)
-            ->postJson("/api/v1/artworks/{$art->id}/images/derivatives")
+            ->postJson("/api/v1/artworks/{$art->slug}/images/derivatives")
             ->assertForbidden();
     }
 
@@ -149,7 +149,7 @@ final class ArtworkDerivativesTest extends TestCase
         Storage::disk('s3')->put($artwork->primary_image_key, $this->validJpeg());
 
         $this->actingAs($artist)
-            ->postJson("/api/v1/artworks/{$artwork->id}/images/derivatives")
+            ->postJson("/api/v1/artworks/{$artwork->slug}/images/derivatives")
             ->assertOk()
             ->assertJsonStructure(['derivatives' => ['thumb', 'medium', 'large']]);
     }

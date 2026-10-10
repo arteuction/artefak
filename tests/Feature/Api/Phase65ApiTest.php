@@ -144,7 +144,7 @@ final class Phase65ApiTest extends TestCase
             'year_created' => 2022,
         ]);
 
-        $response = $this->getJson("/api/v1/artworks/{$artwork->id}")->assertOk();
+        $response = $this->getJson("/api/v1/artworks/{$artwork->slug}")->assertOk();
 
         $response->assertJsonStructure([
             'id', 'title', 'slug', 'status', 'medium',
@@ -240,7 +240,7 @@ final class Phase65ApiTest extends TestCase
         ]);
 
         $this->actingAs($other, 'sanctum')
-            ->patchJson("/api/v1/artworks/{$art->id}", ['title' => 'Stolen'])
+            ->patchJson("/api/v1/artworks/{$art->slug}", ['title' => 'Stolen'])
             ->assertForbidden();
     }
 
@@ -256,7 +256,7 @@ final class Phase65ApiTest extends TestCase
         ]);
 
         $this->actingAs($other, 'sanctum')
-            ->postJson("/api/v1/artworks/{$art->id}/evidence", ['type' => 'provenance'])
+            ->postJson("/api/v1/artworks/{$art->slug}/evidence", ['type' => 'provenance'])
             ->assertForbidden();
     }
 
@@ -317,7 +317,7 @@ final class Phase65ApiTest extends TestCase
             'updated_at'          => now(),
         ]);
 
-        $response = $this->getJson("/api/v1/artworks/{$art->id}/evidence")->assertOk();
+        $response = $this->getJson("/api/v1/artworks/{$art->slug}/evidence")->assertOk();
 
         $ids = collect($response->json('data'))->pluck('id')->all();
         $this->assertContains($publicEv, $ids, 'Public verified evidence must appear');

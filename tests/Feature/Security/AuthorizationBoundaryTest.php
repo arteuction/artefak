@@ -121,7 +121,7 @@ final class AuthorizationBoundaryTest extends TestCase
         $art   = $this->artwork($owner);
 
         $this->actingAs($other)
-            ->patchJson("/api/v1/artworks/{$art->id}", ['title' => 'Stolen Title'])
+            ->patchJson("/api/v1/artworks/{$art->slug}", ['title' => 'Stolen Title'])
             ->assertForbidden();
     }
 
@@ -132,7 +132,7 @@ final class AuthorizationBoundaryTest extends TestCase
         $art   = $this->artwork($owner, 'draft');
 
         $this->actingAs($other)
-            ->postJson("/api/v1/artworks/{$art->id}/revisions", [
+            ->postJson("/api/v1/artworks/{$art->slug}/revisions", [
                 'title' => 'New Title', 'reason' => 'initial',
             ])
             ->assertForbidden();
@@ -145,7 +145,7 @@ final class AuthorizationBoundaryTest extends TestCase
         $art   = $this->artwork($owner);
 
         $this->actingAs($other)
-            ->postJson("/api/v1/artworks/{$art->id}/evidence", [
+            ->postJson("/api/v1/artworks/{$art->slug}/evidence", [
                 'type' => 'authenticity',
             ])
             ->assertForbidden();
@@ -158,7 +158,7 @@ final class AuthorizationBoundaryTest extends TestCase
         $art   = $this->artwork($owner, 'draft');
 
         $this->actingAs($other)
-            ->postJson("/api/v1/artworks/{$art->id}/images/presign")
+            ->postJson("/api/v1/artworks/{$art->slug}/images/presign")
             ->assertForbidden();
     }
 
@@ -169,7 +169,7 @@ final class AuthorizationBoundaryTest extends TestCase
         $art   = $this->artwork($owner, 'draft');
 
         $this->actingAs($other)
-            ->postJson("/api/v1/artworks/{$art->id}/images/confirm")
+            ->postJson("/api/v1/artworks/{$art->slug}/images/confirm")
             ->assertForbidden();
     }
 
@@ -322,7 +322,7 @@ final class AuthorizationBoundaryTest extends TestCase
         $artist = $this->artist();
         $art    = $this->artwork($artist, 'draft');
 
-        $this->getJson("/api/v1/artworks/{$art->id}")->assertForbidden();
+        $this->getJson("/api/v1/artworks/{$art->slug}")->assertForbidden();
     }
 
     public function test_other_artist_cannot_view_draft_artwork(): void
@@ -331,7 +331,7 @@ final class AuthorizationBoundaryTest extends TestCase
         $other = $this->artist('B');
         $art   = $this->artwork($owner, 'draft');
 
-        $this->actingAs($other)->getJson("/api/v1/artworks/{$art->id}")->assertForbidden();
+        $this->actingAs($other)->getJson("/api/v1/artworks/{$art->slug}")->assertForbidden();
     }
 
     public function test_owner_can_view_own_draft_artwork(): void
@@ -339,7 +339,7 @@ final class AuthorizationBoundaryTest extends TestCase
         $owner = $this->artist();
         $art   = $this->artwork($owner, 'draft');
 
-        $this->actingAs($owner)->getJson("/api/v1/artworks/{$art->id}")->assertOk();
+        $this->actingAs($owner)->getJson("/api/v1/artworks/{$art->slug}")->assertOk();
     }
 
     public function test_admin_can_view_any_draft_artwork(): void
@@ -347,6 +347,6 @@ final class AuthorizationBoundaryTest extends TestCase
         $admin = $this->admin();
         $art   = $this->artwork($this->artist(), 'draft');
 
-        $this->actingAs($admin)->getJson("/api/v1/artworks/{$art->id}")->assertOk();
+        $this->actingAs($admin)->getJson("/api/v1/artworks/{$art->slug}")->assertOk();
     }
 }

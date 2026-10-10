@@ -37,7 +37,7 @@ final class SdgClaimApiTest extends TestCase
         $artwork = $this->artwork($artist);
 
         $res = $this->actingAs($artist)
-            ->postJson("/api/v1/artworks/{$artwork->id}/sdg-claims", [
+            ->postJson("/api/v1/artworks/{$artwork->slug}/sdg-claims", [
                 'sdg_number' => 4,
                 'rationale'  => 'Promotes quality education through art',
             ]);
@@ -60,7 +60,7 @@ final class SdgClaimApiTest extends TestCase
         ]);
 
         $res = $this->actingAs($artist)
-            ->postJson("/api/v1/artworks/{$artwork->id}/sdg-claims", [
+            ->postJson("/api/v1/artworks/{$artwork->slug}/sdg-claims", [
                 'sdg_number' => 4,
                 'rationale'  => 'Updated rationale',
             ]);
@@ -77,7 +77,7 @@ final class SdgClaimApiTest extends TestCase
         $artwork = $this->artwork($artist);
 
         $this->actingAs($other)
-            ->postJson("/api/v1/artworks/{$artwork->id}/sdg-claims", [
+            ->postJson("/api/v1/artworks/{$artwork->slug}/sdg-claims", [
                 'sdg_number' => 1,
                 'rationale'  => 'Nope',
             ])
@@ -98,7 +98,7 @@ final class SdgClaimApiTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->postJson("/api/v1/artworks/{$artwork->id}/sdg-claims/{$claim->id}/review", [
+            ->postJson("/api/v1/artworks/{$artwork->slug}/sdg-claims/{$claim->id}/review", [
                 'decision'    => 'approved',
                 'review_note' => 'Looks good',
             ])
@@ -115,7 +115,7 @@ final class SdgClaimApiTest extends TestCase
         ArtworkSdgClaim::create(['artwork_id' => $artwork->id, 'sdg_number' => 1, 'rationale' => 'R', 'status' => 'approved']);
         ArtworkSdgClaim::create(['artwork_id' => $artwork->id, 'sdg_number' => 2, 'rationale' => 'R', 'status' => 'pending']);
 
-        $res = $this->getJson("/api/v1/artworks/{$artwork->id}/sdg-claims");
+        $res = $this->getJson("/api/v1/artworks/{$artwork->slug}/sdg-claims");
 
         $res->assertOk();
         $data = $res->json();
@@ -131,7 +131,7 @@ final class SdgClaimApiTest extends TestCase
         ArtworkSdgClaim::create(['artwork_id' => $artwork->id, 'sdg_number' => 1, 'rationale' => 'R', 'status' => 'approved']);
         ArtworkSdgClaim::create(['artwork_id' => $artwork->id, 'sdg_number' => 2, 'rationale' => 'R', 'status' => 'pending']);
 
-        $res = $this->actingAs($artist)->getJson("/api/v1/artworks/{$artwork->id}/sdg-claims");
+        $res = $this->actingAs($artist)->getJson("/api/v1/artworks/{$artwork->slug}/sdg-claims");
 
         $res->assertOk();
         $this->assertCount(2, $res->json());

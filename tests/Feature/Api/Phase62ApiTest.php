@@ -168,7 +168,7 @@ final class Phase62ApiTest extends TestCase
         ]);
 
         $response = $this->actingAs($user, 'sanctum')
-            ->patchJson("/api/v1/artworks/{$artwork->id}", [
+            ->patchJson("/api/v1/artworks/{$artwork->slug}", [
                 'title'        => 'New Title',
                 'year_created' => 2024,
             ])
@@ -190,7 +190,7 @@ final class Phase62ApiTest extends TestCase
         ]);
 
         $this->actingAs($other, 'sanctum')
-            ->patchJson("/api/v1/artworks/{$artwork->id}", [
+            ->patchJson("/api/v1/artworks/{$artwork->slug}", [
                 'title' => 'Hijacked Title',
             ])
             ->assertForbidden();
@@ -208,7 +208,7 @@ final class Phase62ApiTest extends TestCase
         ]);
 
         $this->actingAs($admin, 'sanctum')
-            ->patchJson("/api/v1/artworks/{$artwork->id}", [
+            ->patchJson("/api/v1/artworks/{$artwork->slug}", [
                 'title' => 'Admin Fixed Title',
             ])
             ->assertOk()
@@ -228,7 +228,7 @@ final class Phase62ApiTest extends TestCase
         ]);
 
         $response = $this->actingAs($user, 'sanctum')
-            ->postJson("/api/v1/artworks/{$artwork->id}/evidence", [
+            ->postJson("/api/v1/artworks/{$artwork->slug}/evidence", [
                 'type'          => 'authenticity',
                 'issuer'        => 'National Gallery',
                 'issued_at'     => '2024-06-01',
@@ -254,7 +254,7 @@ final class Phase62ApiTest extends TestCase
         ]);
 
         $this->actingAs($other, 'sanctum')
-            ->postJson("/api/v1/artworks/{$artwork->id}/evidence", [
+            ->postJson("/api/v1/artworks/{$artwork->slug}/evidence", [
                 'type' => 'provenance',
             ])
             ->assertForbidden();
@@ -271,7 +271,7 @@ final class Phase62ApiTest extends TestCase
         ]);
 
         $this->actingAs($user, 'sanctum')
-            ->postJson("/api/v1/artworks/{$artwork->id}/evidence", [
+            ->postJson("/api/v1/artworks/{$artwork->slug}/evidence", [
                 'type' => 'invalid_type',
             ])
             ->assertUnprocessable()
@@ -290,7 +290,7 @@ final class Phase62ApiTest extends TestCase
         ]);
 
         $this->actingAs($admin, 'sanctum')
-            ->postJson("/api/v1/artworks/{$artwork->id}/evidence", [
+            ->postJson("/api/v1/artworks/{$artwork->slug}/evidence", [
                 'type'  => 'condition',
                 'notes' => 'Condition report completed.',
             ])

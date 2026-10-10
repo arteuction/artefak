@@ -36,7 +36,7 @@ final class LinkedArtTest extends TestCase
     {
         $artwork = $this->listedArtwork();
 
-        $this->getJson("/api/v1/artworks/{$artwork->id}/linked-art")
+        $this->getJson("/api/v1/artworks/{$artwork->slug}/linked-art")
             ->assertOk()
             ->assertHeader('Content-Type', 'application/ld+json')
             ->assertJsonFragment(['type' => 'HumanMadeObject'])
@@ -47,7 +47,7 @@ final class LinkedArtTest extends TestCase
     {
         $artwork = $this->listedArtwork(['status' => 'draft']);
 
-        $this->getJson("/api/v1/artworks/{$artwork->id}/linked-art")
+        $this->getJson("/api/v1/artworks/{$artwork->slug}/linked-art")
             ->assertNotFound();
     }
 
@@ -55,7 +55,7 @@ final class LinkedArtTest extends TestCase
     {
         $artwork = $this->listedArtwork();
 
-        $body = $this->getJson("/api/v1/artworks/{$artwork->id}/linked-art")
+        $body = $this->getJson("/api/v1/artworks/{$artwork->slug}/linked-art")
             ->assertOk()
             ->json();
 
@@ -66,7 +66,7 @@ final class LinkedArtTest extends TestCase
     {
         $artwork = $this->listedArtwork(['medium' => 'sculpture']);
 
-        $body = $this->getJson("/api/v1/artworks/{$artwork->id}/linked-art")
+        $body = $this->getJson("/api/v1/artworks/{$artwork->slug}/linked-art")
             ->assertOk()
             ->json();
 
@@ -78,7 +78,7 @@ final class LinkedArtTest extends TestCase
     {
         $artwork = $this->listedArtwork(['year_created' => 2005]);
 
-        $body = $this->getJson("/api/v1/artworks/{$artwork->id}/linked-art")
+        $body = $this->getJson("/api/v1/artworks/{$artwork->slug}/linked-art")
             ->assertOk()
             ->json();
 
@@ -89,10 +89,10 @@ final class LinkedArtTest extends TestCase
     {
         $artwork = $this->listedArtwork();
 
-        $body = $this->getJson("/api/v1/artworks/{$artwork->id}/linked-art")
+        $body = $this->getJson("/api/v1/artworks/{$artwork->slug}/linked-art")
             ->assertOk()
             ->json();
 
-        $this->assertStringEndsWith("/api/v1/artworks/{$artwork->id}/linked-art", $body['id']);
+        $this->assertStringEndsWith("/api/v1/artworks/{$artwork->slug}/linked-art", $body['id']);
     }
 }

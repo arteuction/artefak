@@ -38,7 +38,7 @@ final class IiifTest extends TestCase
     {
         $artwork = $this->artworkWithImage();
 
-        $res = $this->getJson("/api/v1/artworks/{$artwork->id}/iiif/info.json")
+        $res = $this->getJson("/api/v1/artworks/{$artwork->slug}/iiif/info.json")
             ->assertOk();
 
         $body = $res->json();
@@ -50,7 +50,7 @@ final class IiifTest extends TestCase
     public function test_info_json_returns_404_for_draft_artwork(): void
     {
         $artwork = $this->artworkWithImage(['status' => 'draft']);
-        $this->getJson("/api/v1/artworks/{$artwork->id}/iiif/info.json")->assertNotFound();
+        $this->getJson("/api/v1/artworks/{$artwork->slug}/iiif/info.json")->assertNotFound();
     }
 
     public function test_info_json_returns_404_when_no_confirmed_image(): void
@@ -59,15 +59,15 @@ final class IiifTest extends TestCase
             'primary_image_key'    => null,
             'primary_image_status' => null,
         ]);
-        $this->getJson("/api/v1/artworks/{$artwork->id}/iiif/info.json")->assertNotFound();
+        $this->getJson("/api/v1/artworks/{$artwork->slug}/iiif/info.json")->assertNotFound();
     }
 
     public function test_info_json_id_is_canonical_iiif_url(): void
     {
         $artwork = $this->artworkWithImage();
-        $body    = $this->getJson("/api/v1/artworks/{$artwork->id}/iiif/info.json")->json();
+        $body    = $this->getJson("/api/v1/artworks/{$artwork->slug}/iiif/info.json")->json();
 
-        $this->assertStringEndsWith("/api/v1/artworks/{$artwork->id}/iiif", $body['id']);
+        $this->assertStringEndsWith("/api/v1/artworks/{$artwork->slug}/iiif", $body['id']);
     }
 
     // ── manifest ──────────────────────────────────────────────────────────────
@@ -76,7 +76,7 @@ final class IiifTest extends TestCase
     {
         $artwork = $this->artworkWithImage();
 
-        $body = $this->getJson("/api/v1/artworks/{$artwork->id}/iiif/manifest")
+        $body = $this->getJson("/api/v1/artworks/{$artwork->slug}/iiif/manifest")
             ->assertOk()
             ->json();
 
@@ -89,7 +89,7 @@ final class IiifTest extends TestCase
     {
         $artwork = $this->artworkWithImage();
 
-        $body = $this->getJson("/api/v1/artworks/{$artwork->id}/iiif/manifest")
+        $body = $this->getJson("/api/v1/artworks/{$artwork->slug}/iiif/manifest")
             ->assertOk()
             ->json();
 
@@ -100,6 +100,6 @@ final class IiifTest extends TestCase
     public function test_manifest_returns_404_for_draft(): void
     {
         $artwork = $this->artworkWithImage(['status' => 'draft']);
-        $this->getJson("/api/v1/artworks/{$artwork->id}/iiif/manifest")->assertNotFound();
+        $this->getJson("/api/v1/artworks/{$artwork->slug}/iiif/manifest")->assertNotFound();
     }
 }
