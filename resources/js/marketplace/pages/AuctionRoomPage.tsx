@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, useRef } from 'react';
 import { api } from '@/lib/api';
 import { echo } from '@/lib/echo';
+import { useAuth } from '@/context/AuthContext';
 import type { Auction, ArtLot } from '@/lib/api';
 import { Badge, Button, Input, Spinner } from '@/components/ui';
 import { useDocTitle } from '@/lib/useDocTitle';
@@ -14,6 +15,20 @@ type BidEvent = {
     currency: string;
     nextBidCents: number;
     bidderId?: number;
+};
+
+type OutbidEvent = {
+    auctionItemId: number;
+    previousBidCents: number;
+    newLeadingBidCents: number;
+    currency: string;
+};
+
+type ItemStatusEvent = {
+    auctionItemId: number;
+    newStatus: string;
+    hammerPriceCents: number | null;
+    currency: string | null;
 };
 
 type AuctionWithItems = Auction & { items?: ArtLot[] };
@@ -49,13 +64,17 @@ function useCountdown(endsAt: string | null): string {
 
 export default function AuctionRoomPage() {
     const { id } = useParams<{ id: string }>();
+    const { user } = useAuth();
     const queryClient = useQueryClient();
     const [bidAmounts, setBidAmounts] = useState<Record<number, string>>({});
     const [liveBids, setLiveBids] = useState<Record<number, BidEvent>>({});
     const [recentBids, setRecentBids] = useState<BidEvent[]>([]);
     const [outbid, setOutbid] = useState<number | null>(null);
+    const [outbidAlert, setOutbidAlert] = useState<OutbidEvent | null>(null);
+    const [closedLots, setClosedLots] = useState<Record<number, ItemStatusEvent>>({});
     const [connStatus, setConnStatus] = useState<ConnectionStatus>('connecting');
     const channelRef = useRef<ReturnType<typeof echo.channel> | null>(null);
+    const privateChannelRef = useRef<ReturnType<typeof echo.private> | null>(null);
 
     const { data: auction, isLoading } = useQuery({
         queryKey: ['auction', id],
@@ -69,7 +88,7 @@ export default function AuctionRoomPage() {
     const countdown = useCountdown(auction?.ends_at ?? null);
     useDocTitle(auction?.title ?? null);
 
-    // Subscribe to real-time bid events via Reverb
+    // Subscribe to real-time events via Reverb
     useEffect(() => {
         if (!id) return;
 
@@ -79,22 +98,59 @@ export default function AuctionRoomPage() {
 
         channel
             .subscribed(() => setConnStatus('connected'))
-            .error(() => setConnStatus('disconnected'))
+            .error(() => {
+                setConnStatus('disconnected');
+                // Attempt reconnect after 3s
+                setTimeout(() => {
+                    echo.leave(`auction.${id}`);
+                    channelRef.current = null;
+                    setConnStatus('connecting');
+                    const retry = echo.channel(`auction.${id}`);
+                    channelRef.current = retry;
+                    retry
+                        .subscribed(() => setConnStatus('connected'))
+                        .error(() => setConnStatus('disconnected'));
+                }, 3_000);
+            })
             .listen('.bid.placed', (e: BidEvent) => {
                 setLiveBids((prev) => ({ ...prev, [e.auctionItemId]: e }));
                 setRecentBids((prev) => [e, ...prev].slice(0, 20));
-                // Show outbid alert for 4 seconds
                 setOutbid(e.auctionItemId);
                 setTimeout(() => setOutbid(null), 4_000);
+                void queryClient.invalidateQueries({ queryKey: ['auction', id] });
+            })
+            .listen('.auction-item.status-changed', (e: ItemStatusEvent) => {
+                setClosedLots((prev) => ({ ...prev, [e.auctionItemId]: e }));
                 void queryClient.invalidateQueries({ queryKey: ['auction', id] });
             });
 
         return () => {
             channel.stopListening('.bid.placed');
+            channel.stopListening('.auction-item.status-changed');
             echo.leave(`auction.${id}`);
             channelRef.current = null;
         };
     }, [id, queryClient]);
+
+    // Private outbid notifications for the authenticated bidder
+    useEffect(() => {
+        if (!user?.id) return;
+
+        const ch = echo.private(`bidder.${user.id}`);
+        privateChannelRef.current = ch;
+
+        ch.listen('.bid.outbid', (e: OutbidEvent) => {
+            setOutbidAlert(e);
+            setTimeout(() => setOutbidAlert(null), 8_000);
+            void queryClient.invalidateQueries({ queryKey: ['auction', id] });
+        });
+
+        return () => {
+            ch.stopListening('.bid.outbid');
+            echo.leave(`bidder.${user.id}`);
+            privateChannelRef.current = null;
+        };
+    }, [user?.id, id, queryClient]);
 
     const bidMutation = useMutation({
         mutationFn: async ({ lotId, amount }: { lotId: number; amount: number }) => {
@@ -175,6 +231,14 @@ export default function AuctionRoomPage() {
                 </span>
             </div>
 
+            {/* Personal outbid banner */}
+            {outbidAlert && (
+                <div className="mb-4 rounded-[var(--radius-md)] bg-amber-50 border border-amber-300 px-4 py-3 text-sm text-amber-900">
+                    <span className="font-semibold">You've been outbid</span> on Lot #{outbidAlert.auctionItemId}. New leading bid:{' '}
+                    <span className="font-medium">{formatEur(outbidAlert.newLeadingBidCents, outbidAlert.currency)}</span>
+                </div>
+            )}
+
             {(!auction.items || auction.items.length === 0) && (
                 <p className="text-[var(--color-text-muted)] text-sm">No lots in this auction yet.</p>
             )}
@@ -184,7 +248,9 @@ export default function AuctionRoomPage() {
                 <div className="md:col-span-2 space-y-4">
                     {(auction.items ?? []).map((lot) => {
                         const live = liveBids[lot.id];
-                        const currentBidCents = live?.amountCents ?? lot.current_bid_cents;
+                        const closed = closedLots[lot.id];
+                        const effectiveStatus = closed?.newStatus ?? lot.status;
+                        const currentBidCents = closed?.hammerPriceCents ?? live?.amountCents ?? lot.current_bid_cents;
                         const minNextCents = live?.nextBidCents
                             ?? (currentBidCents ? currentBidCents + 1 : lot.starting_bid_cents ?? 0);
 
@@ -215,8 +281,8 @@ export default function AuctionRoomPage() {
                                             )}
                                         </p>
                                     </div>
-                                    <Badge variant={lot.status === 'active' ? 'default' : 'draft'}>
-                                        {lot.status}
+                                    <Badge variant={effectiveStatus === 'active' ? 'default' : 'draft'}>
+                                        {effectiveStatus}
                                     </Badge>
                                 </div>
 
@@ -229,7 +295,7 @@ export default function AuctionRoomPage() {
                                     </div>
                                 )}
 
-                                {isLive && lot.status === 'active' && (
+                                {isLive && effectiveStatus === 'active' && (
                                     <div className="flex gap-2 mt-3">
                                         <Input
                                             type="number"

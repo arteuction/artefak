@@ -6,6 +6,7 @@ namespace App\Domain\Auction;
 
 use App\Domain\Asset\CloseArtLot;
 use App\Domain\Outbox\AppendDomainEvent;
+use App\Events\AuctionItemStatusChanged;
 use App\Models\ArtLot;
 use App\Models\AuctionItem;
 use App\Models\Bid;
@@ -98,6 +99,20 @@ final class CloseAuctionItem
                 }
             }
         });
+
+        // Broadcast lot closure outside the transaction
+        $closedItem = AuctionItem::find($item->id);
+        if ($closedItem) {
+            AuctionItemStatusChanged::dispatch(
+                auctionItemId:    $closedItem->id,
+                auctionId:        $closedItem->auction_id,
+                newStatus:        $closedItem->status,
+                hammerPriceCents: $closedItem->status === 'sold'
+                    ? ($closedItem->winningBid?->amount_cents)
+                    : null,
+                currency:         $closedItem->auction?->currency ?? 'EUR',
+            );
+        }
 
         // Cancel outbid PaymentIntents outside the transaction (Stripe call)
         $outbidPIs = Bid::where('auction_item_id', $item->id)

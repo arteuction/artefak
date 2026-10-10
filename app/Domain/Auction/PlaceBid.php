@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Auction;
 
 use App\Domain\Outbox\AppendDomainEvent;
+use App\Events\BidOutbid;
 use App\Events\BidPlaced;
 use App\Models\AuctionItem;
 use App\Models\Bid;
@@ -85,7 +86,13 @@ final class PlaceBid
             $bid->payment_status           = 'authorized';
             $bid->save();
 
-            // Outbid any previously accepted bid on this item
+            // Capture previous leading bidder before outbidding them
+            $previousLeader = Bid::where('auction_item_id', $locked->id)
+                ->where('status', 'accepted')
+                ->where('id', '!=', $bid->id)
+                ->orderByDesc('amount_cents')
+                ->first();
+
             Bid::where('auction_item_id', $locked->id)
                 ->where('status', 'accepted')
                 ->where('id', '!=', $bid->id)
@@ -109,6 +116,17 @@ final class PlaceBid
 
         // Broadcast outside the transaction — fires only after commit.
         BidPlaced::dispatch($bid);
+
+        if ($previousLeader !== null) {
+            BidOutbid::dispatch(
+                userId:             $previousLeader->user_id,
+                auctionItemId:      $previousLeader->auction_item_id,
+                auctionId:          $bid->auctionItem->auction_id,
+                previousBidCents:   $previousLeader->amount_cents,
+                newLeadingBidCents: $bid->amount_cents,
+                currency:           $bid->auctionItem->auction?->currency ?? 'EUR',
+            );
+        }
 
         return $bid;
     }
