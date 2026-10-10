@@ -34,6 +34,9 @@ final class PilotReadinessCommand extends Command
         $this->checkEnvVars();
         $this->checkStorageWritable();
         $this->checkHealthEndpoint();
+        $this->checkSellNowStripeColumns();
+        $this->checkReverbConfig();
+        $this->checkWebhookEventsTable();
 
         $passed  = count(array_filter($this->results, fn ($r) => $r['status'] === 'pass'));
         $failed  = count(array_filter($this->results, fn ($r) => $r['status'] === 'fail'));
@@ -159,6 +162,39 @@ final class PilotReadinessCommand extends Command
             $this->recordPass('Health checks', count($checks) . ' checks registered');
         } catch (\Exception $e) {
             $this->recordWarn('Health checks', 'could not enumerate: ' . $e->getMessage());
+        }
+    }
+
+    private function checkSellNowStripeColumns(): void
+    {
+        $columns = ['stripe_checkout_session_id', 'stripe_payment_intent_id'];
+        $missing = array_filter($columns, fn ($c) => ! Schema::hasColumn('sell_now_offers', $c));
+
+        if (empty($missing)) {
+            $this->recordPass('SellNow Stripe columns', 'both columns present on sell_now_offers');
+        } else {
+            $this->recordFail('SellNow Stripe columns', 'missing: ' . implode(', ', $missing));
+        }
+    }
+
+    private function checkReverbConfig(): void
+    {
+        $required = ['REVERB_APP_ID', 'REVERB_APP_KEY', 'REVERB_APP_SECRET'];
+        $missing  = array_filter($required, fn ($k) => empty(env($k)));
+
+        if (empty($missing)) {
+            $this->recordPass('Reverb WebSocket', count($required) . ' env vars set');
+        } else {
+            $this->recordWarn('Reverb WebSocket', 'missing: ' . implode(', ', $missing) . ' — live auction bidding will not work');
+        }
+    }
+
+    private function checkWebhookEventsTable(): void
+    {
+        if (Schema::hasTable('webhook_events')) {
+            $this->recordPass('Webhook events table', 'present');
+        } else {
+            $this->recordFail('Webhook events table', 'missing — Stripe webhooks cannot be processed');
         }
     }
 
