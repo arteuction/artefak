@@ -32,6 +32,7 @@ export default function Layout() {
                         <NavLink to="/artworks" className={navLinkClass}>Artworks</NavLink>
                         <NavLink to="/auctions" className={navLinkClass}>Auctions</NavLink>
                         <NavLink to="/library" className={navLinkClass}>Library</NavLink>
+                        <NavLink to="/metro" className={navLinkClass}>ArtMetro</NavLink>
                         {user?.role === 'artist' && (
                             <NavLink to="/dashboard" className={navLinkClass}>My works</NavLink>
                         )}

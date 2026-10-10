@@ -87,6 +87,33 @@ export type SellNowOffer = {
     artwork?: { id: number; title: string; slug: string };
 };
 
+export type Venue = {
+    id: number;
+    name: string;
+    slug: string;
+    address: string | null;
+    city: string | null;
+    description: string | null;
+    lat: number | null;
+    lng: number | null;
+    website_url: string | null;
+    status: 'active' | 'inactive';
+};
+
+export type VenueArtwork = {
+    id: number;
+    artwork: {
+        id: number;
+        title: string;
+        slug: string;
+        medium: string | null;
+        artist: { id: number; name: string };
+    };
+    location_label: string | null;
+    iiif_manifest_url: string | null;
+    qr_token: string | null;
+};
+
 export type Publication = {
     id: number;
     title: string;

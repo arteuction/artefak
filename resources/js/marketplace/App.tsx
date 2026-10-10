@@ -14,6 +14,9 @@ import OfferListPage from './pages/buyer/OfferListPage';
 import ConsignmentListPage from './pages/gallery/ConsignmentListPage';
 import PublicationListPage from './pages/library/PublicationListPage';
 import PublicationDetailPage from './pages/library/PublicationDetailPage';
+import VenueListPage from './pages/metro/VenueListPage';
+import VenueDetailPage from './pages/metro/VenueDetailPage';
+import QrScanPage from './pages/metro/QrScanPage';
 import OfferManagePage from './pages/gallery/OfferManagePage';
 import NotFoundPage from './pages/NotFoundPage';
 
@@ -35,6 +38,9 @@ export default function App() {
                     <Route path="offers" element={<OfferListPage />} />
                     <Route path="library" element={<PublicationListPage />} />
                     <Route path="library/:slug" element={<PublicationDetailPage />} />
+                    <Route path="metro" element={<VenueListPage />} />
+                    <Route path="metro/:slug" element={<VenueDetailPage />} />
+                    <Route path="metro/scan" element={<QrScanPage />} />
                     <Route path="gallery/consignments" element={<ConsignmentListPage />} />
                     <Route path="gallery/offers" element={<OfferManagePage />} />
                     <Route path="*" element={<NotFoundPage />} />
