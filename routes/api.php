@@ -151,7 +151,12 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
 
     // Venues (public read)
     Route::get('/venues',         [VenueController::class, 'index'])->name('venues.index');
+    Route::get('/venues/map',     [\App\Http\Controllers\Api\V1\VenueMapController::class, 'index'])->name('venues.map');
     Route::get('/venues/{venue}', [VenueController::class, 'show'])->name('venues.show');
+
+    // QR code generation (Phase 96)
+    Route::get('/artworks/{artwork}/qr', [\App\Http\Controllers\Api\V1\QrCodeController::class, 'artwork'])->name('artworks.qr');
+    Route::get('/lots/{artLot}/qr',      [\App\Http\Controllers\Api\V1\QrCodeController::class, 'lot'])->name('lots.qr');
 
     // Exhibitions (public read)  — store is in the auth group below
 
