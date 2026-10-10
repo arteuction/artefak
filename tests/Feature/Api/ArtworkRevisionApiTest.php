@@ -34,7 +34,7 @@ final class ArtworkRevisionApiTest extends TestCase
     {
         Sanctum::actingAs($this->artist);
 
-        $this->postJson("/api/v1/artworks/{$this->artwork->id}/revisions", [
+        $this->postJson("/api/v1/artworks/{$this->artwork->slug}/revisions", [
             'title'  => 'Corrected Title',
             'reason' => 'correction',
         ])->assertCreated()
@@ -47,11 +47,11 @@ final class ArtworkRevisionApiTest extends TestCase
     {
         Sanctum::actingAs($this->artist);
 
-        $this->postJson("/api/v1/artworks/{$this->artwork->id}/revisions", [
+        $this->postJson("/api/v1/artworks/{$this->artwork->slug}/revisions", [
             'title' => 'Rev 1', 'reason' => 'initial',
         ])->assertCreated()->assertJsonPath('version', 1);
 
-        $this->postJson("/api/v1/artworks/{$this->artwork->id}/revisions", [
+        $this->postJson("/api/v1/artworks/{$this->artwork->slug}/revisions", [
             'title' => 'Rev 2', 'reason' => 'correction',
         ])->assertCreated()->assertJsonPath('version', 2);
     }
@@ -61,7 +61,7 @@ final class ArtworkRevisionApiTest extends TestCase
         $other = User::factory()->create(['role' => 'artist']);
         Sanctum::actingAs($other);
 
-        $this->postJson("/api/v1/artworks/{$this->artwork->id}/revisions", [
+        $this->postJson("/api/v1/artworks/{$this->artwork->slug}/revisions", [
             'title' => 'Hijack', 'reason' => 'correction',
         ])->assertForbidden();
     }
@@ -70,7 +70,7 @@ final class ArtworkRevisionApiTest extends TestCase
     {
         Sanctum::actingAs($this->artist);
 
-        $this->postJson("/api/v1/artworks/{$this->artwork->id}/revisions", [
+        $this->postJson("/api/v1/artworks/{$this->artwork->slug}/revisions", [
             'title'  => 'Bad',
             'reason' => 'made_up_reason',
         ])->assertUnprocessable();

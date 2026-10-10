@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Api;
 
+use App\Domain\Auction\SettleAuction;
+use App\Domain\Fulfillment\ConfirmSellNowPayment;
+use App\Domain\SellNow\CreateSellNowSettlement;
 use App\Jobs\HandleStripeWebhook;
 use App\Models\ConnectedAccountPayout;
 use App\Models\User;
@@ -61,7 +64,9 @@ final class Phase48ApiTest extends TestCase
             app(\App\Application\Settlement\ProcessRefund::class),
             app(\App\Domain\Library\FinalizePaidBookPurchase::class),
             app(\App\Domain\Payment\HandleConnectedAccountPayout::class),
-            app(\App\Domain\Auction\SettleAuction::class),
+            app(SettleAuction::class),
+            app(ConfirmSellNowPayment::class),
+            app(CreateSellNowSettlement::class),
         );
 
         $this->assertDatabaseHas('connected_account_payouts', [
@@ -82,7 +87,9 @@ final class Phase48ApiTest extends TestCase
             app(\App\Application\Settlement\ProcessRefund::class),
             app(\App\Domain\Library\FinalizePaidBookPurchase::class),
             app(\App\Domain\Payment\HandleConnectedAccountPayout::class),
-            app(\App\Domain\Auction\SettleAuction::class),
+            app(SettleAuction::class),
+            app(ConfirmSellNowPayment::class),
+            app(CreateSellNowSettlement::class),
         );
 
         $this->assertDatabaseHas('connected_account_payouts', [
@@ -102,7 +109,9 @@ final class Phase48ApiTest extends TestCase
             app(\App\Application\Settlement\ProcessRefund::class),
             app(\App\Domain\Library\FinalizePaidBookPurchase::class),
             app(\App\Domain\Payment\HandleConnectedAccountPayout::class),
-            app(\App\Domain\Auction\SettleAuction::class),
+            app(SettleAuction::class),
+            app(ConfirmSellNowPayment::class),
+            app(CreateSellNowSettlement::class),
         );
 
         $this->assertDatabaseHas('connected_account_payouts', [
@@ -124,9 +133,11 @@ final class Phase48ApiTest extends TestCase
         $refund  = app(\App\Application\Settlement\ProcessRefund::class);
         $book    = app(\App\Domain\Library\FinalizePaidBookPurchase::class);
 
-        $settle = app(\App\Domain\Auction\SettleAuction::class);
-        (new HandleStripeWebhook($eventId1))->handle($refund, $book, $handler, $settle);
-        (new HandleStripeWebhook($eventId2))->handle($refund, $book, $handler, $settle);
+        $settle  = app(SettleAuction::class);
+        $confirm = app(ConfirmSellNowPayment::class);
+        $create  = app(CreateSellNowSettlement::class);
+        (new HandleStripeWebhook($eventId1))->handle($refund, $book, $handler, $settle, $confirm, $create);
+        (new HandleStripeWebhook($eventId2))->handle($refund, $book, $handler, $settle, $confirm, $create);
 
         $this->assertSame(1, ConnectedAccountPayout::where('stripe_payout_id', $payoutId)->count());
     }
@@ -154,7 +165,9 @@ final class Phase48ApiTest extends TestCase
             app(\App\Application\Settlement\ProcessRefund::class),
             app(\App\Domain\Library\FinalizePaidBookPurchase::class),
             app(\App\Domain\Payment\HandleConnectedAccountPayout::class),
-            app(\App\Domain\Auction\SettleAuction::class),
+            app(SettleAuction::class),
+            app(ConfirmSellNowPayment::class),
+            app(CreateSellNowSettlement::class),
         );
 
         $this->assertSame(0, ConnectedAccountPayout::count());

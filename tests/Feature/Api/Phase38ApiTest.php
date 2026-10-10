@@ -36,7 +36,7 @@ final class Phase38ApiTest extends TestCase
         [$owner, $artwork] = $this->makeArtwork();
 
         $this->actingAs($owner, 'sanctum')
-            ->patchJson("/api/v1/artworks/{$artwork->id}", [
+            ->patchJson("/api/v1/artworks/{$artwork->slug}", [
                 'title'      => 'Updated Title',
                 'medium'     => 'sculpture',
                 'year_created' => 2020,
@@ -51,7 +51,7 @@ final class Phase38ApiTest extends TestCase
         $other = User::factory()->create(['role' => 'artist']);
 
         $this->actingAs($other, 'sanctum')
-            ->patchJson("/api/v1/artworks/{$artwork->id}", ['title' => 'Hack'])
+            ->patchJson("/api/v1/artworks/{$artwork->slug}", ['title' => 'Hack'])
             ->assertForbidden();
     }
 
@@ -61,7 +61,7 @@ final class Phase38ApiTest extends TestCase
         $admin = User::factory()->create(['role' => 'admin']);
 
         $this->actingAs($admin, 'sanctum')
-            ->patchJson("/api/v1/artworks/{$artwork->id}", ['description' => 'Admin edited'])
+            ->patchJson("/api/v1/artworks/{$artwork->slug}", ['description' => 'Admin edited'])
             ->assertOk()
             ->assertJsonFragment(['description' => 'Admin edited']);
     }

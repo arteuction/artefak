@@ -171,7 +171,7 @@ final class Phase53ApiTest extends TestCase
     {
         $artwork = $this->makeListedArtwork(['title' => 'My Gallery Piece']);
 
-        $this->getJson("/api/v1/search/artworks/{$artwork->id}")
+        $this->getJson("/api/v1/search/artworks/{$artwork->slug}")
             ->assertOk()
             ->assertJsonPath('data.id', $artwork->id)
             ->assertJsonPath('data.title', 'My Gallery Piece');
@@ -181,7 +181,7 @@ final class Phase53ApiTest extends TestCase
     {
         $artwork = $this->makeListedArtwork(['status' => 'draft', 'slug' => 'draft-' . uniqid()]);
 
-        $this->getJson("/api/v1/search/artworks/{$artwork->id}")
+        $this->getJson("/api/v1/search/artworks/{$artwork->slug}")
             ->assertNotFound();
     }
 }
