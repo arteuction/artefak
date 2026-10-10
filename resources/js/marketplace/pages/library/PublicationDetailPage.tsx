@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { api } from '@/lib/api';
 import type { Publication } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
+import { useDocTitle } from '@/lib/useDocTitle';
 import { Badge, Button, Spinner } from '@/components/ui';
 
 function formatEur(cents: number, currency = 'EUR'): string {
@@ -33,6 +34,8 @@ export default function PublicationDetailPage() {
         },
         onError: () => setPurchasing(false),
     });
+
+    useDocTitle(pub?.title ?? null);
 
     const downloadMutation = useMutation({
         mutationFn: async () => {

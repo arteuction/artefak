@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import type { Artwork } from '@/lib/api';
 import { Badge, Button, Input, Spinner } from '@/components/ui';
+import { useJsonLd } from '@/lib/useJsonLd';
+import { useDocTitle } from '@/lib/useDocTitle';
 
 const STATUS_VARIANT: Record<string, 'default' | 'live' | 'sold' | 'draft' | 'auction'> = {
     listed:     'default',
@@ -67,6 +69,21 @@ export default function ArtworkDetailPage() {
             setOfferNote('');
         },
     });
+
+    const jsonLd = useMemo(() => {
+        if (!artwork) return null;
+        return {
+            '@context': 'https://schema.org',
+            '@type': 'VisualArtwork',
+            name: artwork.title,
+            creator: { '@type': 'Person', name: artwork.artist.name },
+            ...(artwork.medium ? { artMedium: artwork.medium } : {}),
+            ...(artwork.year_created ? { dateCreated: String(artwork.year_created) } : {}),
+            ...(artwork.description ? { description: artwork.description } : {}),
+        };
+    }, [artwork]);
+    useJsonLd(jsonLd);
+    useDocTitle(artwork?.title ?? null);
 
     if (isLoading) {
         return (
@@ -169,9 +186,15 @@ export default function ArtworkDetailPage() {
                 <div
                     className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
                     onClick={(e) => { if (e.target === e.currentTarget) setShowOfferModal(false); }}
+                    role="presentation"
                 >
-                    <div className="bg-[var(--color-bg)] rounded-[var(--radius-lg)] p-8 max-w-sm w-full mx-4 shadow-xl">
-                        <h2 className="text-xl font-semibold mb-1">Make an offer</h2>
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="offer-modal-title"
+                        className="bg-[var(--color-bg)] rounded-[var(--radius-lg)] p-8 max-w-sm w-full mx-4 shadow-xl"
+                    >
+                        <h2 id="offer-modal-title" className="text-xl font-semibold mb-1">Make an offer</h2>
                         <p className="text-sm text-[var(--color-text-muted)] mb-5">
                             {artwork.title}
                         </p>
@@ -192,6 +215,7 @@ export default function ArtworkDetailPage() {
                                 </label>
                                 <textarea
                                     rows={2}
+                                    aria-label="Note for the offer"
                                     value={offerNote}
                                     onChange={(e) => setOfferNote(e.target.value)}
                                     className="w-full rounded-[var(--radius-sm)] border border-[var(--color-border)] px-3 py-2 text-sm bg-[var(--color-bg)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"

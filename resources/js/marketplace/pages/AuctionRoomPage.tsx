@@ -5,6 +5,7 @@ import { api } from '@/lib/api';
 import { echo } from '@/lib/echo';
 import type { Auction, ArtLot } from '@/lib/api';
 import { Badge, Button, Input, Spinner } from '@/components/ui';
+import { useDocTitle } from '@/lib/useDocTitle';
 
 type BidEvent = {
     bidId: number;
@@ -66,6 +67,7 @@ export default function AuctionRoomPage() {
     });
 
     const countdown = useCountdown(auction?.ends_at ?? null);
+    useDocTitle(auction?.title ?? null);
 
     // Subscribe to real-time bid events via Reverb
     useEffect(() => {

@@ -1,8 +1,10 @@
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api } from '@/lib/api';
 import type { Auction, PaginatedResponse } from '@/lib/api';
 import { Badge, EmptyState, Spinner } from '@/components/ui';
+import { useJsonLd } from '@/lib/useJsonLd';
 
 const AUCTION_STATUS_VARIANT: Record<string, 'live' | 'auction' | 'draft'> = {
     live:      'live',
@@ -35,6 +37,20 @@ export default function AuctionListPage() {
             return res.data;
         },
     });
+
+    const liveAuction = data?.data.find((a) => a.status === 'live') ?? null;
+    const jsonLd = useMemo(() => {
+        if (!liveAuction) return null;
+        return {
+            '@context': 'https://schema.org',
+            '@type': 'Event',
+            name: liveAuction.title,
+            eventStatus: 'https://schema.org/EventScheduled',
+            ...(liveAuction.starts_at ? { startDate: liveAuction.starts_at } : {}),
+            ...(liveAuction.ends_at ? { endDate: liveAuction.ends_at } : {}),
+        };
+    }, [liveAuction]);
+    useJsonLd(jsonLd);
 
     return (
         <div>
