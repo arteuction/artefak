@@ -4,8 +4,8 @@ import Dashboard from '@uppy/dashboard';
 import { UppyContextProvider, useUppyContext } from '@uppy/react';
 import { useMemo, useEffect, useRef } from 'react';
 
-import '@uppy/core/dist/style.min.css';
-import '@uppy/dashboard/dist/style.min.css';
+import '@uppy/core/css/style.min.css';
+import '@uppy/dashboard/css/style.min.css';
 
 interface Props {
     artworkId: number;
