@@ -9,6 +9,7 @@ use App\Domain\Auction\SettleAuction;
 use App\Domain\Fulfillment\ConfirmSellNowPayment;
 use App\Domain\Library\FinalizePaidBookPurchase;
 use App\Domain\Payment\HandleConnectedAccountPayout;
+use App\Domain\SellNow\CreateSellNowSettlement;
 use App\Models\SellNowOffer;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -23,7 +24,7 @@ class HandleStripeWebhook implements ShouldQueue
 
     public function __construct(private int $webhookEventId) {}
 
-    public function handle(ProcessRefund $processRefund, FinalizePaidBookPurchase $finalizeBook, HandleConnectedAccountPayout $handlePayout, SettleAuction $settleAuction, ConfirmSellNowPayment $confirmSellNow): void
+    public function handle(ProcessRefund $processRefund, FinalizePaidBookPurchase $finalizeBook, HandleConnectedAccountPayout $handlePayout, SettleAuction $settleAuction, ConfirmSellNowPayment $confirmSellNow, CreateSellNowSettlement $createSellNowSettlement): void
     {
         $row = DB::table('webhook_events')->find($this->webhookEventId);
 
@@ -37,7 +38,7 @@ class HandleStripeWebhook implements ShouldQueue
 
         try {
             $event = json_decode($row->payload, true, 512, JSON_THROW_ON_ERROR);
-            $this->route($event, $processRefund, $finalizeBook, $handlePayout, $settleAuction, $confirmSellNow);
+            $this->route($event, $processRefund, $finalizeBook, $handlePayout, $settleAuction, $confirmSellNow, $createSellNowSettlement);
 
             DB::table('webhook_events')
                 ->where('id', $this->webhookEventId)
@@ -54,14 +55,14 @@ class HandleStripeWebhook implements ShouldQueue
         }
     }
 
-    private function route(array $event, ProcessRefund $processRefund, FinalizePaidBookPurchase $finalizeBook, HandleConnectedAccountPayout $handlePayout, SettleAuction $settleAuction, ConfirmSellNowPayment $confirmSellNow): void
+    private function route(array $event, ProcessRefund $processRefund, FinalizePaidBookPurchase $finalizeBook, HandleConnectedAccountPayout $handlePayout, SettleAuction $settleAuction, ConfirmSellNowPayment $confirmSellNow, CreateSellNowSettlement $createSellNowSettlement): void
     {
         match ($event['type']) {
             'charge.refunded'                          => $this->handleChargeRefunded($event, $processRefund),
             'payment_intent.succeeded'                 => $this->handlePaymentIntentSucceeded($event, $finalizeBook),
             'payment_intent.amount_capturable_updated' => $this->handleCapturableUpdated($event, $settleAuction),
             'payment_intent.payment_failed'            => $this->handlePaymentFailed($event),
-            'checkout.session.completed'               => $this->handleCheckoutSessionCompleted($event, $confirmSellNow),
+            'checkout.session.completed'               => $this->handleCheckoutSessionCompleted($event, $confirmSellNow, $createSellNowSettlement),
             'payout.paid'                              => $this->handlePayoutEvent($event, 'paid', $handlePayout),
             'payout.failed'                            => $this->handlePayoutEvent($event, 'failed', $handlePayout),
             'payout.canceled'                          => $this->handlePayoutEvent($event, 'canceled', $handlePayout),
@@ -69,7 +70,7 @@ class HandleStripeWebhook implements ShouldQueue
         };
     }
 
-    private function handleCheckoutSessionCompleted(array $event, ConfirmSellNowPayment $confirmSellNow): void
+    private function handleCheckoutSessionCompleted(array $event, ConfirmSellNowPayment $confirmSellNow, CreateSellNowSettlement $createSellNowSettlement): void
     {
         $session   = $event['data']['object'];
         $sessionId = $session['id'] ?? null;
@@ -92,7 +93,8 @@ class HandleStripeWebhook implements ShouldQueue
                     $offer->update(['stripe_payment_intent_id' => $piId]);
                     $offer->refresh();
                 }
-                $confirmSellNow->execute($offer);
+                $paidOffer = $confirmSellNow->execute($offer);
+                $createSellNowSettlement->execute($paidOffer, $event['id']);
             }
             return;
         }
