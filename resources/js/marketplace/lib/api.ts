@@ -62,6 +62,20 @@ export type Auction = {
     created_at: string;
 };
 
+export type SellNowOffer = {
+    id: number;
+    art_lot_id: number;
+    offered_price_cents: number;
+    counter_price_cents: number | null;
+    currency: string;
+    status: 'pending' | 'countered' | 'accepted' | 'rejected' | 'expired' | 'paid';
+    notes: string | null;
+    expires_at: string | null;
+    created_at: string;
+    updated_at: string;
+    artwork?: { id: number; title: string; slug: string };
+};
+
 export type ArtLot = {
     id: number;
     artwork_id: number;

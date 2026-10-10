@@ -34,6 +34,9 @@ export default function Layout() {
                         {user?.role === 'artist' && (
                             <NavLink to="/dashboard" className={navLinkClass}>My works</NavLink>
                         )}
+                        {user?.role === 'buyer' && (
+                            <NavLink to="/offers" className={navLinkClass}>My offers</NavLink>
+                        )}
                     </nav>
 
                     <div className="flex items-center gap-3 text-sm shrink-0">
