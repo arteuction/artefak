@@ -9,11 +9,15 @@ use App\Policies\ArtistApplicationPolicy;
 use App\Policies\ArtworkSdgClaimPolicy;
 use App\Policies\DomainEventPolicy;
 use Illuminate\Support\Facades\Gate;
+use App\Observability\TraceContext;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
-    public function register(): void {}
+    public function register(): void
+    {
+        $this->app->singleton(TraceContext::class);
+    }
 
     public function boot(): void
     {
