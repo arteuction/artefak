@@ -87,6 +87,22 @@ export type SellNowOffer = {
     artwork?: { id: number; title: string; slug: string };
 };
 
+export type Publication = {
+    id: number;
+    title: string;
+    slug: string;
+    author: string | null;
+    description: string | null;
+    cover_image_url: string | null;
+    file_format: string | null;
+    page_count: number | null;
+    price_cents: number;
+    currency: string;
+    status: 'draft' | 'published' | 'archived';
+    created_at: string;
+    access?: 'none' | 'purchased' | 'free';
+};
+
 export type ArtLot = {
     id: number;
     artwork_id: number;
