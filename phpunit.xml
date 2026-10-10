@@ -29,5 +29,11 @@
         <!-- The full DB contract comes from .env.testing (Laravel 13 mechanism), NOT hardcoded here,
              so local and CI use one source of truth. The hard guard enforces exactly 'arteuction_test'
              at runtime; the least-privilege DB user is the actual safety guarantee. -->
+
+        <!-- Placeholder values required so pilot:readiness env-var check passes in tests -->
+        <env name="APP_URL" value="http://localhost"/>
+        <env name="STRIPE_KEY" value="pk_test_placeholder"/>
+        <env name="STRIPE_SECRET" value="sk_test_placeholder"/>
+        <env name="STRIPE_WEBHOOK_SECRET" value="whsec_placeholder"/>
     </php>
 </phpunit>
