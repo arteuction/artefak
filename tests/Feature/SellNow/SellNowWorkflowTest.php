@@ -270,8 +270,9 @@ class SellNowWorkflowTest extends TestCase
 
     public function test_art_lot_has_many_sell_now_offers(): void
     {
+        $buyer2 = User::factory()->create(['role' => 'buyer']);
         (new SubmitOffer())->execute($this->artLot, $this->buyer, 38000);
-        (new SubmitOffer())->execute($this->artLot, $this->buyer, 40000);
+        (new SubmitOffer())->execute($this->artLot, $buyer2, 40000);
 
         $this->assertCount(2, $this->artLot->sellNowOffers);
     }

@@ -37,7 +37,7 @@ final class IiifController extends Controller
         }
 
         $base     = rtrim(config('app.url'), '/');
-        $id       = "{$base}/api/v1/artworks/{$artwork->id}/iiif";
+        $id       = "{$base}/api/v1/artworks/{$artwork->slug}/iiif";
         $imageUrl = $this->resolveImageUrl($artwork->primary_image_key);
 
         $derivatives = $artwork->image_derivatives ?? [];
@@ -93,7 +93,7 @@ final class IiifController extends Controller
         $artwork->load('artist:id,name');
 
         $base     = rtrim(config('app.url'), '/');
-        $id       = "{$base}/api/v1/artworks/{$artwork->id}/iiif/manifest";
+        $id       = "{$base}/api/v1/artworks/{$artwork->slug}/iiif/manifest";
         $imageUrl = $artwork->primary_image_key
             ? $this->resolveImageUrl($artwork->primary_image_key)
             : null;
@@ -110,16 +110,16 @@ final class IiifController extends Controller
             ] : null,
             'items' => [
                 [
-                    'id'    => "{$base}/api/v1/artworks/{$artwork->id}/iiif/canvas/1",
+                    'id'    => "{$base}/api/v1/artworks/{$artwork->slug}/iiif/canvas/1",
                     'type'  => 'Canvas',
                     'label' => ['en' => [$artwork->title]],
                     'items' => $imageUrl ? [
                         [
-                            'id'    => "{$base}/api/v1/artworks/{$artwork->id}/iiif/annotationpage/1",
+                            'id'    => "{$base}/api/v1/artworks/{$artwork->slug}/iiif/annotationpage/1",
                             'type'  => 'AnnotationPage',
                             'items' => [
                                 [
-                                    'id'         => "{$base}/api/v1/artworks/{$artwork->id}/iiif/annotation/1",
+                                    'id'         => "{$base}/api/v1/artworks/{$artwork->slug}/iiif/annotation/1",
                                     'type'       => 'Annotation',
                                     'motivation' => 'painting',
                                     'body'       => [
@@ -129,13 +129,13 @@ final class IiifController extends Controller
                                         'service' => [
                                             [
                                                 '@context' => 'http://iiif.io/api/image/3/context.json',
-                                                'id'       => "{$base}/api/v1/artworks/{$artwork->id}/iiif",
+                                                'id'       => "{$base}/api/v1/artworks/{$artwork->slug}/iiif",
                                                 'type'     => 'ImageService3',
                                                 'profile'  => 'level1',
                                             ],
                                         ],
                                     ],
-                                    'target' => "{$base}/api/v1/artworks/{$artwork->id}/iiif/canvas/1",
+                                    'target' => "{$base}/api/v1/artworks/{$artwork->slug}/iiif/canvas/1",
                                 ],
                             ],
                         ],
