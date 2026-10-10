@@ -30,7 +30,7 @@ export default function App() {
                     <Route path="artworks/:slug" element={<ArtworkDetailPage />} />
                     <Route path="auctions" element={<AuctionListPage />} />
                     <Route path="auctions/:id/live" element={<AuctionRoomPage />} />
-                    <Route path="artists/:id" element={<ArtistProfilePage />} />
+                    <Route path="artists/:slug" element={<ArtistProfilePage />} />
                     <Route path="login" element={<LoginPage />} />
                     <Route path="dashboard" element={<DashboardPage />} />
                     <Route path="dashboard/artworks/new" element={<ArtworkCreatePage />} />

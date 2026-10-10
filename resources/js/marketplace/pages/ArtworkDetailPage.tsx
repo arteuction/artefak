@@ -129,12 +129,16 @@ export default function ArtworkDetailPage() {
 
                 {/* Info panel */}
                 <div>
-                    <Link
-                        to={`/artists/${artwork.artist.id}`}
-                        className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
-                    >
-                        {artwork.artist.name}
-                    </Link>
+                    {artwork.artist.profile_slug ? (
+                        <Link
+                            to={`/artists/${artwork.artist.profile_slug}`}
+                            className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+                        >
+                            {artwork.artist.name}
+                        </Link>
+                    ) : (
+                        <span className="text-sm text-[var(--color-text-muted)]">{artwork.artist.name}</span>
+                    )}
                     <h1 className="text-3xl font-semibold mt-1 mb-3">{artwork.title}</h1>
 
                     <div className="mb-4">

@@ -24,7 +24,7 @@ final class ArtworkController extends Controller
     /** GET /api/v1/artworks */
     public function index(Request $request): JsonResponse
     {
-        $query = Artwork::with('artist:id,name')
+        $query = Artwork::with(['artist:id,name', 'artist.artistProfile:user_id,slug'])
             ->whereNotIn('status', ['draft', 'archived']);
 
         if ($request->filled('status')) {
@@ -37,7 +37,19 @@ final class ArtworkController extends Controller
 
         $artworks = $query->orderByDesc('created_at')->paginate(20);
 
-        return response()->json($artworks);
+        return response()->json([
+            'data'  => array_map(fn ($a) => ArtworkData::fromArtwork($a), $artworks->items()),
+            'meta'  => [
+                'current_page' => $artworks->currentPage(),
+                'last_page'    => $artworks->lastPage(),
+                'per_page'     => $artworks->perPage(),
+                'total'        => $artworks->total(),
+            ],
+            'links' => [
+                'next' => $artworks->nextPageUrl(),
+                'prev' => $artworks->previousPageUrl(),
+            ],
+        ]);
     }
 
     /** GET /api/v1/artworks/{artwork} */
@@ -51,7 +63,7 @@ final class ArtworkController extends Controller
             }
         }
 
-        $artwork->load(['artist:id,name']);
+        $artwork->load(['artist:id,name', 'artist.artistProfile:user_id,slug']);
 
         return response()->json(ArtworkData::fromArtwork($artwork));
     }

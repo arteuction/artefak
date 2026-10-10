@@ -1,9 +1,9 @@
-import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api } from '@/lib/api';
 import type { Auction, PaginatedResponse } from '@/lib/api';
-import { Badge, EmptyState, Spinner } from '@/components/ui';
+import { Badge, Button, EmptyState, Spinner } from '@/components/ui';
 import { useJsonLd } from '@/lib/useJsonLd';
 
 const AUCTION_STATUS_VARIANT: Record<string, 'live' | 'auction' | 'draft'> = {
@@ -30,12 +30,15 @@ function formatDateRange(start: string | null, end: string | null): string {
 }
 
 export default function AuctionListPage() {
-    const { data, isLoading, isError } = useQuery({
-        queryKey: ['auctions'],
+    const [page, setPage] = useState(1);
+
+    const { data, isLoading, isFetching, isError } = useQuery({
+        queryKey: ['auctions', page],
         queryFn: async () => {
-            const res = await api.get<PaginatedResponse<Auction>>('/auctions');
+            const res = await api.get<PaginatedResponse<Auction>>('/auctions', { params: { page } });
             return res.data;
         },
+        placeholderData: keepPreviousData,
     });
 
     const liveAuction = data?.data.find((a) => a.status === 'live') ?? null;
@@ -74,6 +77,7 @@ export default function AuctionListPage() {
             )}
 
             {data && data.data.length > 0 && (
+                <div className={isFetching ? 'opacity-60 transition-opacity' : ''}>
                 <div className="space-y-3">
                     {data.data.map((auction) => (
                         <div
@@ -106,6 +110,31 @@ export default function AuctionListPage() {
                             </div>
                         </div>
                     ))}
+                </div>
+
+                {data.meta.last_page > 1 && (
+                    <div className="flex justify-center items-center gap-3 mt-6">
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => setPage((p) => Math.max(1, p - 1))}
+                            disabled={page === 1 || isFetching}
+                        >
+                            Previous
+                        </Button>
+                        <span className="text-sm text-[var(--color-text-muted)]">
+                            {page} / {data.meta.last_page}
+                        </span>
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => setPage((p) => Math.min(data.meta.last_page, p + 1))}
+                            disabled={page === data.meta.last_page || isFetching}
+                        >
+                            Next
+                        </Button>
+                    </div>
+                )}
                 </div>
             )}
         </div>

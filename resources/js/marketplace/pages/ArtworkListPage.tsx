@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import type { Artwork, PaginatedResponse } from '@/lib/api';
 import ArtworkCard from '@/components/ArtworkCard';
@@ -10,7 +10,7 @@ export default function ArtworkListPage() {
     const [search, setSearch] = useState('');
     const [medium, setMedium] = useState('');
 
-    const { data, isLoading, isError } = useQuery({
+    const { data, isLoading, isFetching, isError } = useQuery({
         queryKey: ['artworks', page, search, medium],
         queryFn: async () => {
             const params: Record<string, string | number> = { page };
@@ -19,6 +19,7 @@ export default function ArtworkListPage() {
             const res = await api.get<PaginatedResponse<Artwork>>('/artworks', { params });
             return res.data;
         },
+        placeholderData: keepPreviousData,
     });
 
     return (
@@ -67,7 +68,10 @@ export default function ArtworkListPage() {
 
             {data && data.data.length > 0 && (
                 <>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <div className={[
+                        'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 transition-opacity',
+                        isFetching ? 'opacity-60' : 'opacity-100',
+                    ].join(' ')}>
                         {data.data.map((artwork) => (
                             <ArtworkCard key={artwork.id} artwork={artwork} />
                         ))}
@@ -79,7 +83,7 @@ export default function ArtworkListPage() {
                                 variant="secondary"
                                 size="sm"
                                 onClick={() => setPage((p) => Math.max(1, p - 1))}
-                                disabled={page === 1}
+                                disabled={page === 1 || isFetching}
                             >
                                 Previous
                             </Button>
@@ -90,7 +94,7 @@ export default function ArtworkListPage() {
                                 variant="secondary"
                                 size="sm"
                                 onClick={() => setPage((p) => Math.min(data.meta.last_page, p + 1))}
-                                disabled={page === data.meta.last_page}
+                                disabled={page === data.meta.last_page || isFetching}
                             >
                                 Next
                             </Button>

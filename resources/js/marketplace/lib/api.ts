@@ -49,7 +49,28 @@ export type Artwork = {
     edition_total: number | null;
     created_at: string;
     updated_at: string;
-    artist: { id: number; name: string };
+    artist: { id: number; name: string; profile_slug: string | null };
+};
+
+export type ArtistProfile = {
+    id: number;
+    display_name: string;
+    slug: string;
+    bio: string | null;
+    website: string | null;
+    instagram_handle: string | null;
+};
+
+export type ArtistPortfolio = {
+    profile: ArtistProfile;
+    artworks: {
+        data: Artwork[];
+        meta: { total: number; current_page: number; last_page: number };
+    };
+    recent_sales: Array<{
+        id: number; title: string; slug: string;
+        auction_item_id: number; auction_item_status: string;
+    }>;
 };
 
 export type Auction = {
