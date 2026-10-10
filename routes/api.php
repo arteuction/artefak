@@ -361,6 +361,11 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         Route::patch('/institutions/{institution}',                     [\App\Http\Controllers\Api\V1\InstitutionController::class, 'update'])->name('institutions.update');
         Route::post('/institutions/{institution}/artworks',             [\App\Http\Controllers\Api\V1\InstitutionController::class, 'attachArtwork'])->name('institutions.artworks.attach');
 
+        // External API client management (admin)
+        Route::get('/api-clients',                  [\App\Http\Controllers\Api\V1\ApiClientController::class, 'index'])->name('api-clients.index');
+        Route::post('/api-clients',                 [\App\Http\Controllers\Api\V1\ApiClientController::class, 'store'])->name('api-clients.store');
+        Route::delete('/api-clients/{apiClient}',   [\App\Http\Controllers\Api\V1\ApiClientController::class, 'destroy'])->name('api-clients.destroy');
+
         // Admin audit log (admin/operator)
         Route::get('/admin/audit-log',          [AdminAuditLogController::class, 'index'])->name('admin.audit-log.index');
         Route::get('/admin/audit-log/{adminAuditLog}', [AdminAuditLogController::class, 'show'])->name('admin.audit-log.show');
