@@ -6,36 +6,46 @@ namespace App\Domain\Fulfillment;
 
 use App\Domain\Outbox\AppendDomainEvent;
 use App\Models\SellNowOffer;
+use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
 final class ConfirmSellNowPayment
 {
     public function execute(SellNowOffer $offer): SellNowOffer
     {
-        if ($offer->status !== 'accepted') {
-            throw new InvalidArgumentException(
-                "Offer must be accepted before confirming payment (status: {$offer->status})."
-            );
-        }
+        return DB::transaction(function () use ($offer): SellNowOffer {
+            // Pessimistic lock prevents duplicate webhook races
+            $locked = SellNowOffer::lockForUpdate()->findOrFail($offer->id);
 
-        $offer->update(['status' => 'paid']);
+            if ($locked->status === 'paid') {
+                return $locked; // idempotent — already paid
+            }
 
-        $artLot = $offer->artLot;
-        if ($artLot) {
-            (new AppendDomainEvent())->execute(
-                aggregate: $artLot,
-                eventType: 'payment.confirmed',
-                payload: [
-                    'channel'            => 'sell_now',
-                    'offer_id'           => $offer->id,
-                    'agreed_price_cents' => $offer->agreed_price_cents,
-                    'currency'           => $offer->currency,
-                    'buyer_id'           => $offer->buyer_id,
-                ],
-                idempotencyKey: "payment.confirmed:sell_now:{$offer->id}",
-            );
-        }
+            if ($locked->status !== 'accepted') {
+                throw new InvalidArgumentException(
+                    "Offer must be accepted before confirming payment (status: {$locked->status})."
+                );
+            }
 
-        return $offer->fresh();
+            $locked->update(['status' => 'paid']);
+
+            $artLot = $locked->artLot;
+            if ($artLot) {
+                (new AppendDomainEvent())->execute(
+                    aggregate: $artLot,
+                    eventType: 'payment.confirmed',
+                    payload: [
+                        'channel'            => 'sell_now',
+                        'offer_id'           => $locked->id,
+                        'agreed_price_cents' => $locked->agreed_price_cents,
+                        'currency'           => $locked->currency,
+                        'buyer_id'           => $locked->buyer_id,
+                    ],
+                    idempotencyKey: "payment.confirmed:sell_now:{$locked->id}",
+                );
+            }
+
+            return $locked->fresh();
+        });
     }
 }

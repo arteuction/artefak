@@ -7,48 +7,57 @@ namespace App\Domain\SellNow;
 use App\Domain\Asset\CloseArtLot;
 use App\Domain\Outbox\AppendDomainEvent;
 use App\Models\SellNowOffer;
+use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
 final class AcceptOffer
 {
     public function execute(SellNowOffer $offer): SellNowOffer
     {
-        if (! in_array($offer->status, ['submitted', 'countered'], true)) {
-            throw new InvalidArgumentException("Cannot accept offer in status: {$offer->status}.");
-        }
+        return DB::transaction(function () use ($offer): SellNowOffer {
+            $locked = SellNowOffer::lockForUpdate()->findOrFail($offer->id);
 
-        $agreedPrice = $offer->status === 'countered'
-            ? $offer->counter_price_cents
-            : $offer->offered_price_cents;
+            if ($locked->status === 'accepted') {
+                return $locked; // idempotent
+            }
 
-        $offer->update([
-            'agreed_price_cents' => $agreedPrice,
-            'status'             => 'accepted',
-        ]);
+            if (! in_array($locked->status, ['submitted', 'countered'], true)) {
+                throw new InvalidArgumentException("Cannot accept offer in status: {$locked->status}.");
+            }
 
-        $artLot = $offer->artLot;
-        if ($artLot) {
-            (new AppendDomainEvent())->execute(
-                aggregate: $artLot,
-                eventType: 'offer.accepted',
-                payload: [
-                    'offer_id'           => $offer->id,
-                    'buyer_id'           => $offer->buyer_id,
-                    'agreed_price_cents' => $agreedPrice,
-                    'currency'           => $offer->currency,
-                ],
-                idempotencyKey: "offer.accepted:{$offer->id}",
-            );
+            $agreedPrice = $locked->status === 'countered'
+                ? $locked->counter_price_cents
+                : $locked->offered_price_cents;
 
-            (new CloseArtLot())->execute(
-                artLot:         $artLot,
-                outcome:        CloseArtLot::STATUS_SOLD,
-                soldPriceCents: $agreedPrice,
-                buyerId:        $offer->buyer_id,
-                idempotencyKey: "art_lot.sold.offer:{$artLot->id}:{$offer->id}",
-            );
-        }
+            $locked->update([
+                'agreed_price_cents' => $agreedPrice,
+                'status'             => 'accepted',
+            ]);
 
-        return $offer->fresh();
+            $artLot = $locked->artLot;
+            if ($artLot) {
+                (new AppendDomainEvent())->execute(
+                    aggregate: $artLot,
+                    eventType: 'offer.accepted',
+                    payload: [
+                        'offer_id'           => $locked->id,
+                        'buyer_id'           => $locked->buyer_id,
+                        'agreed_price_cents' => $agreedPrice,
+                        'currency'           => $locked->currency,
+                    ],
+                    idempotencyKey: "offer.accepted:{$locked->id}",
+                );
+
+                (new CloseArtLot())->execute(
+                    artLot:         $artLot,
+                    outcome:        CloseArtLot::STATUS_SOLD,
+                    soldPriceCents: $agreedPrice,
+                    buyerId:        $locked->buyer_id,
+                    idempotencyKey: "art_lot.sold.offer:{$artLot->id}:{$locked->id}",
+                );
+            }
+
+            return $locked->fresh();
+        });
     }
 }
