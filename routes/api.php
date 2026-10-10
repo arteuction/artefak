@@ -369,6 +369,9 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         Route::post('/api-clients',                 [\App\Http\Controllers\Api\V1\ApiClientController::class, 'store'])->name('api-clients.store');
         Route::delete('/api-clients/{apiClient}',   [\App\Http\Controllers\Api\V1\ApiClientController::class, 'destroy'])->name('api-clients.destroy');
 
+        // Partner onboarding — creates institution + API client atomically (admin)
+        Route::post('/partners/onboard', [\App\Http\Controllers\Api\V1\PartnerOnboardingController::class, 'store'])->name('partners.onboard');
+
         // Admin audit log (admin/operator)
         Route::get('/admin/audit-log',          [AdminAuditLogController::class, 'index'])->name('admin.audit-log.index');
         Route::get('/admin/audit-log/{adminAuditLog}', [AdminAuditLogController::class, 'show'])->name('admin.audit-log.show');
