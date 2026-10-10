@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import { Button, Input } from '@/components/ui';
 
 type CreateArtworkPayload = {
     title: string;
@@ -13,6 +14,12 @@ type CreateArtworkPayload = {
     edition_number: number | null;
     edition_total: number | null;
 };
+
+const SELECT_CLASS =
+    'w-full rounded-[var(--radius-sm)] border border-[var(--color-border)] px-3 py-2 text-sm bg-[var(--color-bg)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]';
+
+const TEXTAREA_CLASS =
+    'w-full rounded-[var(--radius-sm)] border border-[var(--color-border)] px-3 py-2 text-sm bg-[var(--color-bg)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]';
 
 export default function ArtworkCreatePage() {
     const navigate = useNavigate();
@@ -29,7 +36,7 @@ export default function ArtworkCreatePage() {
 
     const mutation = useMutation({
         mutationFn: async (data: CreateArtworkPayload) => {
-            const res = await api.post('/artworks', data);
+            const res = await api.post<{ slug: string }>('/artworks', data);
             return res.data;
         },
         onSuccess: (artwork) => {
@@ -47,33 +54,32 @@ export default function ArtworkCreatePage() {
 
     return (
         <div className="max-w-2xl">
-            <nav className="text-sm text-gray-400 mb-6">
-                <Link to="/dashboard" className="hover:text-black">Dashboard</Link>
-                <span className="mx-2">/</span>
-                <span className="text-gray-700">Add artwork</span>
+            <nav className="text-sm text-[var(--color-text-faint)] mb-6 flex items-center gap-1.5">
+                <Link to="/dashboard" className="hover:text-[var(--color-text)] transition-colors">
+                    Dashboard
+                </Link>
+                <span>/</span>
+                <span className="text-[var(--color-text-muted)]">Add artwork</span>
             </nav>
 
             <h1 className="text-3xl font-semibold mb-8">Add artwork</h1>
 
             <form onSubmit={handleSubmit} className="space-y-5">
-                <div>
-                    <label className="block text-sm font-medium mb-1">Title *</label>
-                    <input
-                        type="text"
-                        required
-                        value={form.title}
-                        onChange={(e) => set('title', e.target.value)}
-                        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
-                    />
-                </div>
+                <Input
+                    label="Title"
+                    type="text"
+                    required
+                    value={form.title}
+                    onChange={(e) => set('title', e.target.value)}
+                />
 
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-sm font-medium mb-1">Medium</label>
+                        <label className="block text-sm font-medium text-[var(--color-text)] mb-1">Medium</label>
                         <select
                             value={form.medium}
                             onChange={(e) => set('medium', e.target.value)}
-                            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                            className={SELECT_CLASS}
                         >
                             <option value="">Select…</option>
                             <option value="painting">Painting</option>
@@ -85,73 +91,61 @@ export default function ArtworkCreatePage() {
                             <option value="other">Other</option>
                         </select>
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium mb-1">Year</label>
-                        <input
-                            type="number"
-                            min={1000}
-                            max={2100}
-                            value={form.year_created ?? ''}
-                            onChange={(e) => set('year_created', e.target.value ? parseInt(e.target.value) : null)}
-                            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
-                        />
-                    </div>
-                </div>
-
-                <div>
-                    <label className="block text-sm font-medium mb-1">Dimensions</label>
-                    <input
-                        type="text"
-                        placeholder="e.g. 80 × 60 cm"
-                        value={form.dimensions}
-                        onChange={(e) => set('dimensions', e.target.value)}
-                        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                    <Input
+                        label="Year"
+                        type="number"
+                        min={1000}
+                        max={2100}
+                        value={form.year_created ?? ''}
+                        onChange={(e) => set('year_created', e.target.value ? parseInt(e.target.value) : null)}
                     />
                 </div>
 
+                <Input
+                    label="Dimensions"
+                    type="text"
+                    placeholder="e.g. 80 × 60 cm"
+                    value={form.dimensions}
+                    onChange={(e) => set('dimensions', e.target.value)}
+                />
+
                 <div>
-                    <label className="block text-sm font-medium mb-1">Description</label>
+                    <label className="block text-sm font-medium text-[var(--color-text)] mb-1">Description</label>
                     <textarea
                         rows={4}
                         value={form.description}
                         onChange={(e) => set('description', e.target.value)}
-                        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                        className={TEXTAREA_CLASS}
                     />
                 </div>
 
-                <div className="flex items-center gap-3">
+                <label className="flex items-center gap-3 cursor-pointer">
                     <input
                         type="checkbox"
                         id="is_original"
                         checked={form.is_original}
                         onChange={(e) => set('is_original', e.target.checked)}
-                        className="rounded"
+                        className="h-4 w-4 rounded border-[var(--color-border)] accent-[var(--color-accent)]"
                     />
-                    <label htmlFor="is_original" className="text-sm">Original work (not an edition)</label>
-                </div>
+                    <span className="text-sm text-[var(--color-text)]">Original work (not an edition)</span>
+                </label>
 
                 {!form.is_original && (
                     <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium mb-1">Edition number</label>
-                            <input
-                                type="number"
-                                min={1}
-                                value={form.edition_number ?? ''}
-                                onChange={(e) => set('edition_number', e.target.value ? parseInt(e.target.value) : null)}
-                                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium mb-1">Total in edition</label>
-                            <input
-                                type="number"
-                                min={1}
-                                value={form.edition_total ?? ''}
-                                onChange={(e) => set('edition_total', e.target.value ? parseInt(e.target.value) : null)}
-                                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
-                            />
-                        </div>
+                        <Input
+                            label="Edition number"
+                            type="number"
+                            min={1}
+                            value={form.edition_number ?? ''}
+                            onChange={(e) => set('edition_number', e.target.value ? parseInt(e.target.value) : null)}
+                        />
+                        <Input
+                            label="Total in edition"
+                            type="number"
+                            min={1}
+                            value={form.edition_total ?? ''}
+                            onChange={(e) => set('edition_total', e.target.value ? parseInt(e.target.value) : null)}
+                        />
                     </div>
                 )}
 
@@ -159,13 +153,9 @@ export default function ArtworkCreatePage() {
                     <p className="text-sm text-red-600">Failed to save artwork. Please try again.</p>
                 )}
 
-                <button
-                    type="submit"
-                    disabled={mutation.isPending}
-                    className="rounded-md bg-black text-white px-6 py-2 text-sm font-medium disabled:opacity-40 hover:bg-gray-800"
-                >
-                    {mutation.isPending ? 'Saving…' : 'Save artwork'}
-                </button>
+                <Button type="submit" loading={mutation.isPending}>
+                    Save artwork
+                </Button>
             </form>
         </div>
     );

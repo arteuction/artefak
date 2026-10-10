@@ -2,6 +2,30 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api } from '@/lib/api';
 import type { Auction, PaginatedResponse } from '@/lib/api';
+import { Badge, EmptyState, Spinner } from '@/components/ui';
+
+const AUCTION_STATUS_VARIANT: Record<string, 'live' | 'auction' | 'draft'> = {
+    live:      'live',
+    scheduled: 'auction',
+    draft:     'draft',
+    closed:    'draft',
+    cancelled: 'draft',
+};
+
+const AUCTION_STATUS_LABEL: Record<string, string> = {
+    live:      'Live',
+    scheduled: 'Upcoming',
+    draft:     'Draft',
+    closed:    'Closed',
+    cancelled: 'Cancelled',
+};
+
+function formatDateRange(start: string | null, end: string | null): string {
+    const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' };
+    const fmt = (d: string) => new Date(d).toLocaleDateString('en-GB', opts);
+    if (!start) return '';
+    return end ? `${fmt(start)} – ${fmt(end)}` : fmt(start);
+}
 
 export default function AuctionListPage() {
     const { data, isLoading, isError } = useQuery({
@@ -12,23 +36,13 @@ export default function AuctionListPage() {
         },
     });
 
-    const statusColor: Record<string, string> = {
-        live: 'bg-red-100 text-red-700',
-        scheduled: 'bg-blue-100 text-blue-700',
-        draft: 'bg-gray-100 text-gray-500',
-        closed: 'bg-gray-100 text-gray-400',
-        cancelled: 'bg-gray-100 text-gray-400',
-    };
-
     return (
         <div>
             <h1 className="text-3xl font-semibold mb-6">Auctions</h1>
 
             {isLoading && (
-                <div className="space-y-3">
-                    {Array.from({ length: 4 }).map((_, i) => (
-                        <div key={i} className="h-20 rounded-lg border border-gray-100 animate-pulse bg-gray-50" />
-                    ))}
+                <div className="flex justify-center py-16">
+                    <Spinner size="lg" />
                 </div>
             )}
 
@@ -36,40 +50,39 @@ export default function AuctionListPage() {
                 <p className="text-red-600 text-sm">Failed to load auctions.</p>
             )}
 
-            {data && (
+            {data && data.data.length === 0 && (
+                <EmptyState
+                    title="No auctions scheduled"
+                    description="Check back soon for upcoming live auctions."
+                />
+            )}
+
+            {data && data.data.length > 0 && (
                 <div className="space-y-3">
                     {data.data.map((auction) => (
                         <div
                             key={auction.id}
-                            className="flex items-center justify-between rounded-lg border border-gray-200 px-5 py-4 hover:border-gray-400 transition-colors"
+                            className="flex items-center justify-between rounded-[var(--radius-lg)] border border-[var(--color-border)] px-5 py-4 hover:border-[var(--color-border-strong)] transition-colors bg-[var(--color-bg)]"
                         >
                             <div>
-                                <h2 className="font-medium">{auction.title}</h2>
-                                {auction.starts_at && (
-                                    <p className="text-xs text-gray-500 mt-0.5">
-                                        {new Date(auction.starts_at).toLocaleDateString('en-GB', {
-                                            day: 'numeric',
-                                            month: 'long',
-                                            year: 'numeric',
-                                        })}
-                                        {auction.ends_at && (
-                                            <> &ndash; {new Date(auction.ends_at).toLocaleDateString('en-GB', {
-                                                day: 'numeric',
-                                                month: 'long',
-                                                year: 'numeric',
-                                            })}</>
-                                        )}
+                                <h2 className="font-medium text-[var(--color-text)]">{auction.title}</h2>
+                                {(auction.starts_at ?? auction.ends_at) && (
+                                    <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                                        {formatDateRange(auction.starts_at, auction.ends_at)}
                                     </p>
                                 )}
                             </div>
                             <div className="flex items-center gap-3">
-                                <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColor[auction.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                                    {auction.status}
-                                </span>
+                                <Badge
+                                    variant={AUCTION_STATUS_VARIANT[auction.status] ?? 'default'}
+                                    pulse={auction.status === 'live'}
+                                >
+                                    {AUCTION_STATUS_LABEL[auction.status] ?? auction.status}
+                                </Badge>
                                 {auction.status === 'live' && (
                                     <Link
                                         to={`/auctions/${auction.id}/live`}
-                                        className="rounded-md bg-black text-white px-4 py-1.5 text-sm font-medium hover:bg-gray-800"
+                                        className="inline-flex items-center rounded-[var(--radius-sm)] bg-[var(--color-accent)] text-[var(--color-accent-fg)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-accent-hover)] transition-colors"
                                     >
                                         Join Live
                                     </Link>
@@ -77,10 +90,6 @@ export default function AuctionListPage() {
                             </div>
                         </div>
                     ))}
-
-                    {data.data.length === 0 && (
-                        <p className="text-gray-500 text-sm text-center py-12">No auctions scheduled.</p>
-                    )}
                 </div>
             )}
         </div>
