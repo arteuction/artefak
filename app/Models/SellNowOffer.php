@@ -20,6 +20,8 @@ final class SellNowOffer extends Model
         'status',
         'expires_at',
         'notes',
+        'stripe_checkout_session_id',
+        'stripe_payment_intent_id',
     ];
 
     protected $casts = [

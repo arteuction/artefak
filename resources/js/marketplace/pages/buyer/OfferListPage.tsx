@@ -79,6 +79,33 @@ function CounterOfferRow({ offer, onAction }: { offer: SellNowOffer; onAction: (
     );
 }
 
+function PayNowButton({ offerId }: { offerId: number }) {
+    const checkoutMutation = useMutation({
+        mutationFn: async () => {
+            const res = await api.post<{ url: string }>(`/sell-now-offers/${offerId}/checkout-session`);
+            return res.data;
+        },
+        onSuccess: ({ url }) => {
+            window.location.href = url;
+        },
+    });
+
+    return (
+        <div className="mt-2">
+            <Button
+                size="sm"
+                loading={checkoutMutation.isPending}
+                onClick={() => checkoutMutation.mutate()}
+            >
+                Pay now
+            </Button>
+            {checkoutMutation.isError && (
+                <p className="text-xs text-red-600 mt-1">Could not start checkout. Please try again.</p>
+            )}
+        </div>
+    );
+}
+
 export default function OfferListPage() {
     const { user } = useAuth();
     const queryClient = useQueryClient();
@@ -176,9 +203,7 @@ export default function OfferListPage() {
                                         </p>
                                     )}
                                     {offer.status === 'accepted' && (
-                                        <p className="text-xs text-[var(--color-text-muted)] mt-1">
-                                            Accepted — awaiting payment confirmation.
-                                        </p>
+                                        <PayNowButton offerId={offer.id} />
                                     )}
                                 </div>
                                 <Badge variant={STATUS_VARIANT[offer.status] ?? 'default'}>

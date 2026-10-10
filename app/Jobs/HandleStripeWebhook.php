@@ -6,8 +6,10 @@ namespace App\Jobs;
 
 use App\Application\Settlement\ProcessRefund;
 use App\Domain\Auction\SettleAuction;
+use App\Domain\Fulfillment\ConfirmSellNowPayment;
 use App\Domain\Library\FinalizePaidBookPurchase;
 use App\Domain\Payment\HandleConnectedAccountPayout;
+use App\Models\SellNowOffer;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
@@ -21,7 +23,7 @@ class HandleStripeWebhook implements ShouldQueue
 
     public function __construct(private int $webhookEventId) {}
 
-    public function handle(ProcessRefund $processRefund, FinalizePaidBookPurchase $finalizeBook, HandleConnectedAccountPayout $handlePayout, SettleAuction $settleAuction): void
+    public function handle(ProcessRefund $processRefund, FinalizePaidBookPurchase $finalizeBook, HandleConnectedAccountPayout $handlePayout, SettleAuction $settleAuction, ConfirmSellNowPayment $confirmSellNow): void
     {
         $row = DB::table('webhook_events')->find($this->webhookEventId);
 
@@ -35,7 +37,7 @@ class HandleStripeWebhook implements ShouldQueue
 
         try {
             $event = json_decode($row->payload, true, 512, JSON_THROW_ON_ERROR);
-            $this->route($event, $processRefund, $finalizeBook, $handlePayout, $settleAuction);
+            $this->route($event, $processRefund, $finalizeBook, $handlePayout, $settleAuction, $confirmSellNow);
 
             DB::table('webhook_events')
                 ->where('id', $this->webhookEventId)
@@ -52,18 +54,46 @@ class HandleStripeWebhook implements ShouldQueue
         }
     }
 
-    private function route(array $event, ProcessRefund $processRefund, FinalizePaidBookPurchase $finalizeBook, HandleConnectedAccountPayout $handlePayout, SettleAuction $settleAuction): void
+    private function route(array $event, ProcessRefund $processRefund, FinalizePaidBookPurchase $finalizeBook, HandleConnectedAccountPayout $handlePayout, SettleAuction $settleAuction, ConfirmSellNowPayment $confirmSellNow): void
     {
         match ($event['type']) {
-            'charge.refunded'                        => $this->handleChargeRefunded($event, $processRefund),
-            'payment_intent.succeeded'               => $this->handlePaymentIntentSucceeded($event, $finalizeBook),
+            'charge.refunded'                          => $this->handleChargeRefunded($event, $processRefund),
+            'payment_intent.succeeded'                 => $this->handlePaymentIntentSucceeded($event, $finalizeBook),
             'payment_intent.amount_capturable_updated' => $this->handleCapturableUpdated($event, $settleAuction),
-            'payment_intent.payment_failed'          => $this->handlePaymentFailed($event),
-            'payout.paid'                            => $this->handlePayoutEvent($event, 'paid', $handlePayout),
-            'payout.failed'                          => $this->handlePayoutEvent($event, 'failed', $handlePayout),
-            'payout.canceled'                        => $this->handlePayoutEvent($event, 'canceled', $handlePayout),
-            default                                  => null,
+            'payment_intent.payment_failed'            => $this->handlePaymentFailed($event),
+            'checkout.session.completed'               => $this->handleCheckoutSessionCompleted($event, $confirmSellNow),
+            'payout.paid'                              => $this->handlePayoutEvent($event, 'paid', $handlePayout),
+            'payout.failed'                            => $this->handlePayoutEvent($event, 'failed', $handlePayout),
+            'payout.canceled'                          => $this->handlePayoutEvent($event, 'canceled', $handlePayout),
+            default                                    => null,
         };
+    }
+
+    private function handleCheckoutSessionCompleted(array $event, ConfirmSellNowPayment $confirmSellNow): void
+    {
+        $session   = $event['data']['object'];
+        $sessionId = $session['id'] ?? null;
+        $piId      = $session['payment_intent'] ?? null;
+        $offerId   = $session['metadata']['sell_now_offer_id'] ?? null;
+
+        if (! $sessionId || ! $offerId) {
+            return;
+        }
+
+        $offer = SellNowOffer::where('id', (int) $offerId)
+            ->where('stripe_checkout_session_id', $sessionId)
+            ->first();
+
+        if (! $offer || $offer->status !== 'accepted') {
+            return;
+        }
+
+        if ($piId) {
+            $offer->update(['stripe_payment_intent_id' => $piId]);
+            $offer->refresh();
+        }
+
+        $confirmSellNow->execute($offer);
     }
 
     /**

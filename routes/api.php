@@ -56,6 +56,7 @@ use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\PublicArtworkController;
 use App\Http\Controllers\Api\V1\ArtistPortfolioController;
 use App\Http\Controllers\Api\V1\BuyerDashboardController;
+use App\Http\Controllers\Api\V1\SellNowCheckoutController;
 use App\Http\Controllers\Api\V1\WatchlistController;
 use Illuminate\Support\Facades\Route;
 
@@ -239,6 +240,8 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
              ->name('sell-now-offers.accept');
         Route::post('/sell-now-offers/{offer}/reject',    [SellNowOfferController::class, 'reject'])
              ->name('sell-now-offers.reject');
+        Route::post('/sell-now-offers/{offer}/checkout-session', [SellNowCheckoutController::class, 'create'])
+             ->name('sell-now-offers.checkout-session');
 
         // Consignments
         Route::get('/consignments',                         [ConsignmentController::class, 'index'])->name('consignments.index');
