@@ -75,25 +75,40 @@ class HandleStripeWebhook implements ShouldQueue
         $sessionId = $session['id'] ?? null;
         $piId      = $session['payment_intent'] ?? null;
         $offerId   = $session['metadata']['sell_now_offer_id'] ?? null;
+        $purchaseId = $session['metadata']['book_purchase_id'] ?? null;
 
-        if (! $sessionId || ! $offerId) {
+        if (! $sessionId) {
             return;
         }
 
-        $offer = SellNowOffer::where('id', (int) $offerId)
-            ->where('stripe_checkout_session_id', $sessionId)
-            ->first();
+        // SellNow offer path
+        if ($offerId) {
+            $offer = SellNowOffer::where('id', (int) $offerId)
+                ->where('stripe_checkout_session_id', $sessionId)
+                ->first();
 
-        if (! $offer || $offer->status !== 'accepted') {
+            if ($offer && $offer->status === 'accepted') {
+                if ($piId) {
+                    $offer->update(['stripe_payment_intent_id' => $piId]);
+                    $offer->refresh();
+                }
+                $confirmSellNow->execute($offer);
+            }
             return;
         }
 
-        if ($piId) {
-            $offer->update(['stripe_payment_intent_id' => $piId]);
-            $offer->refresh();
+        // Book purchase path: store PI id so the payment_intent.succeeded handler
+        // can finalize the purchase via FinalizePaidBookPurchase
+        if ($purchaseId && $piId) {
+            DB::table('book_purchases')
+                ->where('id', (int) $purchaseId)
+                ->where('stripe_checkout_session_id', $sessionId)
+                ->whereIn('status', ['pending'])
+                ->update([
+                    'stripe_payment_intent_id' => $piId,
+                    'updated_at'               => now(),
+                ]);
         }
-
-        $confirmSellNow->execute($offer);
     }
 
     /**

@@ -397,6 +397,7 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         Route::get('/my-books',                                        [LibraryController::class, 'myBooks'])->name('books.my');
         Route::get('/books/{book}/entitlement',                        [LibraryController::class, 'entitlement'])->name('books.entitlement');
         Route::post('/books/{book}/purchase',                          [LibraryController::class, 'purchase'])->name('books.purchase');
+        Route::post('/books/{book}/checkout-session',                  [LibraryController::class, 'checkoutSession'])->name('books.checkout-session');
         Route::post('/books/{book}/grant',                             [LibraryController::class, 'grant'])->name('books.grant');
         Route::delete('/book-entitlements/{bookEntitlement}',          [LibraryController::class, 'revokeEntitlement'])->name('books.entitlements.revoke');
 

@@ -1,6 +1,6 @@
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import type { Publication } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
@@ -15,7 +15,16 @@ export default function PublicationDetailPage() {
     const { slug } = useParams<{ slug: string }>();
     const { user } = useAuth();
     const queryClient = useQueryClient();
+    const [searchParams] = useSearchParams();
     const [purchasing, setPurchasing] = useState(false);
+    const paymentResult = searchParams.get('payment');
+
+    // Refresh entitlement after returning from Stripe Checkout
+    useEffect(() => {
+        if (paymentResult === 'success') {
+            void queryClient.invalidateQueries({ queryKey: ['publication', slug] });
+        }
+    }, [paymentResult, slug, queryClient]);
 
     const { data: pub, isLoading } = useQuery({
         queryKey: ['publication', slug],
@@ -27,10 +36,19 @@ export default function PublicationDetailPage() {
     });
 
     const purchaseMutation = useMutation({
-        mutationFn: async () => api.post(`/books/${pub!.id}/purchase`),
-        onSuccess: () => {
+        mutationFn: async () => {
+            const res = await api.post<{ url?: string; already_purchased?: boolean }>(
+                `/books/${pub!.slug}/checkout-session`,
+            );
+            return res.data;
+        },
+        onSuccess: (data) => {
+            if (data.already_purchased) {
+                void queryClient.invalidateQueries({ queryKey: ['publication', slug] });
+            } else if (data.url) {
+                window.location.href = data.url;
+            }
             setPurchasing(false);
-            void queryClient.invalidateQueries({ queryKey: ['publication', slug] });
         },
         onError: () => setPurchasing(false),
     });

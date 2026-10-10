@@ -13,6 +13,7 @@ use App\Models\BookPurchase;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Stripe\StripeClient;
 
 /**
  * Library — public book catalogue, purchase initiation, entitlement management.
@@ -56,7 +57,7 @@ final class LibraryController extends Controller
      * Public book detail — includes authors, file version metadata.
      * Does not expose download URLs (those require an entitlement check).
      */
-    public function show(Book $book): JsonResponse
+    public function show(Request $request, Book $book): JsonResponse
     {
         abort_if($book->status !== 'published', 404);
 
@@ -65,7 +66,24 @@ final class LibraryController extends Controller
             'files:id,book_id,version,type,size_bytes,created_at',
         ]);
 
-        return response()->json($book);
+        $data = $book->toArray();
+
+        $user = $request->user();
+        if ($user) {
+            if ($book->is_free) {
+                $data['access'] = 'free';
+            } else {
+                $hasEntitlement = \App\Models\BookEntitlement::where('book_id', $book->id)
+                    ->where('user_id', $user->id)
+                    ->whereNull('revoked_at')
+                    ->exists();
+                $data['access'] = $hasEntitlement ? 'purchased' : 'none';
+            }
+        } else {
+            $data['access'] = 'none';
+        }
+
+        return response()->json($data);
     }
 
     /**
@@ -252,5 +270,97 @@ final class LibraryController extends Controller
             ->paginate(20);
 
         return response()->json($entitlements);
+    }
+
+    /**
+     * POST /api/v1/books/{book}/checkout-session
+     *
+     * Creates (or retrieves) a Stripe Checkout Session for a pending book purchase.
+     * Idempotent: re-uses an open session if one already exists.
+     */
+    public function checkoutSession(Request $request, Book $book): JsonResponse
+    {
+        abort_if($book->status !== 'published', 404);
+        abort_if($book->is_free, 422, 'This book is free — no payment required.');
+
+        $user = $request->user();
+
+        // Check existing entitlement
+        $hasEntitlement = BookEntitlement::where('book_id', $book->id)
+            ->where('user_id', $user->id)
+            ->whereNull('revoked_at')
+            ->exists();
+
+        if ($hasEntitlement) {
+            return response()->json(['already_purchased' => true], 200);
+        }
+
+        // Find or create a pending purchase
+        $purchase = BookPurchase::where('buyer_id', $user->id)
+            ->where('book_id', $book->id)
+            ->where('status', 'pending')
+            ->first();
+
+        if (! $purchase) {
+            $purchase = BookPurchase::create([
+                'buyer_id'         => $user->id,
+                'book_id'          => $book->id,
+                'status'           => 'pending',
+                'price_cents'      => $book->price_cents,
+                'currency'         => $book->currency ?? 'EUR',
+                'gross_cents'      => $book->price_cents,
+                'tax_cents'        => 0,
+                'fee_cents'        => 0,
+                'split_base_cents' => $book->price_cents,
+                'profile_key'      => 'book_default',
+                'profile_version'  => 1,
+                'author_bps'       => 7000,
+                'fund_bps'         => 1500,
+                'ops_bps'          => 1500,
+                'idempotency_key'  => (string) Str::uuid(),
+            ]);
+        }
+
+        // Idempotency: reuse existing open session
+        if ($purchase->stripe_checkout_session_id !== null) {
+            $stripe  = new StripeClient(config('services.stripe.secret'));
+            $session = $stripe->checkout->sessions->retrieve($purchase->stripe_checkout_session_id);
+            if ($session->status === 'open') {
+                return response()->json(['url' => $session->url]);
+            }
+        }
+
+        $stripe  = new StripeClient(config('services.stripe.secret'));
+        $appUrl  = rtrim((string) config('app.url'), '/');
+
+        $session = $stripe->checkout->sessions->create([
+            'mode'           => 'payment',
+            'currency'       => strtolower($purchase->currency),
+            'line_items'     => [[
+                'quantity'   => 1,
+                'price_data' => [
+                    'currency'     => strtolower($purchase->currency),
+                    'unit_amount'  => (int) $purchase->price_cents,
+                    'product_data' => ['name' => $book->title],
+                ],
+            ]],
+            'payment_intent_data' => [
+                'metadata' => [
+                    'book_purchase_id' => (string) $purchase->id,
+                    'book_id'          => (string) $book->id,
+                ],
+            ],
+            'metadata' => [
+                'book_purchase_id' => (string) $purchase->id,
+            ],
+            'success_url' => "{$appUrl}/library/{$book->slug}?payment=success",
+            'cancel_url'  => "{$appUrl}/library/{$book->slug}?payment=cancelled",
+        ]);
+
+        $purchase->update([
+            'stripe_checkout_session_id' => $session->id,
+        ]);
+
+        return response()->json(['url' => $session->url]);
     }
 }
