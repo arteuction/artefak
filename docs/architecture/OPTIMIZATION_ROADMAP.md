@@ -6,10 +6,12 @@
 
 ## Executive recommendation
 
+For the latest upstream-verified recommendations (PHP/FrankenPHP, Laravel queues, MariaDB DDL, Stripe retries, R2 caching, CI security and recovery objectives), see [`TECHNICAL_OPTIMIZATION_RESEARCH.md`](./TECHNICAL_OPTIMIZATION_RESEARCH.md).
+
 Do not begin with a broad rewrite, Redis migration, extra Octane workers, a search-engine replacement, or a speculative index campaign. The highest-value strategy for the described 1-vCPU / 1-GB VPS is:
 
-1. finish the currently open critical/high optimization PR only after CI is green;
-2. repair the known `settlement_lines.recipient_type` / `author` schema-contract defect before real purchase traffic;
+1. verify PR #5 is merged and its 10 reported CI checks pass on the current `main`;
+2. merge/verify PR #6 for the remaining `refund_lines.recipient_type` / `author` + `co_author` contract defect before real refund traffic;
 3. create a tiny, trustworthy performance baseline before tuning RAM/SQL/worker settings;
 4. ensure images and other public immutable assets are served and cached at the edge, not through PHP;
 5. harden payment/webhook/outbox idempotency and job retry semantics;
@@ -18,14 +20,18 @@ Do not begin with a broad rewrite, Redis migration, extra Octane workers, a sear
 
 The key optimization is reducing uncertainty and avoidable work first. Current architecture notes already describe several high-value changes as implemented: scoped TraceContext, background image derivatives, FULLTEXT search, removal of Scout writes for ArtLot, chunked expiry/closing commands, critical/low queue separation, and four additional indexes. Avoid redoing these; verify their impact and protect them with regression tests.
 
+### Status correction — 2026-10-14
+
+Per the latest operator update (not independently verified against GitHub in this session): PR #5 is merged and all 10 CI checks passed; PR #6 is open for the refund-lines enum/rollback fix; PR #7 is open for documentation. Migration 061 already includes `author` and `co_author` in `settlement_lines.recipient_type`. This report supersedes older references below that describe PR #5 as still open or call for a new `settlement_lines` expansion. The immediate schema issue is `ProcessRefund` copying `author`/`co_author` to `refund_lines`, whose enum has not yet been expanded, plus the migration rollback guard described in PR #6.
+
 ---
 
 ## 1. Priority matrix
 
 | Priority | Modification | Expected payoff | Risk | Start when |
 |---|---|---:|---:|---|
-| P0 | Finish PR #5 and preserve CI/deploy gates | High: prevents regressing already-applied fixes | Low | Immediately |
-| P0 | Fix `recipient_type` enum vs `author` write (A0) | Very high for purchase correctness; removes latent SQL-mode-dependent failure | Low–medium | Before live book purchases / A1 |
+| P0 | Verify PR #5 merge in `main`; preserve its CI/deploy gates | High: protects already-applied fixes | Low | Before release tag |
+| P0 | Merge/verify PR #6: `refund_lines` enum + guarded `down()` | Very high for author/co-author refund correctness; prevents strict-mode write failures/data-loss rollback | Low–medium | Before live book refunds / release tag |
 | P0 | Baseline production-like runtime/DB/queue metrics | Very high for avoiding wasted optimization work | Low | Before changing tunables |
 | P1 | Versioned R2 derivatives + edge cache for public images | High visitor latency / storage-read improvement; little VPS cost | Low–medium | If not already configured |
 | P1 | Verify end-to-end payment and outbox idempotency | Very high financial integrity; also reduces expensive manual recovery | Medium | Before accepting real payments |
@@ -40,31 +46,21 @@ The key optimization is reducing uncertainty and avoidable work first. Current a
 
 ## 2. P0 — Release readiness and known persistence defect
 
-### 2.1 Finish PR #5 without stacking unrelated changes
+### 2.1 PR #5 — status reported merged
 
-The supplied status says PR #5 (`fix/optimization-critical-high`) is open and CI is in progress. Treat this as the immediate code gate:
+The latest operator update says PR #5 (`fix/optimization-critical-high`) is merged and all 10 CI checks passed. Before release, verify that `main` contains the expected merge commit and rerun the required release checks against the merged commit. Do not treat PR #5 as still open.
 
-- wait for all required CI checks to pass; do not merge around a failing or skipped required check;
-- compare its final diff against the optimization list in the ecosystem notes so each fix is actually present;
-- make sure the full test suite uses MariaDB, not SQLite, as required by the project;
-- retain the payment rehearsal command as a deploy abort gate;
-- only tag `v1.0.0-rc.1` after the PR is merged and a clean, reproducible run passes.
+- ensure the full test suite uses MariaDB, not SQLite, as required by the project;
+- retain `pilot:payment-rehearsal` as a deploy abort gate;
+- do not tag `v1.0.0-rc.1` until the outstanding schema PR and documentation corrections are resolved and a clean reproducible run passes.
 
-Do not mix the upcoming settlement schema migration into this PR unless the existing PR is specifically already responsible for the `author` defect. Small independent PRs make failures and rollback easier to diagnose.
+### 2.2 Remaining schema defect — `refund_lines.recipient_type`
 
-### 2.2 Fix `settlement_lines.recipient_type` before Settlement generalization
+Migration 061 already adds `author` and `co_author` to `settlement_lines.recipient_type` (operator-reported). Do not create a duplicate migration for that table. The remaining defect is that `ProcessRefund` copies the source `recipient_type` into `refund_lines`, whose enum reportedly still allows only `artist`, `fund`, and `ops`.
 
-The supplied code check found a genuine contract mismatch:
+PR #6 reportedly handles this by expanding `refund_lines.recipient_type` and guarding migration 061's `down()` against rows that cannot be represented by the old enum. Verify the actual PR diff and tests. The new migration's own `down()` must also refuse to narrow the enum while `author` or `co_author` rows exist.
 
-- DB enum: `artist`, `fund`, `ops`;
-- application code writes `author`;
-- test expects `author`.
-
-Implement A0 before generic rulesets or CauseAllocation. Add `author` to the enum while preserving the column's actual nullability/default/collation semantics. Test on the same MariaDB major/minor family used by production.
-
-The migration's `down()` must fail explicitly if `author` rows exist; it must not silently map `author` to `artist`. Test both a clean rollback and the “cannot downgrade while author rows exist” path. Add a schema test which inspects the enum values and an integration test that creates a book settlement under strict SQL mode.
-
-This is primarily correctness, not raw speed, but a failed/coerced write can cause retries, support work, inconsistent ledger state, and failed financial journeys. Therefore it outranks micro-optimizations.
+Tests must cover the complete book-settlement refund path for `author` and `co_author` on the production MariaDB version and SQL mode, including partial refunds, repeated jobs, rollback refusal with rows present, and legacy `artist`/`fund`/`ops` behavior.
 
 ### 2.3 Record a performance baseline before tuning
 
@@ -272,7 +268,7 @@ Do not replace the deployment setup wholesale before the first successful measur
 These are worthwhile but should not be sold as immediate speedups.
 
 1. **Freeze the canonical lifecycle spec**: Auction/Item/ArtLot/Sale are distinct; Payment, Settlement and Fulfillment own their own state. `Sale.CLOSED` is a projection over sale mode and the required subordinate facts—not an independent field mutated by arbitrary code.
-2. **A0**: expand `recipient_type` to include `author`, preserving current column contract and a guarded `down()`.
+2. **A0**: verify migration 061's existing `settlement_lines` values and guarded `down()`; merge the new `refund_lines.recipient_type` migration for `author`/`co_author` with its own protected `down()`.
 3. **A1**: introduce `SettlementRuleset` and generic `SettlementResult`; keep canonical persisted role names (`artist`, `author`, `fund`, `ops`) rather than silently introducing both `ops` and `operations`.
 4. **B0**: add `line_type` with legacy rows defaulting to `payout`; confirm whether the DB enum or a validated string is better for the actual migration policy.
 5. **B1–B3**: extract `CauseAllocation`, update every payout/transfer query to filter payout lines, and explicitly change `ProcessRefund`/`RefundAllocator` so cause allocations are not accidentally treated as payouts.
@@ -316,13 +312,16 @@ Do not claim a performance win from a passing test suite alone. Publish a compac
 
 ### PR 0 — Close current critical/high work
 `chore/release-gate-and-baseline`
-- finish and merge PR #5 once CI is green;
-- add/confirm a concise test and deploy checklist;
+- verify PR #5 is merged and its 10 reported checks are green on the current `main`;
+- merge PR #6 only after inspecting the enum migration, both rollback guards, and MariaDB refund regression tests;
+- refresh PR #7 docs so they no longer describe PR #5 as open or `settlement_lines` as still lacking `author`/`co_author`;
 - capture initial memory/latency/queue/query baseline.
 
-### PR 1 — Correct persistence contract
-`fix/settlement-author-recipient-enum`
-- migration A0, safe `down()`, enum schema test, strict-mode book settlement test.
+### PR 1 — Correct persistence contract (PR #6, as reported)
+`fix/recipient-type-enum-guard`
+- expand `refund_lines.recipient_type` for `author`/`co_author`;
+- guard the migration 061 rollback and the new refund-lines migration rollback;
+- add MariaDB schema + book settlement refund regression tests.
 
 ### PR 2 — Image asset lifecycle hardening
 `perf/versioned-artwork-derivatives`
