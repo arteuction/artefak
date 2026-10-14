@@ -20,6 +20,16 @@ return new class extends Migration
 
     public function down(): void
     {
+        $count = DB::table('settlement_lines')
+            ->whereIn('recipient_type', ['author', 'co_author'])
+            ->count();
+
+        if ($count > 0) {
+            throw new \RuntimeException(
+                "Cannot downgrade settlement_lines.recipient_type: {$count} row(s) with 'author' or 'co_author' exist."
+            );
+        }
+
         DB::statement(
             "ALTER TABLE settlement_lines MODIFY COLUMN recipient_type ENUM('artist','fund','ops') NOT NULL"
         );
