@@ -15,8 +15,10 @@ ExecStart=php artisan reverb:start --port=8080 --no-ansi
 Restart=always
 RestartSec=10s
 
-# Reverb grows with connected WebSocket clients; 100MB is generous for pilot scale
-MemoryMax=100M
+# MemoryHigh: pressure threshold. MemoryMax: hard kill boundary.
+# At pilot scale (< 50 concurrent WebSocket connections) RSS should stay well under MemoryHigh.
+MemoryHigh=65M
+MemoryMax=90M
 
 NoNewPrivileges=true
 PrivateTmp=true

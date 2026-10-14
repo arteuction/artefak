@@ -9,20 +9,26 @@ User=arteuction
 Group=arteuction
 WorkingDirectory=/var/www/arteuction
 
-# FrankenPHP worker mode: 2 workers keeps RSS ~500-600MB, handles 50+ concurrent users
+# Start with 1 worker to establish a measured baseline before adding concurrency.
+# Raise to 2 only after confirming steady-state RSS stays under MemoryHigh.
+# --max-requests=250: recycle worker after N requests to prevent memory accumulation.
+# Tune this number by measuring RSS after 50/100/250/500 requests.
 ExecStart=/usr/local/bin/frankenphp php-server \
     --adapter=octane \
-    --workers=2 \
-    --max-requests=500 \
+    --workers=1 \
+    --max-requests=250 \
     /var/www/arteuction/public/index.php
 
 ExecReload=/bin/kill -USR1 $MAINPID
 Restart=always
 RestartSec=5s
 
-# Memory guard — restart if process leaks past 700MB (leave ~300MB for MariaDB + Reverb + queue)
-MemoryMax=700M
-MemorySwapMax=200M
+# MemoryHigh: cgroup pressure signal — kernel starts reclaiming pages above this threshold.
+# MemoryMax: hard OOM boundary — process is killed if exceeded.
+# These are measurement targets, not guaranteed footprints. Adjust after profiling.
+MemoryHigh=280M
+MemoryMax=320M
+MemorySwapMax=100M
 
 # Security
 NoNewPrivileges=true
@@ -32,9 +38,9 @@ ProtectHome=true
 
 # PHP opcache — use jemalloc to reduce fragmentation
 Environment="LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2"
-Environment="PHP_OPCACHE_MEMORY_CONSUMPTION=128"
-Environment="PHP_OPCACHE_MAX_ACCELERATED_FILES=10000"
-Environment="PHP_OPCACHE_INTERNED_STRINGS_BUFFER=16"
+Environment="PHP_OPCACHE_MEMORY_CONSUMPTION=96"
+Environment="PHP_OPCACHE_MAX_ACCELERATED_FILES=20000"
+Environment="PHP_OPCACHE_INTERNED_STRINGS_BUFFER=8"
 
 StandardOutput=journal
 StandardError=journal

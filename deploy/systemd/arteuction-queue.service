@@ -8,23 +8,28 @@ User=arteuction
 Group=arteuction
 WorkingDirectory=/var/www/arteuction
 
-# Single worker is adequate for pilot-scale traffic (<100 daily users)
-# --memory=128: self-terminate if RSS exceeds 128MB (laravel restarts the process)
-# --max-jobs=200: periodic restart to reclaim any leaked memory
-# --sleep=3: poll interval when queue is empty
+# --queue=critical,default,low: priority lanes (critical = payment webhooks, financial jobs)
+# --memory=96: Laravel self-terminates at 96MB; systemd Restart=always brings it back
+# --max-jobs=100: recycle after 100 jobs to reclaim accumulated memory
+# --max-time=3600: recycle after 1 hour regardless (catches slow leaks in long-running workers)
+# --timeout=60: per-job timeout; increase for PDF/ZIP/GDPR export jobs via their own retry config
 ExecStart=php artisan queue:work database \
-    --memory=128 \
-    --max-jobs=200 \
+    --queue=critical,default,low \
+    --memory=96 \
+    --max-jobs=100 \
+    --max-time=3600 \
     --sleep=3 \
     --tries=3 \
     --backoff=60 \
+    --timeout=60 \
     --no-ansi
 
 Restart=always
 RestartSec=5s
 
-# Systemd-level guard above Laravel's own --memory limit
-MemoryMax=150M
+# MemoryHigh: pressure threshold. MemoryMax: hard boundary above Laravel's own --memory limit.
+MemoryHigh=80M
+MemoryMax=120M
 
 NoNewPrivileges=true
 PrivateTmp=true

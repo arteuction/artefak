@@ -85,11 +85,8 @@ jobs:
             # Run migrations (append-only: safe to run against live data)
             php artisan migrate --force
 
-            # Laravel optimization
-            php artisan config:cache
-            php artisan route:cache
-            php artisan view:cache
-            php artisan event:cache
+            # Single command caches config, routes, views, events, and autoloader
+            php artisan optimize
 
             # Run payment rehearsal — abort deploy if financial invariants broken
             php artisan pilot:payment-rehearsal
@@ -121,3 +118,22 @@ jobs:
             | grep -q '"status"' \
             || (echo "Health check failed" && exit 1)
           echo "Health check passed."
+
+      - name: Memory snapshot (informational)
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
+              'bash -s' << 'ENDSSH'
+            echo "=== free -h ===" && free -h
+            echo "=== cgroup memory per service ==="
+            for svc in arteuction-octane arteuction-reverb arteuction-queue mariadb; do
+              echo -n "$svc: "
+              systemctl show "$svc" \
+                -p MemoryCurrent -p MemoryPeak -p MemoryHigh -p MemoryMax \
+                2>/dev/null | tr '\n' ' '
+              echo
+            done
+            echo "=== /proc/pressure/memory ===" && cat /proc/pressure/memory
+          ENDSSH
+        continue-on-error: true

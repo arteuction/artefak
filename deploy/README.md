@@ -4,19 +4,26 @@
 **Server:** Ubuntu 24.04 LTS · 1 vCPU · 1GB RAM · 25GB NVMe  
 **RAM budget:** ~700MB peak (300MB buffer + ZRAM overflow)
 
-## Memory budget at steady state
+## Memory budget (targets, not guarantees)
 
-| Service                    | Idle RSS  | Peak RSS  |
-|----------------------------|-----------|-----------|
-| FrankenPHP Octane (2 workers) | ~350MB | ~600MB  |
-| MariaDB 11 (tuned)         | ~150MB    | ~200MB    |
-| Reverb WebSocket server    | ~30MB     | ~80MB     |
-| artisan queue:work         | ~35MB     | ~80MB     |
-| OS + kernel + systemd      | ~180MB    | ~200MB    |
-| **Total**                  | **~745MB**| **~1160MB (overflow to ZRAM)** |
+The values below are engineering targets. Confirm with `systemctl show` and `free -h`
+under real load before treating them as established facts.
 
-ZRAM (512MB compressed device, ~1GB usable at 2:1) handles burst overflow.  
-2GB disk swap handles edge cases. `MemoryMax=` on each service prevents runaway leaks.
+| Service                    | `MemoryHigh` | `MemoryMax` | Notes |
+|----------------------------|-------------|-------------|-------|
+| FrankenPHP Octane (1 worker) | 280M      | 320M        | Raise to 2 workers only after measuring headroom |
+| MariaDB 11 (tuned)         | 180M        | 220M        | `performance_schema=OFF`, 64MB pool |
+| Reverb WebSocket           | 65M         | 90M         | Single-node, no Redis |
+| artisan queue:work         | 80M         | 120M        | `--memory=96` self-terminates before MemoryMax |
+| OS + kernel + systemd      | —           | ~180–200M   | Measured at idle |
+| **Sum of MemoryMax values**| —           | **~750M**   | Leaves ~274M buffer to 1GiB |
+
+`MemoryHigh` = cgroup pressure signal (kernel starts reclaiming). `MemoryMax` = hard OOM boundary.  
+Sum of `MemoryMax` limits intentionally fits within 1GiB physical RAM, unlike a naive sum of peaks.  
+ZRAM (320M `mem_limit`, ~640M usable at 2:1) + 2GB NVMe swap absorb short-lived bursts.
+
+**If under sustained memory pressure:** reduce `innodb_buffer_pool_size` to 48M,
+or move MariaDB to a separate small server — no code changes needed.
 
 ## Files in this directory
 
@@ -100,6 +107,29 @@ systemctl status arteuction-octane arteuction-reverb arteuction-queue
 journalctl -u arteuction-octane -f
 curl -s https://euction.artefak.eu/api/v1/health | jq .
 php artisan pilot:payment-rehearsal
+```
+
+## Measuring memory (run after each config change)
+
+```bash
+# Overall system memory
+free -h
+
+# Per-service cgroup memory (MemoryCurrent = live RSS, MemoryPeak = high-water mark)
+for svc in arteuction-octane arteuction-reverb arteuction-queue mariadb; do
+  echo -n "$svc: "
+  systemctl show "$svc" -p MemoryCurrent -p MemoryPeak -p MemoryHigh -p MemoryMax | tr '\n' ' '
+  echo
+done
+
+# Memory pressure (some = occasional, full = sustained — bad for live auctions)
+cat /proc/pressure/memory
+
+# OPcache cache_full check (if true, raise opcache.memory_consumption)
+php -r "var_dump(opcache_get_status()['cache_full']);"
+
+# ZRAM actual compression ratio
+zramctl
 ```
 
 ## Upgrading to full stack later
