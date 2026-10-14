@@ -16,7 +16,8 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $this->app->singleton(TraceContext::class);
+        // scoped = new instance per Octane request; singleton would leak traceId across requests
+        $this->app->scoped(TraceContext::class);
     }
 
     public function boot(): void

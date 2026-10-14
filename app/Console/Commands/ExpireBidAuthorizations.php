@@ -31,31 +31,34 @@ final class ExpireBidAuthorizations extends Command
         ExpireBidAuthorization  $expireAction,
         OperationalAlertService $alerts,
     ): int {
-        $expired = Bid::whereIn('status', ['accepted', 'won'])
+        $processed = 0;
+
+        Bid::whereIn('status', ['accepted', 'won'])
             ->where('payment_status', 'authorized')
             ->whereNotNull('authorization_expires_at')
             ->where('authorization_expires_at', '<', now())
-            ->get();
+            ->chunkById(100, function ($bids) use ($expireAction, $alerts, &$processed): void {
+                foreach ($bids as $bid) {
+                    $expireAction->execute($bid);
+                    $processed++;
 
-        foreach ($expired as $bid) {
-            $expireAction->execute($bid);
+                    if ($bid->status === 'won') {
+                        $alerts->alert(
+                            type:    'winning_bid_authorization_expired',
+                            message: "Winning bid #{$bid->id} (auction_item #{$bid->auction_item_id}) authorization expired. Winner must re-authorize payment.",
+                            context: [
+                                'bid_id'          => $bid->id,
+                                'auction_item_id' => $bid->auction_item_id,
+                                'amount_cents'    => $bid->amount_cents,
+                                'user_id'         => $bid->user_id,
+                                'expired_at'      => $bid->authorization_expires_at?->toIso8601String(),
+                            ],
+                        );
+                    }
+                }
+            });
 
-            if ($bid->status === 'won') {
-                $alerts->alert(
-                    type:    'winning_bid_authorization_expired',
-                    message: "Winning bid #{$bid->id} (auction_item #{$bid->auction_item_id}) authorization expired. Winner must re-authorize payment.",
-                    context: [
-                        'bid_id'          => $bid->id,
-                        'auction_item_id' => $bid->auction_item_id,
-                        'amount_cents'    => $bid->amount_cents,
-                        'user_id'         => $bid->user_id,
-                        'expired_at'      => $bid->authorization_expires_at?->toIso8601String(),
-                    ],
-                );
-            }
-        }
-
-        $this->info("Processed {$expired->count()} expired bid authorization(s).");
+        $this->info("Processed {$processed} expired bid authorization(s).");
 
         return self::SUCCESS;
     }

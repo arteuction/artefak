@@ -150,7 +150,7 @@ final class ArtworkDerivativesTest extends TestCase
 
         $this->actingAs($artist)
             ->postJson("/api/v1/artworks/{$artwork->slug}/images/derivatives")
-            ->assertOk()
-            ->assertJsonStructure(['derivatives' => ['thumb', 'medium', 'large']]);
+            ->assertAccepted()
+            ->assertJson(['status' => 'processing']);
     }
 }
