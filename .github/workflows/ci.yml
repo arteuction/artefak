@@ -1,4 +1,4 @@
-name: CI
+﻿name: CI
 
 on:
   push:
@@ -7,15 +7,15 @@ on:
 permissions:
   contents: read
 
-# ── Shared helpers ──────────────────────────────────────────────────────────
+# â”€â”€ Shared helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Both jobs use the same MariaDB image/options and PHP setup, extracted here
 # as YAML anchors to keep the file DRY and the two jobs truly identical in
 # their infrastructure (prevents "works in test, breaks in upgrade-path").
 
 jobs:
-  # ── Job 1: full test suite on production runtime ──────────────────────────
+  # â”€â”€ Job 1: full test suite on production runtime â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   test:
-    name: PHP 8.5 · MariaDB 11 · tests
+    name: PHP 8.5 Â· MariaDB 11 Â· tests
     runs-on: ubuntu-latest
 
     services:
@@ -38,10 +38,10 @@ jobs:
       APP_ENV: testing
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
       - name: Setup PHP 8.5
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@7c071dfe9dc99bdf297fa79cb49ea005b9fcadbc  # v2.37.1 (fixes CVE-2026-46420)
         with:
           php-version: '8.5'
           extensions: mbstring, xml, curl, gd, zip, bcmath, intl, pdo_mysql, mysqli, pcntl
@@ -49,7 +49,7 @@ jobs:
           coverage: none
           tools: composer:v2
 
-      # ── Wait for MariaDB ──────────────────────────────────────────────────
+      # â”€â”€ Wait for MariaDB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       # The Docker health check marks the container ready, but TCP may still
       # be initialising.  This loop gives it a deterministic extra gate.
       - name: Wait for MariaDB
@@ -60,13 +60,13 @@ jobs:
               echo "  ready after ${i} attempt(s)."
               break
             fi
-            echo "  attempt $i/30 — sleeping 2 s"
+            echo "  attempt $i/30 â€” sleeping 2 s"
             sleep 2
           done
           mysqladmin ping -h127.0.0.1 -uroot -proot --silent \
             || (echo "ERROR: MariaDB did not accept connections within 60 s" && exit 1)
 
-      # ── Lock test user to test DB only ───────────────────────────────────
+      # â”€â”€ Lock test user to test DB only â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       - name: Restrict DB user to arteuction_test.*
         run: |
           mysql -h127.0.0.1 -uroot -proot -e "
@@ -74,11 +74,11 @@ jobs:
             GRANT ALL PRIVILEGES ON arteuction_test.* TO 'arteuction_test'@'%';
             FLUSH PRIVILEGES;"
 
-      # ── Composer ─────────────────────────────────────────────────────────
+      # â”€â”€ Composer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       # Cache key on composer.json (not lock) because we run `composer update`
       # which regenerates the lock file on every run.
       - name: Cache Composer packages
-        uses: actions/cache@v4
+        uses: actions/cache@d4323d4df104b026a6aa633fdb11d772146be0bf  # v4.2.2
         with:
           path: ~/.composer/cache/files
           key: composer-php85-${{ hashFiles('composer.json') }}
@@ -92,7 +92,7 @@ jobs:
       - name: composer validate
         run: composer validate
 
-      # ── Laravel environment ───────────────────────────────────────────────
+      # â”€â”€ Laravel environment â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       - name: Prepare .env files
         run: |
           cp .env.example .env
@@ -101,7 +101,7 @@ jobs:
           php artisan key:generate --env=testing
           php artisan config:clear --env=testing
 
-      # ── Sanity-check the DB connection before migrations ──────────────────
+      # â”€â”€ Sanity-check the DB connection before migrations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       - name: Verify DB connection
         run: |
           php artisan tinker --env=testing --execute="
@@ -118,9 +118,9 @@ jobs:
       - name: composer audit
         run: composer audit
 
-  # ── Job 2: secondary compatibility target ─────────────────────────────────
+  # â”€â”€ Job 2: secondary compatibility target â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   test-php84:
-    name: PHP 8.4 · MariaDB 11 · compat
+    name: PHP 8.4 Â· MariaDB 11 Â· compat
     runs-on: ubuntu-latest
 
     services:
@@ -143,10 +143,10 @@ jobs:
       APP_ENV: testing
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
       - name: Setup PHP 8.4
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@7c071dfe9dc99bdf297fa79cb49ea005b9fcadbc  # v2.37.1 (fixes CVE-2026-46420)
         with:
           php-version: '8.4'
           extensions: mbstring, xml, curl, gd, zip, bcmath, intl, pdo_mysql, mysqli, pcntl
@@ -162,7 +162,7 @@ jobs:
               echo "  ready after ${i} attempt(s)."
               break
             fi
-            echo "  attempt $i/30 — sleeping 2 s"
+            echo "  attempt $i/30 â€” sleeping 2 s"
             sleep 2
           done
           mysqladmin ping -h127.0.0.1 -uroot -proot --silent \
@@ -176,7 +176,7 @@ jobs:
             FLUSH PRIVILEGES;"
 
       - name: Cache Composer packages
-        uses: actions/cache@v4
+        uses: actions/cache@d4323d4df104b026a6aa633fdb11d772146be0bf  # v4.2.2
         with:
           path: ~/.composer/cache/files
           key: composer-php84-${{ hashFiles('composer.json') }}
@@ -201,9 +201,9 @@ jobs:
       - name: Run test suite
         run: php artisan test --env=testing
 
-  # ── Job 3: forward upgrade path (migration 012 backfill) ───────────────────
+  # â”€â”€ Job 3: forward upgrade path (migration 012 backfill) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   upgrade-path:
-    name: PHP 8.5 · MariaDB 11 · upgrade path
+    name: PHP 8.5 Â· MariaDB 11 Â· upgrade path
     runs-on: ubuntu-latest
 
     services:
@@ -226,10 +226,10 @@ jobs:
       APP_ENV: testing
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
       - name: Setup PHP 8.5
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@7c071dfe9dc99bdf297fa79cb49ea005b9fcadbc  # v2.37.1 (fixes CVE-2026-46420)
         with:
           php-version: '8.5'
           extensions: mbstring, xml, curl, gd, zip, bcmath, intl, pdo_mysql, mysqli, pcntl
@@ -245,7 +245,7 @@ jobs:
               echo "  ready after ${i} attempt(s)."
               break
             fi
-            echo "  attempt $i/30 — sleeping 2 s"
+            echo "  attempt $i/30 â€” sleeping 2 s"
             sleep 2
           done
           mysqladmin ping -h127.0.0.1 -uroot -proot --silent \
@@ -259,7 +259,7 @@ jobs:
             FLUSH PRIVILEGES;"
 
       - name: Cache Composer packages
-        uses: actions/cache@v4
+        uses: actions/cache@d4323d4df104b026a6aa633fdb11d772146be0bf  # v4.2.2
         with:
           path: ~/.composer/cache/files
           key: composer-php85-${{ hashFiles('composer.json') }}
@@ -277,7 +277,7 @@ jobs:
           php artisan key:generate
           php artisan key:generate --env=testing
 
-      - name: Run migrations 001–011 (exclude 012)
+      - name: Run migrations 001â€“011 (exclude 012)
         run: |
           for f in $(ls database/migrations/2026_08_07_00000[1-9]_*.php \
                         database/migrations/2026_08_07_000010_*.php \
@@ -352,18 +352,18 @@ jobs:
               (@sid, @lid, 'credit', 1, 'EUR', @existing, NOW(), NOW());
           " 2>&1 | grep -q "Duplicate entry" \
             && echo "PASS: duplicate idempotency_key correctly rejected" \
-            || (echo "FAIL: duplicate key was accepted — UNIQUE constraint missing" && exit 1)
+            || (echo "FAIL: duplicate key was accepted â€” UNIQUE constraint missing" && exit 1)
 
-  # ── Job 4: frontend typecheck + build ─────────────────────────────────────
+  # â”€â”€ Job 4: frontend typecheck + build â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   frontend:
-    name: Node · TypeScript · Vite build
+    name: Node Â· TypeScript Â· Vite build
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
         with:
           node-version: '22'
           cache: 'npm'
