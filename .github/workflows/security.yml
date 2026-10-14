@@ -55,9 +55,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run OSV-Scanner
-        uses: google/osv-scanner-action@v1
+      - name: Set up Go
+        uses: actions/setup-go@v5
         with:
-          scan-args: |-
-            --lockfile=composer.lock
-            --lockfile=package-lock.json
+          go-version: 'stable'
+          cache: false
+
+      - name: Install osv-scanner
+        run: go install github.com/google/osv-scanner/cmd/osv-scanner@latest
+
+      - name: Run OSV-Scanner
+        run: osv-scanner --config=.osv-scanner.toml --lockfile=composer.lock --lockfile=package-lock.json
