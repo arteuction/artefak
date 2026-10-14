@@ -2,7 +2,7 @@
 
 **Repository:** `arteuction/artefak`
 
-**Status:** Proposed / implementation-ready after repository verification
+**Status:** Proposed; implementation status below reflects user-reported GitHub/CI updates as of 2026-10-14, not an independent live repository read
 
 **Scope:** Auction Infrastructure, Sale lifecycle, Payment, Settlement, Fulfillment, Cause Allocation, Party/Recipient model, Annual Author Tax Election, and supporting tests/documentation.
 
@@ -30,25 +30,30 @@ The goal is not a wholesale rewrite. The strategy is **additive where possible, 
 
 This plan intentionally distinguishes **current verified facts** from the **target architecture**.
 
+## Implementation status update — 2026-10-14
+
+The following status was supplied by the repository operator and has not been independently rechecked against GitHub in this session:
+
+- PR #5: merged; all 10 reported CI checks passed.
+- Migration 061: already expands `settlement_lines.recipient_type` to include `author` and `co_author`. Do not add a duplicate migration for that change.
+- PR #6: open; adds a rollback guard to migration 061 and a migration expanding `refund_lines.recipient_type` to include `author` and `co_author`.
+- PR #7: open; contains the architecture and optimization documents. Its content should be refreshed with the corrections in this update before merge.
+
+The original A0 description below is amended accordingly: the active persistence defect is the **refund-lines enum mismatch**, while the `settlement_lines` enum expansion is already present in migration 061.
+
 ---
 
 # 1. Verified starting-point findings
 
 The following facts must be treated as constraints for implementation:
 
-### 1.1 `settlement_lines.recipient_type` is not generic today
+### 1.1 `settlement_lines` and `refund_lines` have separate enum contracts
 
-The current migration defines:
+The earlier repository check found `settlement_lines.recipient_type` declared as `ENUM('artist', 'fund', 'ops')`, while `CreateBookSettlement::insertLine()` writes `author`. The latest operator update clarifies that **migration 061 already adds `author` and `co_author` to `settlement_lines.recipient_type`**. Therefore the forward settlement-lines expansion is not a new task and must not be duplicated.
 
-```php
-$table->enum('recipient_type', ['artist', 'fund', 'ops']);
-```
+The remaining known contract mismatch is downstream: `ProcessRefund` copies `recipient_type` from a settlement line into `refund_lines`, while `refund_lines.recipient_type` was still declared with only `artist`, `fund`, and `ops`. The author/co-author book refund path can therefore fail under strict SQL mode or be coerced under permissive behavior. PR #6 is reported to add the missing `refund_lines` enum values and a guard to migration 061's `down()`.
 
-Therefore the database currently rejects `author` as a legal enum value.
-
-This is already inconsistent with the application layer because `CreateBookSettlement::insertLine()` writes `recipient_type = 'author'`, and the existing `BookPurchaseFlowTest` expects `recipient_type = 'author'`.
-
-**Consequence:** this is a pre-existing persistence bug and a mandatory prerequisite for Settlement generalization.
+**Consequence:** treat this as a release-blocking schema correctness issue until PR #6 is merged, its actual migration is verified, and regression tests pass on MariaDB. Do not re-add `author` to `settlement_lines` in another migration.
 
 ### 1.2 `settlement_lines.line_type` does not exist
 
@@ -423,63 +428,35 @@ The exact status names may be aligned with the existing Digital Library implemen
 
 # 5. Settlement schema refactor
 
-## Phase A0 — `recipient_type` schema correction
+## Phase A0 — `refund_lines.recipient_type` contract + guarded rollback
 
-### Objective
+### Current starting point
 
-Make the DB contract consistent with the actual application roles.
+- Migration 061 already adds `author` and `co_author` to `settlement_lines.recipient_type` (operator-reported).
+- `ProcessRefund` copies the settlement line's `recipient_type` into `refund_lines`.
+- The reported `refund_lines` enum has only `artist`, `fund`, and `ops`.
+- PR #6 is intended to correct the refund-lines enum and harden migration 061's `down()`.
 
-### Migration
+### Required migration behavior
 
-Expand:
+1. Expand `refund_lines.recipient_type` to support the same currently valid carried-through recipient values: `artist`, `author`, `co_author`, `fund`, `ops`. Preserve the existing nullability, default, column order, and other column attributes.
+2. In migration 061's `down()`, refuse to remove `author`/`co_author` from `settlement_lines.recipient_type` while rows of either type exist. Never map them to `artist`.
+3. In the new refund-lines migration's `down()`, similarly refuse to narrow the enum while `refund_lines` contains `author` or `co_author` rows. If deployed data needs preserving, operators must resolve it explicitly rather than relying on enum coercion.
+4. Test migration `up()` and `down()` on the same MariaDB major/minor family used in production; do not rely on SQLite behavior. Inspect SQL warnings under the production SQL mode.
 
-```php
-ENUM('artist', 'fund', 'ops')
-```
+### Required tests
 
-to at least:
-
-```php
-ENUM('artist', 'author', 'fund', 'ops')
-```
-
-Do not introduce `operations` as a duplicate of `ops`.
-
-### Required application work
-
-Audit all writes and reads of `recipient_type`.
-
-The Book Settlement path must become valid against the DB schema.
-
-### Rollback requirement
-
-`down()` must refuse to collapse the enum if `author` rows exist.
-
-Conceptually:
-
-```php
-if (DB::table('settlement_lines')
-    ->where('recipient_type', 'author')
-    ->exists()) {
-    throw new RuntimeException(
-        'Cannot downgrade: author settlement lines exist.'
-    );
-}
-```
-
-Only after the safety check may the enum be narrowed.
-
-### Tests
-
-- migration up on existing data;
-- insertion with `author`;
-- rollback with zero `author` rows;
-- rollback rejection with `author` rows;
-- existing artist/fund/ops compatibility.
+- schema assertion for the full allowed enum values on both `settlement_lines` and `refund_lines`;
+- create an author/co-author book settlement in strict SQL mode;
+- create and execute a refund against author and co-author settlement lines;
+- verify refund amounts and currency conserve exactly, including partial refunds and rounding;
+- clean rollback works where no new enum values are stored;
+- rollback refuses to narrow the enum when `author`/`co_author` rows exist;
+- legacy artist/fund/ops flows remain unchanged.
 
 ### Exit criterion
 
-The DB can legally persist every role already produced by current application code.
+PR #6 is merged after required checks pass, and the MariaDB integration tests demonstrate that the author/co-author refund path writes valid rows without silent coercion. The PR should be verified in `main` before A1 proceeds.
 
 ---
 
@@ -1058,7 +1035,7 @@ PHASE 0
 Canonical architecture + state machines + Auction Infrastructure merge
 
 A0
-recipient_type DB correction
+refund_lines recipient_type correction + rollback guards
 
 A1
 SettlementRuleset / generic SettlementResult
@@ -1101,7 +1078,7 @@ Tax Declaration / submission adapter
 Phase 0
    |
    v
-  A0
+  A0 (refund_lines + rollback guards)
    |
    v
   A1
