@@ -61,8 +61,10 @@ sysctl --system
 
 echo "==> Installing systemd units"
 cp /etc/arteuction/deploy/systemd/*.service /etc/systemd/system/
+cp /etc/arteuction/deploy/systemd/*.timer  /etc/systemd/system/
 systemctl daemon-reload
-systemctl enable arteuction-octane arteuction-reverb arteuction-queue
+# Critical worker runs permanently; low-priority worker fires on a timer
+systemctl enable arteuction-octane arteuction-reverb arteuction-queue arteuction-queue-low.timer
 
 echo "==> Removing snapd (not needed on headless server)"
 apt-get purge -y --auto-remove snapd 2>/dev/null || true

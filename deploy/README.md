@@ -109,6 +109,65 @@ curl -s https://euction.artefak.eu/api/v1/health | jq .
 php artisan pilot:payment-rehearsal
 ```
 
+## Three architectural profiles
+
+Choose after measuring idle + peak RAM. Do not migrate to Profile B before Profile A is measured.
+
+### Profile A — everything on 1GB VPS (current)
+PHP/Octane + MariaDB + Reverb + queue, all local.  
+Best for: cheap pilot, minimal ops overhead.  
+Main constraint: all services compete for the same physical RAM.
+
+### Profile B — app VPS + external services
+Move MariaDB to a managed DB host (Hetzner DB €5/mo, PlanetScale free tier, etc.).  
+Move Reverb to a separate small VPS or managed WebSocket provider (Pusher, Ably).  
+Run low-priority queue jobs on the same low-priority timer model but optionally on a separate host.  
+Frees local RAM by the actual measured MariaDB footprint (~150–220MB) and Reverb footprint (~65–90MB).  
+Cost: network latency for DB queries (~1–5ms LAN, ~20ms cross-DC). Measure before committing.  
+**No code changes** — only `.env` DB host and Reverb host values change.
+
+### Profile C — 2GB single VPS
+Same stack, double RAM. Keeps Profile A simplicity.  
+Cost: ~€3–5/mo more (Hetzner CX22 vs CX11).  
+Best choice if Profile A measurement shows sustained memory pressure but ops budget allows it.
+
+## A/B test: Octane vs PHP-FPM ondemand
+
+Before committing to FrankenPHP+Octane permanently, compare against PHP-FPM ondemand
+using the pool config in `deploy/php-fpm.conf`. Steps:
+
+```bash
+# On VPS — measure Octane baseline first
+systemctl show arteuction-octane -p MemoryCurrent,MemoryPeak
+
+# Switch to PHP-FPM (see php-fpm.conf for Caddyfile change required)
+systemctl stop arteuction-octane
+systemctl start php8.4-fpm
+# ... run equivalent load test ...
+systemctl show php8.4-fpm -p MemoryCurrent,MemoryPeak
+
+# Compare:
+# - idle RSS (no traffic)
+# - peak RSS under 5-10 concurrent requests
+# - p95 latency (Octane saves ~50-100ms cold-start per request)
+# - successful requests/sec per GiB RAM used
+```
+
+Choose the profile with the lowest peak RSS that still handles pilot-level concurrency
+without unacceptable queue depth on HTTP requests.
+
+## Queue architecture
+
+Two tiers — critical runs permanently, low-priority runs on a 5-minute timer:
+
+| Tier | Service | Jobs | Policy |
+|------|---------|------|--------|
+| Critical | `arteuction-queue.service` | Payment webhooks, Stripe transfers, settlement writes, outbox dispatch, bid re-auth | Always running, `Restart=always` |
+| Low-priority | `arteuction-queue-low.service` (timer) | PDF exports, CSV imports, GDPR ZIP, image processing, reconciliation batch, large reports | Fires every 5min, stops when empty |
+
+The low-priority worker is **absent from RAM between timer fires**, freeing ~80–120MB when idle.  
+Adjust `OnUnitActiveSec` in `arteuction-queue-low.timer` to change the interval.
+
 ## Optimization priority order
 
 Apply in this sequence — each step needs measurement before the next begins:

@@ -99,8 +99,10 @@ jobs:
             # Reload Octane workers (zero-downtime: USR1 signal)
             sudo systemctl reload arteuction-octane || sudo systemctl restart arteuction-octane
 
-            # Restart queue worker (picks up new code)
+            # Restart critical queue worker (picks up new code)
             sudo systemctl restart arteuction-queue
+            # Low-priority worker restarts naturally on next timer fire; force it now too
+            sudo systemctl restart arteuction-queue-low.timer
 
             # Restart Reverb (picks up new broadcast channels)
             sudo systemctl restart arteuction-reverb

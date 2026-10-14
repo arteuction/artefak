@@ -1,0 +1,22 @@
+[Unit]
+Description=ARTeuCtion — Low-Priority Queue Trigger
+# Fires the low-priority worker every 5 minutes.
+# The service runs, drains all 'low' queue jobs, then stops.
+# This means: PDF/ZIP/CSV/GDPR jobs wait up to 5 minutes before processing starts.
+# For most non-financial background work this is acceptable.
+#
+# Adjust OnUnitActiveSec to change the interval:
+#   1min  = near-realtime (uses more memory slots per hour)
+#   5min  = default for pilot
+#   15min = aggressive RAM conservation, longer wait for exports
+After=arteuction-queue.service
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+Unit=arteuction-queue-low.service
+# Persist=true: catch up on missed fires after a reboot or hibernation
+Persistent=true
+
+[Install]
+WantedBy=timers.target
