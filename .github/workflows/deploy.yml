@@ -11,6 +11,9 @@ on:
 # Manual-only deploy: no auto-deploy on push to main.
 # Merge PR → CI/staging green → run this workflow manually.
 
+permissions:
+  contents: read
+
 jobs:
   deploy:
     name: Deploy to euction.artefak.eu

@@ -8,6 +8,9 @@ on:
 # Validates that all seven production services start, connect and handle
 # a minimal transaction sequence together.
 
+permissions:
+  contents: read
+
 jobs:
   staging-smoke:
     name: PHP 8.5 · Full stack smoke test
