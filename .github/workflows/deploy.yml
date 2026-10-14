@@ -125,6 +125,25 @@ jobs:
             || (echo "Health check failed" && exit 1)
           echo "Health check passed."
 
+      - name: Deploy audit record
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
+              'bash -s' << 'ENDSSH'
+            cd /var/www/arteuction
+            # Append a one-line deploy record to the audit log.
+            # Format: ISO8601 | git SHA | migration batch | deployer (GitHub actor)
+            BATCH=$(php artisan migrate:status --no-ansi 2>/dev/null | grep '^\s*[0-9]' | tail -1 | awk '{print $1}' || echo 'unknown')
+            printf "%s | sha=%s | batch=%s | actor=${{ github.actor }} | run=${{ github.run_id }}\n" \
+              "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+              "${{ github.sha }}" \
+              "${BATCH}" \
+              >> /var/log/arteuction-deploys.log
+            echo "Audit record written."
+          ENDSSH
+        continue-on-error: true
+
       - name: Memory snapshot (informational)
         run: |
           ssh -i ~/.ssh/deploy_key \
