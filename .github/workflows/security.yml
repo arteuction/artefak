@@ -65,4 +65,4 @@ jobs:
         run: go install github.com/google/osv-scanner/cmd/osv-scanner@latest
 
       - name: Run OSV-Scanner
-        run: osv-scanner --lockfile=composer.lock --lockfile=package-lock.json
+        run: osv-scanner --config=.osv-scanner.toml --lockfile=composer.lock --lockfile=package-lock.json
