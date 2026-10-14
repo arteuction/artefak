@@ -1,0 +1,167 @@
+# ARTeuCtion staging environment — all seven production services
+# Usage:
+#   docker compose up -d
+#   docker compose exec app php artisan migrate:fresh --seed
+#   docker compose exec app php artisan reverb:start &
+#   docker compose exec stripe stripe listen --forward-to app:80/stripe/webhook
+
+services:
+
+  # ── Application ─────────────────────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.staging
+    env_file: .env.staging
+    ports:
+      - "8000:80"
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    volumes:
+      - .:/var/www/html
+      - vendor:/var/www/html/vendor
+    networks: [artefak]
+
+  # ── Queue workers (two replicas) ────────────────────────────────────────────
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.staging
+    env_file: .env.staging
+    command: php artisan queue:work --sleep=3 --tries=3 --max-time=3600
+    depends_on:
+      - app
+    deploy:
+      replicas: 2
+    networks: [artefak]
+
+  # ── MariaDB 11 ───────────────────────────────────────────────────────────────
+  mariadb:
+    image: mariadb:11
+    environment:
+      MARIADB_ROOT_PASSWORD: secret
+      MARIADB_DATABASE: arteuction
+      MARIADB_USER: arteuction
+      MARIADB_PASSWORD: secret
+    ports:
+      - "3306:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [artefak]
+
+  # ── Redis (queue + cache + Reverb scaling) ───────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    networks: [artefak]
+
+  # ── Laravel Reverb (WebSockets for live auction) ─────────────────────────────
+  reverb:
+    build:
+      context: .
+      dockerfile: Dockerfile.staging
+    env_file: .env.staging
+    command: php artisan reverb:start --host=0.0.0.0 --port=8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      - redis
+    networks: [artefak]
+
+  # ── Meilisearch (catalogue search) ───────────────────────────────────────────
+  meilisearch:
+    image: getmeili/meilisearch:v1.9
+    environment:
+      MEILI_MASTER_KEY: staging_master_key
+      MEILI_ENV: development
+    ports:
+      - "7700:7700"
+    volumes:
+      - meilisearch_data:/meili_data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7700/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [artefak]
+
+  # ── MinIO (S3-compatible object storage for artwork images + book files) ──────
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [artefak]
+
+  # ── MinIO bucket bootstrap ────────────────────────────────────────────────────
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set local http://minio:9000 minioadmin minioadmin;
+        mc mb --ignore-existing local/arteuction-artworks;
+        mc mb --ignore-existing local/arteuction-books;
+        mc anonymous set download local/arteuction-artworks;
+        exit 0;
+      "
+    networks: [artefak]
+
+  # ── Stripe CLI (test-mode webhook forwarding) ────────────────────────────────
+  # Requires STRIPE_API_KEY in .env.staging (test key: sk_test_...)
+  # Forwards payment_intent.*, charge.*, transfer.* to the app webhook endpoint.
+  stripe:
+    image: stripe/stripe-cli:latest
+    command: >
+      listen
+        --api-key ${STRIPE_SECRET}
+        --forward-to http://app:80/stripe/webhook
+        --events payment_intent.succeeded,payment_intent.payment_failed,charge.refunded,transfer.created,transfer.failed
+    env_file: .env.staging
+    depends_on:
+      - app
+    networks: [artefak]
+
+volumes:
+  vendor:
+  mariadb_data:
+  redis_data:
+  meilisearch_data:
+  minio_data:
+
+networks:
+  artefak:
+    driver: bridge

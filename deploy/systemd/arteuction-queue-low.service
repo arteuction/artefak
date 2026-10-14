@@ -1,0 +1,46 @@
+[Unit]
+Description=ARTeuCtion — Low-Priority Queue Worker (on-demand)
+After=network.target mariadb.service
+# This service is NOT enabled permanently. It is started by arteuction-queue-low.timer
+# and stops itself when the low-priority queue is empty.
+# Jobs: PDF exports, CSV imports, image processing, GDPR ZIP exports, large reports,
+#       IIIF derivative generation, reconciliation batch runs.
+
+[Service]
+Type=simple
+User=arteuction
+Group=arteuction
+WorkingDirectory=/var/www/arteuction
+
+# --stop-when-empty: process exits cleanly when no low-priority jobs remain.
+# systemd does NOT restart it (RemainAfterExit=no, no Restart=always).
+# The timer re-triggers it on the next scheduled interval.
+#
+# --timeout=300: allow up to 5 minutes for heavy jobs (PDF, ZIP, large CSV).
+# --memory=96: self-terminate if leaked past 96MB; timer will restart next cycle.
+ExecStart=php artisan queue:work database \
+    --queue=low \
+    --stop-when-empty \
+    --memory=96 \
+    --max-jobs=50 \
+    --timeout=300 \
+    --tries=2 \
+    --backoff=120 \
+    --no-ansi
+
+Restart=no
+
+MemoryHigh=80M
+MemoryMax=120M
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=arteuction-queue-low
+
+[Install]
+# Not WantedBy=multi-user.target — started by timer, not at boot.

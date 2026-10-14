@@ -6,7 +6,7 @@
         "build": "vite build",
         "dev": "vite",
         "typecheck": "tsc --noEmit",
-        "generate:api-types": "npx @hey-api/openapi-ts@0.67.2 --input resources/js/api/openapi.json --output resources/js/api/generated --client @hey-api/client-axios",
+        "generate:api-types": "npx @hey-api/openapi-ts@0.99.0 --input resources/js/api/openapi.json --output resources/js/api/generated --client @hey-api/client-axios",
         "check:api-types": "php artisan scramble:export --path=resources/js/api/openapi.json --env=testing && npm run generate:api-types",
         "validate:openapi": "node scripts/validate-openapi.mjs",
         "docs:api": "node scripts/generate-api-docs.mjs",
@@ -17,7 +17,7 @@
     },
     "devDependencies": {
         "@hey-api/client-axios": "^0.9.1",
-        "@hey-api/openapi-ts": "^0.67.2",
+        "@hey-api/openapi-ts": "^0.99.0",
         "@playwright/test": "^1.64.0",
         "@tailwindcss/vite": "^4.0.0",
         "@types/react": "^19.3.0",
@@ -31,7 +31,7 @@
     },
     "overrides": {
         "tar": "^7.0.0",
-        "handlebars": "^4.7.10"
+        "js-yaml": "^4.3.2"
     },
     "dependencies": {
         "@tanstack/react-query": "^5.104.1",

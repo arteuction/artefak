@@ -44,8 +44,6 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: Run npm audit (production only)
-        # Dev-only vulnerabilities (handlebars in code-gen tooling) are
-        # excluded from blocking CI — only production deps must be clean.
         run: npm audit --omit=dev --audit-level=high
         continue-on-error: false
 
@@ -65,4 +63,4 @@ jobs:
         run: go install github.com/google/osv-scanner/cmd/osv-scanner@latest
 
       - name: Run OSV-Scanner
-        run: osv-scanner --config=.osv-scanner.toml --lockfile=composer.lock --lockfile=package-lock.json
+        run: osv-scanner --lockfile=composer.lock --lockfile=package-lock.json
