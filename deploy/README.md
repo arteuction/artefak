@@ -109,27 +109,66 @@ curl -s https://euction.artefak.eu/api/v1/health | jq .
 php artisan pilot:payment-rehearsal
 ```
 
+## Optimization priority order
+
+Apply in this sequence — each step needs measurement before the next begins:
+
+| Priority | Change | Expected effect | Risk |
+|----------|--------|-----------------|------|
+| **P0** | Measure actual RAM per service and memory pressure | Establishes real bottleneck | None |
+| **P1** | Explicit FrankenPHP `num_threads` + worker/max-requests sync | Controls peak concurrency | Medium |
+| **P1** | Queue worker recycle (`--memory`, `--max-jobs`, `--max-time`) | Eliminates accumulated leaks | Low |
+| **P2** | SQL query optimization + targeted indexes | Reduces result-set size in memory | Medium |
+| **P2** | Current-state projections for Auction / Settlement | Fast hot-paths without loading full history | Medium |
+| **P3** | MariaDB slow-query log diagnostic window | Identifies real problem queries | Low |
+| **P3** | OPcache size confirmed against production codebase | Prevents silent cache-full thrashing | Low |
+
+Do not apply all changes at once. One change per commit, measure before and after.
+
+**If memory pressure persists after P1–P3:** upgrade to 2GB RAM (preserves all architecture),
+or move MariaDB to a separate host (no code changes). Do not split into microservices.
+
 ## Measuring memory (run after each config change)
 
 ```bash
-# Overall system memory
+# 1. Overall system memory
 free -h
 
-# Per-service cgroup memory (MemoryCurrent = live RSS, MemoryPeak = high-water mark)
+# 2. Per-service cgroup memory
+#    MemoryCurrent = live RSS, MemoryPeak = high-water mark since last start
 for svc in arteuction-octane arteuction-reverb arteuction-queue mariadb; do
   echo -n "$svc: "
   systemctl show "$svc" -p MemoryCurrent -p MemoryPeak -p MemoryHigh -p MemoryMax | tr '\n' ' '
   echo
 done
 
-# Memory pressure (some = occasional, full = sustained — bad for live auctions)
+# 3. Memory pressure via PSI
+#    "some" = tasks occasionally blocked on memory (acceptable at low traffic)
+#    "full" = all tasks blocked simultaneously (bad — investigate immediately)
 cat /proc/pressure/memory
 
-# OPcache cache_full check (if true, raise opcache.memory_consumption)
-php -r "var_dump(opcache_get_status()['cache_full']);"
+# 4. OPcache status — if cache_full=true, raise opcache.memory_consumption
+php -r "
+  \$s = opcache_get_status(false);
+  echo 'cache_full: '; var_dump(\$s['cache_full']);
+  echo 'used: ' . round(\$s['memory_usage']['used_memory']/1024/1024, 1) . 'MB / ';
+  echo round((\$s['memory_usage']['used_memory']+\$s['memory_usage']['free_memory'])/1024/1024, 1) . 'MB total\n';
+"
 
-# ZRAM actual compression ratio
+# 5. FrankenPHP thread count (confirm num_threads is not auto-scaling beyond config)
+ps aux | grep frankenphp | wc -l
+
+# 6. ZRAM actual compression ratio and mem_limit enforcement
 zramctl
+
+# 7. MariaDB connection count (confirm max_connections headroom)
+mysql -e "SHOW STATUS LIKE 'Threads_connected';"
+
+# 8. Enable slow query log for a diagnostic window (re-disable after sample is collected)
+mysql -e "SET GLOBAL slow_query_log = 1; SET GLOBAL long_query_time = 0.5;"
+# ... run real traffic or load test ...
+mysql -e "SET GLOBAL slow_query_log = 0;"
+mysqldumpslow /var/log/mysql/mariadb-slow.log | head -20
 ```
 
 ## Upgrading to full stack later

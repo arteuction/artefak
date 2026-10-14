@@ -9,10 +9,13 @@ User=arteuction
 Group=arteuction
 WorkingDirectory=/var/www/arteuction
 
-# Start with 1 worker to establish a measured baseline before adding concurrency.
-# Raise to 2 only after confirming steady-state RSS stays under MemoryHigh.
-# --max-requests=250: recycle worker after N requests to prevent memory accumulation.
-# Tune this number by measuring RSS after 50/100/250/500 requests.
+# IMPORTANT: --workers and --max-requests here must match the values in deploy/Caddyfile:
+#   worker { num 1; max_requests 250 }
+# Mismatch between the two causes FrankenPHP to spawn workers it cannot coordinate.
+#
+# Start with 1 worker as a measured baseline. Raise to 2 in both files simultaneously
+# only after confirming steady-state RSS stays under MemoryHigh=280M.
+# --max-requests=250: recycle worker after N requests to reclaim accumulated memory.
 ExecStart=/usr/local/bin/frankenphp php-server \
     --adapter=octane \
     --workers=1 \
