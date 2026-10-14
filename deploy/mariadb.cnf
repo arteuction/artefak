@@ -1,0 +1,39 @@
+# /etc/mysql/conf.d/arteuction.cnf
+# Minimal MariaDB 11 config for 1GB VPS
+# Target idle RSS: ~150-200MB
+[mysqld]
+
+# ── Memory ────────────────────────────────────────────────────────────────────
+innodb_buffer_pool_size     = 64M   # raise to 128M once stable; monitor with SHOW ENGINE INNODB STATUS
+innodb_log_file_size        = 32M
+innodb_flush_log_at_trx_commit = 2  # slight durability trade-off; use 1 for full ACID
+key_buffer_size             = 0     # InnoDB-only app; MyISAM key cache unneeded
+tmp_table_size              = 16M
+max_heap_table_size         = 16M
+sort_buffer_size            = 256K
+join_buffer_size            = 256K
+read_buffer_size            = 128K
+read_rnd_buffer_size        = 256K
+
+# ── Connections ───────────────────────────────────────────────────────────────
+max_connections             = 25    # 2 PHP workers + queue + reverb + headroom
+thread_stack                = 192K
+thread_cache_size           = 4
+wait_timeout                = 300
+interactive_timeout         = 300
+
+# ── Performance schema (saves 50–400MB on 11.x) ──────────────────────────────
+performance_schema          = OFF
+
+# ── Binary logging (disable if no replication) ───────────────────────────────
+skip_log_bin
+
+# ── InnoDB ───────────────────────────────────────────────────────────────────
+innodb_file_per_table       = 1
+innodb_flush_method         = O_DIRECT
+innodb_buffer_pool_instances = 1    # 1 instance is correct when pool < 1GB
+
+# ── General ──────────────────────────────────────────────────────────────────
+character-set-server        = utf8mb4
+collation-server            = utf8mb4_unicode_ci
+skip_name_resolve

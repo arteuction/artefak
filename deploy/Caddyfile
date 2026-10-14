@@ -1,0 +1,45 @@
+# FrankenPHP / Caddy config for euction.artefak.eu
+# FrankenPHP replaces Nginx + PHP-FPM with a single binary.
+# Octane worker mode keeps the Laravel app in memory between requests.
+{
+    frankenphp
+    order php_server before file_server
+}
+
+euction.artefak.eu {
+    root * /var/www/arteuction/public
+
+    # Serve static assets directly (no PHP overhead)
+    @static {
+        file
+        path *.css *.js *.png *.jpg *.jpeg *.gif *.svg *.ico *.woff *.woff2 *.ttf *.map
+    }
+    handle @static {
+        file_server
+    }
+
+    # PHP via Octane worker mode
+    php_server {
+        resolve_root_symlink
+    }
+
+    # Security headers
+    header {
+        X-Frame-Options DENY
+        X-Content-Type-Options nosniff
+        Referrer-Policy strict-origin-when-cross-origin
+        -Server
+    }
+
+    # Generous upload limit for artwork images
+    request_body {
+        max_size 20MB
+    }
+
+    encode gzip zstd
+
+    log {
+        output file /var/log/arteuction/access.log
+        format json
+    }
+}

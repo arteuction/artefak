@@ -1,0 +1,14 @@
+# /etc/default/zramswap
+# ZRAM compressed swap for 1GB VPS
+# Provides ~0.5–1GB of extra virtual RAM via in-memory compression
+# lz4 algorithm: fast compression, ~2:1 ratio typical for PHP heap data
+
+# Compression algorithm: lz4 (fast), lzo (slightly better), zstd (best compression, more CPU)
+ALGO=lz4
+
+# Percentage of physical RAM to use for ZRAM device
+# 50% of 1GB = 512MB device → ~1GB usable (at 2:1 compression)
+PERCENT=50
+
+# Priority higher than disk swap (disk swap has pri=10 in fstab)
+PRIORITY=100

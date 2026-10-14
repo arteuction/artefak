@@ -1,0 +1,44 @@
+[Unit]
+Description=ARTeuCtion — FrankenPHP Octane
+After=network.target mariadb.service
+Requires=mariadb.service
+
+[Service]
+Type=simple
+User=arteuction
+Group=arteuction
+WorkingDirectory=/var/www/arteuction
+
+# FrankenPHP worker mode: 2 workers keeps RSS ~500-600MB, handles 50+ concurrent users
+ExecStart=/usr/local/bin/frankenphp php-server \
+    --adapter=octane \
+    --workers=2 \
+    --max-requests=500 \
+    /var/www/arteuction/public/index.php
+
+ExecReload=/bin/kill -USR1 $MAINPID
+Restart=always
+RestartSec=5s
+
+# Memory guard — restart if process leaks past 700MB (leave ~300MB for MariaDB + Reverb + queue)
+MemoryMax=700M
+MemorySwapMax=200M
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+# PHP opcache — use jemalloc to reduce fragmentation
+Environment="LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2"
+Environment="PHP_OPCACHE_MEMORY_CONSUMPTION=128"
+Environment="PHP_OPCACHE_MAX_ACCELERATED_FILES=10000"
+Environment="PHP_OPCACHE_INTERNED_STRINGS_BUFFER=16"
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=arteuction-octane
+
+[Install]
+WantedBy=multi-user.target

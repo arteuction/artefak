@@ -1,0 +1,39 @@
+[Unit]
+Description=ARTeuCtion — Queue Worker
+After=network.target mariadb.service
+
+[Service]
+Type=simple
+User=arteuction
+Group=arteuction
+WorkingDirectory=/var/www/arteuction
+
+# Single worker is adequate for pilot-scale traffic (<100 daily users)
+# --memory=128: self-terminate if RSS exceeds 128MB (laravel restarts the process)
+# --max-jobs=200: periodic restart to reclaim any leaked memory
+# --sleep=3: poll interval when queue is empty
+ExecStart=php artisan queue:work database \
+    --memory=128 \
+    --max-jobs=200 \
+    --sleep=3 \
+    --tries=3 \
+    --backoff=60 \
+    --no-ansi
+
+Restart=always
+RestartSec=5s
+
+# Systemd-level guard above Laravel's own --memory limit
+MemoryMax=150M
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=arteuction-queue
+
+[Install]
+WantedBy=multi-user.target
