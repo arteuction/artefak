@@ -8,7 +8,6 @@ use App\Data\ArtworkData;
 use App\Domain\Asset\ActivateArtworkRevision;
 use App\Domain\Asset\ConfirmArtworkImageUpload;
 use App\Domain\Asset\CreateArtworkRevision;
-use App\Domain\Asset\GenerateArtworkDerivatives;
 use App\Domain\Asset\PublishArtworkRevision;
 use App\Domain\Asset\RequestArtworkImageUpload;
 use App\Models\ArtworkEvidence;
@@ -262,13 +261,13 @@ final class ArtworkController extends Controller
             abort(403);
         }
 
-        try {
-            $keys = (new GenerateArtworkDerivatives())->execute($artwork);
-        } catch (\InvalidArgumentException $e) {
-            abort(422, $e->getMessage());
+        if ($artwork->primary_image_key === null || $artwork->primary_image_status !== 'confirmed') {
+            abort(422, "Artwork {$artwork->id} has no confirmed primary image.");
         }
 
-        return response()->json(['derivatives' => $keys]);
+        \App\Jobs\GenerateArtworkDerivativesJob::dispatch($artwork->id)->onQueue('low');
+
+        return response()->json(['status' => 'processing'], 202);
     }
 
     /**

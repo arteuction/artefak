@@ -48,10 +48,14 @@ final class PublicArtworkController extends Controller
             ->select('artworks.*')
             ->with(['artist:id,name']);
 
-        // Full-text search via Scout (Meilisearch in production, collection driver in test/dev)
+        // Full-text search: MATCH AGAINST uses the FULLTEXT index on (title, description).
+        // Scout DB driver uses LIKE and ignores the FULLTEXT index, so we bypass it here.
+        // When SCOUT_DRIVER=meilisearch, swap this block for Artwork::search()->keys().
         if (! empty($validated['q'])) {
-            $matchIds = Artwork::search($validated['q'])->keys();
-            $query->whereIn('artworks.id', $matchIds->isEmpty() ? [0] : $matchIds);
+            $query->whereRaw(
+                'MATCH(artworks.title, artworks.description) AGAINST (? IN BOOLEAN MODE)',
+                [$validated['q']]
+            );
         }
 
         // Medium filter

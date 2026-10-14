@@ -19,15 +19,21 @@ final class CloseExpiredLotsCommand extends Command
 
     public function handle(): int
     {
-        $items = AuctionItem::where('status', 'open')
-            ->whereHas('auction', fn ($q) => $q->where('ends_at', '<=', now()))
-            ->pluck('id');
+        $dispatched = 0;
 
-        foreach ($items as $id) {
-            CloseAuctionItemJob::dispatch($id);
-        }
+        // join is more efficient than whereHas correlated subquery at scale
+        AuctionItem::join('auctions', 'auctions.id', '=', 'auction_items.auction_id')
+            ->where('auction_items.status', 'open')
+            ->where('auctions.ends_at', '<=', now())
+            ->select('auction_items.id')
+            ->chunkById(200, function ($items) use (&$dispatched): void {
+                foreach ($items as $item) {
+                    CloseAuctionItemJob::dispatch($item->id);
+                    $dispatched++;
+                }
+            }, 'auction_items.id', 'id');
 
-        $this->info("Dispatched {$items->count()} close job(s).");
+        $this->info("Dispatched {$dispatched} close job(s).");
 
         return self::SUCCESS;
     }
