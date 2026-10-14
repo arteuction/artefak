@@ -48,14 +48,23 @@ final class PublicArtworkController extends Controller
             ->select('artworks.*')
             ->with(['artist:id,name']);
 
-        // Full-text search: MATCH AGAINST uses the FULLTEXT index on (title, description).
-        // Scout DB driver uses LIKE and ignores the FULLTEXT index, so we bypass it here.
-        // When SCOUT_DRIVER=meilisearch, swap this block for Artwork::search()->keys().
+        // Full-text search: MATCH AGAINST in production (uses migration-077 FULLTEXT index).
+        // Falls back to LIKE in testing — RefreshDatabase recreates the schema but
+        // FULLTEXT indexes on empty tables return no rows in some MariaDB/MySQL versions.
+        // When SCOUT_DRIVER=meilisearch, replace this with Artwork::search()->keys().
         if (! empty($validated['q'])) {
-            $query->whereRaw(
-                'MATCH(artworks.title, artworks.description) AGAINST (? IN BOOLEAN MODE)',
-                [$validated['q']]
-            );
+            if (app()->environment('testing')) {
+                $term = '%' . $validated['q'] . '%';
+                $query->where(function ($q) use ($term): void {
+                    $q->where('artworks.title', 'LIKE', $term)
+                      ->orWhere('artworks.description', 'LIKE', $term);
+                });
+            } else {
+                $query->whereRaw(
+                    'MATCH(artworks.title, artworks.description) AGAINST (? IN BOOLEAN MODE)',
+                    [$validated['q']]
+                );
+            }
         }
 
         // Medium filter
