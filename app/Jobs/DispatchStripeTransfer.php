@@ -35,6 +35,8 @@ class DispatchStripeTransfer implements ShouldQueue
     private const MAX_ATTEMPTS   = 5;
     private const LEASE_MINUTES  = 5;
 
+    public int $timeout = 60;  // Stripe transfer API; under retry_after=90 so the lease (5 min) prevents re-queue overlap
+
     public function __construct(
         public readonly int $outboxId,
     ) {}

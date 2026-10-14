@@ -32,6 +32,8 @@ class DispatchStripeReversal implements ShouldQueue
 
     private const MAX_ATTEMPTS  = 5;
 
+    public int $timeout = 60;  // Stripe reversal API; under retry_after=90; lease pattern prevents re-queue overlap
+
     public function __construct(
         public readonly int $reversalOrderId,
     ) {}
