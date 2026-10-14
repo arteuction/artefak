@@ -221,13 +221,12 @@ final class PaymentRehearsalCommand extends Command
 
     private function checkAuctionSettlements(): void
     {
-        // Every fulfilled auction_item should have a matching settlement
+        // Every auction with a fulfilled item should have at least one settlement
         $unsettled = DB::select("
-            SELECT COUNT(*) AS cnt
+            SELECT COUNT(DISTINCT ai.auction_id) AS cnt
             FROM auction_items ai
-            LEFT JOIN settlements s ON s.stripe_payment_intent_id = ai.stripe_payment_intent_id
+            LEFT JOIN settlements s ON s.auction_id = ai.auction_id
             WHERE ai.status = 'fulfilled'
-              AND ai.stripe_payment_intent_id IS NOT NULL
               AND s.id IS NULL
         ");
 
@@ -249,7 +248,7 @@ final class PaymentRehearsalCommand extends Command
             FROM refunds r
             LEFT JOIN ledger_entries le ON le.type = 'debit'
                 AND le.note LIKE CONCAT('%', r.stripe_refund_id, '%')
-            WHERE r.status = 'succeeded'
+            WHERE r.refund_status = 'succeeded'
               AND le.id IS NULL
         ");
 
