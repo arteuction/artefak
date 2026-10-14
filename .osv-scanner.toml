@@ -1,3 +1,0 @@
-[[IgnoredVulns]]
-id = "GHSA-hhx9-57xq-r5rw"
-reason = "Affects @hey-api/openapi-ts 0.67.x (all versions). Package is a dev-only code-generation tool — not shipped to production. npm audit --omit=dev passes. Suppress until a patched 0.67.x or a compatible upgrade path is available."

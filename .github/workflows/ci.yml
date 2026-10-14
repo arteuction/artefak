@@ -13,9 +13,9 @@ permissions:
 # their infrastructure (prevents "works in test, breaks in upgrade-path").
 
 jobs:
-  # ── Job 1: full test suite on a fresh DB ───────────────────────────────────
+  # ── Job 1: full test suite on production runtime ──────────────────────────
   test:
-    name: PHP 8.4 · MariaDB 11 · tests
+    name: PHP 8.5 · MariaDB 11 · tests
     runs-on: ubuntu-latest
 
     services:
@@ -40,10 +40,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup PHP 8.4
+      - name: Setup PHP 8.5
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
+          php-version: '8.5'
           extensions: mbstring, xml, curl, gd, zip, bcmath, intl, pdo_mysql, mysqli, pcntl
           ini-values: memory_limit=512M, max_execution_time=60, default_charset=UTF-8
           coverage: none
@@ -81,8 +81,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.composer/cache/files
-          key: composer-php84-${{ hashFiles('composer.json') }}
-          restore-keys: composer-php84-
+          key: composer-php85-${{ hashFiles('composer.json') }}
+          restore-keys: composer-php85-
 
       - name: composer update
         run: composer update --prefer-dist --no-interaction --no-progress
@@ -118,9 +118,9 @@ jobs:
       - name: composer audit
         run: composer audit
 
-  # ── Job 2: forward upgrade path (migration 012 backfill) ───────────────────
-  upgrade-path:
-    name: PHP 8.4 · MariaDB 11 · upgrade path
+  # ── Job 2: secondary compatibility target ─────────────────────────────────
+  test-php84:
+    name: PHP 8.4 · MariaDB 11 · compat
     runs-on: ubuntu-latest
 
     services:
@@ -181,6 +181,89 @@ jobs:
           path: ~/.composer/cache/files
           key: composer-php84-${{ hashFiles('composer.json') }}
           restore-keys: composer-php84-
+
+      - name: composer update
+        run: composer update --prefer-dist --no-interaction --no-progress
+        env:
+          COMPOSER_CAFILE: /etc/ssl/certs/ca-certificates.crt
+
+      - name: Prepare .env files
+        run: |
+          cp .env.example .env
+          cp .env.testing.example .env.testing
+          php artisan key:generate
+          php artisan key:generate --env=testing
+          php artisan config:clear --env=testing
+
+      - name: migrate:fresh
+        run: php artisan migrate:fresh --force --env=testing
+
+      - name: Run test suite
+        run: php artisan test --env=testing
+
+  # ── Job 3: forward upgrade path (migration 012 backfill) ───────────────────
+  upgrade-path:
+    name: PHP 8.5 · MariaDB 11 · upgrade path
+    runs-on: ubuntu-latest
+
+    services:
+      mariadb:
+        image: mariadb:11
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: arteuction_test
+          MARIADB_USER: arteuction_test
+          MARIADB_PASSWORD: arteuction_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=3s
+          --health-timeout=5s
+          --health-retries=20
+
+    env:
+      APP_ENV: testing
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP 8.5
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: mbstring, xml, curl, gd, zip, bcmath, intl, pdo_mysql, mysqli, pcntl
+          ini-values: memory_limit=512M, max_execution_time=60, default_charset=UTF-8
+          coverage: none
+          tools: composer:v2
+
+      - name: Wait for MariaDB
+        run: |
+          echo "Waiting for MariaDB to accept connections..."
+          for i in $(seq 1 30); do
+            if mysqladmin ping -h127.0.0.1 -uroot -proot --silent 2>/dev/null; then
+              echo "  ready after ${i} attempt(s)."
+              break
+            fi
+            echo "  attempt $i/30 — sleeping 2 s"
+            sleep 2
+          done
+          mysqladmin ping -h127.0.0.1 -uroot -proot --silent \
+            || (echo "ERROR: MariaDB did not accept connections within 60 s" && exit 1)
+
+      - name: Restrict DB user to arteuction_test.*
+        run: |
+          mysql -h127.0.0.1 -uroot -proot -e "
+            REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'arteuction_test'@'%';
+            GRANT ALL PRIVILEGES ON arteuction_test.* TO 'arteuction_test'@'%';
+            FLUSH PRIVILEGES;"
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache/files
+          key: composer-php85-${{ hashFiles('composer.json') }}
+          restore-keys: composer-php85-
 
       - name: composer update
         run: composer update --prefer-dist --no-interaction --no-progress
@@ -271,7 +354,7 @@ jobs:
             && echo "PASS: duplicate idempotency_key correctly rejected" \
             || (echo "FAIL: duplicate key was accepted — UNIQUE constraint missing" && exit 1)
 
-  # ── Job 3: frontend typecheck + build ─────────────────────────────────────
+  # ── Job 4: frontend typecheck + build ─────────────────────────────────────
   frontend:
     name: Node · TypeScript · Vite build
     runs-on: ubuntu-latest
