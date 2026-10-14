@@ -1,0 +1,33 @@
+[Unit]
+Description=ARTeuCtion — Laravel Reverb WebSocket Server
+After=network.target mariadb.service arteuction-octane.service
+
+[Service]
+Type=simple
+User=arteuction
+Group=arteuction
+WorkingDirectory=/var/www/arteuction
+
+# Single-node Reverb does NOT need Redis (REVERB_SCALING_ENABLED=false by default)
+# Port 8080 proxied via Caddyfile /ws path
+ExecStart=php artisan reverb:start --port=8080 --no-ansi
+
+Restart=always
+RestartSec=10s
+
+# MemoryHigh: pressure threshold. MemoryMax: hard kill boundary.
+# At pilot scale (< 50 concurrent WebSocket connections) RSS should stay well under MemoryHigh.
+MemoryHigh=65M
+MemoryMax=90M
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=arteuction-reverb
+
+[Install]
+WantedBy=multi-user.target

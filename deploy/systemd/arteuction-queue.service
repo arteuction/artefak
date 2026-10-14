@@ -1,0 +1,48 @@
+[Unit]
+Description=ARTeuCtion — Critical Queue Worker
+After=network.target mariadb.service
+
+[Service]
+Type=simple
+User=arteuction
+Group=arteuction
+WorkingDirectory=/var/www/arteuction
+
+# Handles only financial-critical jobs: payment webhooks, Stripe transfers,
+# settlement writes, transactional outbox dispatch, bid re-authorizations.
+# Low-priority work (PDF, CSV, ZIP, GDPR export, image processing) runs in
+# arteuction-queue-low.service, which starts on demand and stops when empty.
+#
+# --memory=96: Laravel self-terminates at 96MB; systemd Restart=always brings it back
+# --max-jobs=100: recycle after 100 jobs to reclaim accumulated memory
+# --max-time=3600: recycle after 1 hour regardless (catches slow leaks)
+# --timeout=60: per-job timeout
+ExecStart=php artisan queue:work database \
+    --queue=critical,default \
+    --memory=96 \
+    --max-jobs=100 \
+    --max-time=3600 \
+    --sleep=3 \
+    --tries=3 \
+    --backoff=60 \
+    --timeout=60 \
+    --no-ansi
+
+Restart=always
+RestartSec=5s
+
+# MemoryHigh: pressure threshold. MemoryMax: hard boundary above Laravel's own --memory limit.
+MemoryHigh=80M
+MemoryMax=120M
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=arteuction-queue
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,53 @@
+[Unit]
+Description=ARTeuCtion — FrankenPHP Octane
+After=network.target mariadb.service
+Requires=mariadb.service
+
+[Service]
+Type=simple
+User=arteuction
+Group=arteuction
+WorkingDirectory=/var/www/arteuction
+
+# IMPORTANT: --workers and --max-requests here must match the values in deploy/Caddyfile:
+#   worker { num 1; max_requests 250 }
+# Mismatch between the two causes FrankenPHP to spawn workers it cannot coordinate.
+#
+# Start with 1 worker as a measured baseline. Raise to 2 in both files simultaneously
+# only after confirming steady-state RSS stays under MemoryHigh=280M.
+# --max-requests=250: recycle worker after N requests to reclaim accumulated memory.
+ExecStart=/usr/local/bin/frankenphp php-server \
+    --adapter=octane \
+    --workers=1 \
+    --max-requests=250 \
+    /var/www/arteuction/public/index.php
+
+ExecReload=/bin/kill -USR1 $MAINPID
+Restart=always
+RestartSec=5s
+
+# MemoryHigh: cgroup pressure signal — kernel starts reclaiming pages above this threshold.
+# MemoryMax: hard OOM boundary — process is killed if exceeded.
+# These are measurement targets, not guaranteed footprints. Adjust after profiling.
+MemoryHigh=280M
+MemoryMax=320M
+MemorySwapMax=100M
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+# PHP opcache — use jemalloc to reduce fragmentation
+Environment="LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2"
+Environment="PHP_OPCACHE_MEMORY_CONSUMPTION=96"
+Environment="PHP_OPCACHE_MAX_ACCELERATED_FILES=20000"
+Environment="PHP_OPCACHE_INTERNED_STRINGS_BUFFER=8"
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=arteuction-octane
+
+[Install]
+WantedBy=multi-user.target

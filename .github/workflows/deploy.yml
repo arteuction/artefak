@@ -1,0 +1,141 @@
+name: Deploy to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type 'deploy' to confirm production deployment"
+        required: true
+        default: ''
+
+# Manual-only deploy: no auto-deploy on push to main.
+# Merge PR → CI/staging green → run this workflow manually.
+
+jobs:
+  deploy:
+    name: Deploy to euction.artefak.eu
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'deploy'
+
+    environment:
+      name: production
+      url: https://euction.artefak.eu
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, xml, curl, gd, zip, bcmath, intl, pdo_mysql, pcntl, opcache
+          coverage: none
+          tools: composer:v2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install PHP dependencies (no dev)
+        run: composer install --prefer-dist --no-interaction --no-progress --no-dev --optimize-autoloader
+
+      - name: Install Node dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Build frontend assets
+        run: npm run build
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Sync files to VPS (rsync)
+        run: |
+          rsync -az --delete \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='node_modules' \
+            --exclude='tests' \
+            --exclude='.env' \
+            --exclude='storage/logs/*' \
+            --exclude='storage/framework/cache/*' \
+            --exclude='storage/framework/sessions/*' \
+            --exclude='storage/framework/views/*' \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
+            ./ \
+            ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/var/www/arteuction/
+
+      - name: Run post-deploy commands
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
+              'bash -s' << 'ENDSSH'
+            set -euo pipefail
+            cd /var/www/arteuction
+
+            # Put application in maintenance mode
+            php artisan down --retry=10
+
+            # Run migrations (append-only: safe to run against live data)
+            php artisan migrate --force
+
+            # Single command caches config, routes, views, events, and autoloader
+            php artisan optimize
+
+            # Run payment rehearsal — abort deploy if financial invariants broken
+            php artisan pilot:payment-rehearsal
+            if [ $? -ne 0 ]; then
+              echo "FATAL: payment-rehearsal failed — aborting deploy"
+              php artisan up
+              exit 1
+            fi
+
+            # Reload Octane workers (zero-downtime: USR1 signal)
+            sudo systemctl reload arteuction-octane || sudo systemctl restart arteuction-octane
+
+            # Restart critical queue worker (picks up new code)
+            sudo systemctl restart arteuction-queue
+            # Low-priority worker restarts naturally on next timer fire; force it now too
+            sudo systemctl restart arteuction-queue-low.timer
+
+            # Restart Reverb (picks up new broadcast channels)
+            sudo systemctl restart arteuction-reverb
+
+            # Bring application back online
+            php artisan up
+
+            echo "Deploy complete."
+          ENDSSH
+
+      - name: Health check
+        run: |
+          sleep 5
+          curl -sf https://euction.artefak.eu/api/v1/health \
+            | grep -q '"status"' \
+            || (echo "Health check failed" && exit 1)
+          echo "Health check passed."
+
+      - name: Memory snapshot (informational)
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
+              'bash -s' << 'ENDSSH'
+            echo "=== free -h ===" && free -h
+            echo "=== cgroup memory per service ==="
+            for svc in arteuction-octane arteuction-reverb arteuction-queue mariadb; do
+              echo -n "$svc: "
+              systemctl show "$svc" \
+                -p MemoryCurrent -p MemoryPeak -p MemoryHigh -p MemoryMax \
+                2>/dev/null | tr '\n' ' '
+              echo
+            done
+            echo "=== /proc/pressure/memory ===" && cat /proc/pressure/memory
+          ENDSSH
+        continue-on-error: true
