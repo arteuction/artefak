@@ -31,6 +31,9 @@ class DispatchStripeReversal implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     private const MAX_ATTEMPTS  = 5;
+    private const LEASE_MINUTES = 5;
+
+    public int $timeout = 60;  // Stripe reversal API; under retry_after=90; lease pattern prevents re-queue overlap
 
     public function __construct(
         public readonly int $reversalOrderId,
@@ -40,14 +43,22 @@ class DispatchStripeReversal implements ShouldQueue
     {
         // ── Step 1: Claim the row ────────────────────────────────────────
         $claimed = DB::transaction(function (): bool {
+            // Claim 'pending' OR a stale 'processing' row whose lease has expired
+            // (worker was SIGKILL'd after claiming but before completing Stripe I/O).
             $order = DB::table('transfer_reversal_orders')
                 ->where('id', $this->reversalOrderId)
-                ->where('status', 'pending')
+                ->where(function ($q) {
+                    $q->where('status', 'pending')
+                      ->orWhere(function ($q2) {
+                          $q2->where('status', 'processing')
+                             ->where('processing_started_at', '<', now()->subMinutes(self::LEASE_MINUTES));
+                      });
+                })
                 ->lockForUpdate()
                 ->first();
 
             if ($order === null) {
-                return false;
+                return false; // active lease held by another worker, or already done
             }
 
             DB::table('transfer_reversal_orders')->where('id', $this->reversalOrderId)->update([
