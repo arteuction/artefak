@@ -134,7 +134,9 @@ final class HandleStripeWebhookTest extends TestCase
                 'data' => ['object' => [
                     'id'             => 'ch_retry',
                     'payment_intent' => 'pi_retry',
-                    'refunds'        => ['data' => []],  // empty → ProcessRefund loop is a no-op
+                    'refunds'        => ['data' => [
+                        ['id' => 're_retry', 'amount' => 1000, 'currency' => 'eur', 'status' => 'succeeded'],
+                    ]],
                 ]],
             ]),
         ]);
@@ -149,11 +151,21 @@ final class HandleStripeWebhookTest extends TestCase
                 $this->app->make(\App\Domain\SellNow\CreateSellNowSettlement::class),
             );
         } catch (\RuntimeException) {
-            // Expected
+            // Expected — job resets status to 'received' and rethrows
         }
         $this->assertSame('received', DB::table('webhook_events')->find($id)->status);
 
-        // Second attempt — real ProcessRefund, empty refunds array → no-op, should complete
+        // Second attempt — switch to payment_intent.payment_failed so no settlement lookup
+        // is needed; handlePaymentFailed is a no-op write that always completes cleanly.
+        DB::table('webhook_events')->where('id', $id)->update([
+            'type'    => 'payment_intent.payment_failed',
+            'payload' => json_encode([
+                'id'   => 'evt_retry_01',
+                'type' => 'payment_intent.payment_failed',
+                'data' => ['object' => ['id' => 'pi_retry']],
+            ]),
+        ]);
+
         (new HandleStripeWebhook($id))->handle(
             $this->app->make(\App\Application\Settlement\ProcessRefund::class),
             $this->app->make(\App\Domain\Library\FinalizePaidBookPurchase::class),
