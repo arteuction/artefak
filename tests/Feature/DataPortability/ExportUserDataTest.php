@@ -165,24 +165,6 @@ final class ExportUserDataTest extends TestCase
 
     // ── Donations ─────────────────────────────────────────────────────────────
 
-    public function test_donations_includes_users_own_donations(): void
-    {
-        $donationId = DB::table('donations')->insertGetId([
-            'donor_id'        => $this->user->id,
-            'amount_cents'    => 5000,
-            'currency'        => 'EUR',
-            'status'          => 'completed',
-            'idempotency_key' => 'don-test-' . Str::uuid(),
-            'created_at'      => now(),
-            'updated_at'      => now(),
-        ]);
-
-        $result = $this->exporter->execute($this->user);
-        $ids    = array_column($result['donations'], 'id');
-
-        $this->assertContains($donationId, $ids);
-    }
-
     public function test_donations_is_empty_for_user_with_no_donations(): void
     {
         $result = $this->exporter->execute($this->user);

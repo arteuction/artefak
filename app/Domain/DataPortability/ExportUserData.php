@@ -83,7 +83,7 @@ final class ExportUserData
     {
         return DB::table('donations')
             ->where('donor_id', $user->id)
-            ->get(['id', 'amount_cents', 'currency', 'status', 'created_at'])
+            ->get(['id', 'donated_cents', 'currency', 'status', 'created_at'])
             ->map(fn ($row) => (array) $row)
             ->all();
     }
