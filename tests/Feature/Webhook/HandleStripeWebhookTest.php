@@ -174,7 +174,7 @@ final class HandleStripeWebhookTest extends TestCase
         $id = $this->insertEvent('payment_intent.payment_failed', 'evt_done_01', 'processed');
 
         $throwIfCalled = new class extends \App\Application\Settlement\ProcessRefund {
-            public function execute(...$args): void
+            public function execute(...$args): int
             {
                 throw new \RuntimeException('Should not be called — event already processed');
             }
@@ -200,7 +200,7 @@ final class HandleStripeWebhookTest extends TestCase
         $id = $this->insertEvent('payment_intent.payment_failed', 'evt_concurrent_01', 'processing');
 
         $throwIfCalled = new class extends \App\Application\Settlement\ProcessRefund {
-            public function execute(...$args): void
+            public function execute(...$args): int
             {
                 throw new \RuntimeException('Should not be called — row is still processing');
             }
