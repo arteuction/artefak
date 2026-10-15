@@ -6,8 +6,8 @@
 
 | Field | Value |
 |---|---|
-| `main` SHA | `0f53810` (merge of PR #16) |
-| Last merged PR | #16 `design/phase-161-design-system-foundation` — Phases 161–164: design system, ArtworkCard, AuctionTimer, BidControl, AuctionRoomPage + Vitest tests |
+| `main` SHA | `7f6c60d` (merge of PR #17) |
+| Last merged PR | #17 `test/phase-166-auction-room-coverage` — reconnect, reserve_not_met, double-submit, multi-lot isolation Vitest tests + CURRENT_STATE update |
 | PHP versions tested | 8.4 + 8.5 (CI matrix) |
 | MariaDB | 11 |
 | OpenAPI spec version | `3.1.2` (Scramble, verified by `ScrambleApiSpecTest`) |
@@ -16,14 +16,12 @@
 
 | Branch | HEAD | Status |
 |---|---|---|
-| `main` | `0f53810` | Clean; PRs #1–16 merged |
+| `main` | `7f6c60d` | Clean; PRs #1–17 merged |
+| `test/phase-166-auction-room-coverage` | `e10b6c2` | Merged as PR #17 |
 | `docs/phase-165-ai-context-engineering` | `1196115` | Merged as PR #15 |
 | `design/phase-161-design-system-foundation` | `cfca6b7` | Merged as PR #16 |
 | `ops/queue-backpressure-and-deploy-recovery` | `4a33fd8` | Merged as PR #14 |
-| `perf/cursor-pagination-public-catalog` | `1589d8f` | Merged as PR #13 |
-| `test/stripe-outbox-failure-modes` | `1a8d401` | Merged as PR #11 |
-| `ops/queue-retry-contracts-and-versioned-derivatives` | `3ba5ab5` | Merged as PR #10 |
-| `test/phase-166-auction-room-coverage` | active | Phase 166: reconnect, reserve_not_met, double-submit, multi-lot isolation tests |
+| `fix/phase-168-eur-golden-path-buyer-journey` | active | Fix BGN→EUR in GoldenPathTest; add buyer-journey.spec.ts Playwright suite |
 
 ## Key unverified items
 
@@ -32,7 +30,7 @@
 - [ ] Production VPS deployed commit — not verified.
 - [ ] Stripe test-mode end-to-end rehearsal — not recorded.
 - [ ] Backup restoration and rollback — not rehearsed and recorded.
-- [ ] Playwright journeys run against a live stack — only API contract tests pass without a server.
+- [ ] Playwright buyer-journey.spec.ts run against a live stack — API contract tests pass without a server; UI journey tests need SPA + Laravel running.
 - [ ] Memory benchmark on 1 GB VPS profile — reported in Phase 158 docs; not independently re-verified against current code.
 
 ## Merged PRs and their scope
@@ -51,6 +49,7 @@
 | #14 | ops/queue-backpressure-and-deploy-recovery | Queue backpressure + deploy recovery checks in CheckOperationalAlerts |
 | #15 | docs/phase-165-ai-context-engineering | AI context engineering: AGENTS.md, CLAUDE.md, docs/ai/, .claude/rules/, Repomix profiles |
 | #16 | design/phase-161-design-system-foundation | Phases 161–164: design tokens, ArtworkCard, AuctionTimer, BidControl, AuctionRoomPage + Vitest suite |
+| #17 | test/phase-166-auction-room-coverage | Reconnect, reserve_not_met, double-submit, multi-lot isolation Vitest tests |
 
 ## Active security suppressions
 
