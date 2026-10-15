@@ -45,12 +45,12 @@ final class CulturalDataConformanceCommand extends Command
     private function checkIiifConformance(): void
     {
         $artworks = DB::table('artworks')
-            ->whereNotNull('image_url')
+            ->whereNotNull('primary_image_key')
             ->limit(10)
             ->get(['id', 'title', 'slug']);
 
         if ($artworks->isEmpty()) {
-            $this->record('IIIF: artworks with image_url exist', true, 'no artworks to validate');
+            $this->record('IIIF: artworks with primary_image_key exist', true, 'no artworks to validate');
             return;
         }
 
