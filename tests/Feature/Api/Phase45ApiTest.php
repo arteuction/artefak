@@ -142,7 +142,7 @@ final class Phase45ApiTest extends TestCase
             'slug'       => 'book-' . uniqid(),
             'status'     => 'draft',
             'is_free'    => false,
-            'currency'   => 'BGN',
+            'currency'   => 'EUR',
             'price_cents'=> 990,
         ]);
     }

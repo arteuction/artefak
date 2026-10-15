@@ -163,7 +163,7 @@ final class Phase50ApiTest extends TestCase
             auctionId: 3,
             previousBidCents: 10000,
             newLeadingBidCents: 12000,
-            currency: 'BGN',
+            currency: 'EUR',
         );
 
         $channels = $event->broadcastOn();
@@ -179,7 +179,7 @@ final class Phase50ApiTest extends TestCase
             auctionId: 2,
             newStatus: 'sold',
             hammerPriceCents: 15000,
-            currency: 'BGN',
+            currency: 'EUR',
         );
 
         $channels = $event->broadcastOn();

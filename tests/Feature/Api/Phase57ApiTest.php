@@ -281,7 +281,7 @@ final class Phase57ApiTest extends TestCase
             'title'        => 'Visibility Test Artwork',
             'slug'         => 'visibility-test-' . uniqid(),
             'status'       => 'listed',
-            'currency'     => 'BGN',
+            'currency'     => 'EUR',
             'year_created' => 2024,
             'medium'       => 'painting',
         ]);
@@ -341,7 +341,7 @@ final class Phase57ApiTest extends TestCase
             'title'        => 'Admin Evidence Test',
             'slug'         => 'admin-evidence-' . uniqid(),
             'status'       => 'listed',
-            'currency'     => 'BGN',
+            'currency'     => 'EUR',
             'year_created' => 2024,
             'medium'       => 'painting',
         ]);

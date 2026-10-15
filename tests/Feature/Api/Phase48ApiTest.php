@@ -35,7 +35,7 @@ final class Phase48ApiTest extends TestCase
                     'id'              => $payoutId,
                     'object'          => 'payout',
                     'amount'          => 50000,
-                    'currency'        => 'bgn',
+                    'currency'        => 'EUR',
                     'status'          => $status,
                     'arrival_date'    => now()->addDays(2)->timestamp,
                     'failure_code'    => $status === 'failed' ? 'insufficient_funds' : null,
@@ -149,7 +149,7 @@ final class Phase48ApiTest extends TestCase
             'id'   => 'evt_' . uniqid(),
             'type' => 'payout.paid',
             // no 'account' key
-            'data' => ['object' => ['id' => 'po_' . uniqid(), 'amount' => 1000, 'currency' => 'bgn']],
+            'data' => ['object' => ['id' => 'po_' . uniqid(), 'amount' => 1000, 'currency' => 'EUR']],
         ]);
 
         $eventId = DB::table('webhook_events')->insertGetId([
@@ -183,7 +183,7 @@ final class Phase48ApiTest extends TestCase
             'stripe_account_id' => 'acct_' . uniqid(),
             'stripe_event_id'   => 'evt_' . uniqid(),
             'amount_cents'      => 50000,
-            'currency'          => 'BGN',
+            'currency'          => 'EUR',
             'status'            => $status,
         ]);
     }

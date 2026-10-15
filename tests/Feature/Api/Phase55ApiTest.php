@@ -36,7 +36,7 @@ final class Phase55ApiTest extends TestCase
             'title'        => 'Test Artwork ' . uniqid(),
             'slug'         => 'artwork-' . uniqid(),
             'status'       => 'listed',
-            'currency'     => 'BGN',
+            'currency'     => 'EUR',
             'year_created' => 2022,
             'medium'       => 'painting',
         ]);
@@ -46,14 +46,14 @@ final class Phase55ApiTest extends TestCase
             'sale_mode'          => 'auction',
             'status'             => 'active',
             'starting_bid_cents' => 10000,
-            'currency'           => 'BGN',
+            'currency'           => 'EUR',
         ]);
 
         $auction = Auction::create([
             'title'     => 'Test Auction ' . uniqid(),
             'slug'      => 'auction-' . uniqid(),
             'status'    => 'closed',
-            'currency'  => 'BGN',
+            'currency'  => 'EUR',
             'starts_at' => now()->subHour(),
             'ends_at'   => now()->subMinutes(5),
         ]);
