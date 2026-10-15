@@ -1,12 +1,15 @@
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { api } from '@/lib/api';
 import { echo } from '@/lib/echo';
 import { useAuth } from '@/context/AuthContext';
 import type { Auction, ArtLot } from '@/lib/api';
-import { Badge, Button, Input, Spinner } from '@/components/ui';
+import { Badge, Spinner } from '@/components/ui';
 import { useDocTitle } from '@/lib/useDocTitle';
+import AuctionTimer from '@/components/AuctionTimer';
+import BidControl from '@/components/BidControl';
+import type { BidResult, OutbidEvent as BidControlOutbidEvent } from '@/components/BidControl';
 
 type BidEvent = {
     bidId: number;
@@ -39,38 +42,13 @@ function formatEur(cents: number, currency = 'EUR'): string {
     return new Intl.NumberFormat('en-GB', { style: 'currency', currency }).format(cents / 100);
 }
 
-function useCountdown(endsAt: string | null): string {
-    const [remaining, setRemaining] = useState('');
-
-    useEffect(() => {
-        if (!endsAt) { setRemaining(''); return; }
-
-        const tick = () => {
-            const diff = new Date(endsAt).getTime() - Date.now();
-            if (diff <= 0) { setRemaining('Ended'); return; }
-            const h = Math.floor(diff / 3_600_000);
-            const m = Math.floor((diff % 3_600_000) / 60_000);
-            const s = Math.floor((diff % 60_000) / 1_000);
-            setRemaining(h > 0 ? `${h}h ${m}m ${s}s` : `${m}m ${s}s`);
-        };
-
-        tick();
-        const id = setInterval(tick, 1_000);
-        return () => clearInterval(id);
-    }, [endsAt]);
-
-    return remaining;
-}
-
 export default function AuctionRoomPage() {
     const { id } = useParams<{ id: string }>();
     const { user } = useAuth();
     const queryClient = useQueryClient();
-    const [bidAmounts, setBidAmounts] = useState<Record<number, string>>({});
     const [liveBids, setLiveBids] = useState<Record<number, BidEvent>>({});
     const [recentBids, setRecentBids] = useState<BidEvent[]>([]);
-    const [outbid, setOutbid] = useState<number | null>(null);
-    const [outbidAlert, setOutbidAlert] = useState<OutbidEvent | null>(null);
+    const [outbidByLot, setOutbidByLot] = useState<Record<number, BidControlOutbidEvent>>({});
     const [closedLots, setClosedLots] = useState<Record<number, ItemStatusEvent>>({});
     const [connStatus, setConnStatus] = useState<ConnectionStatus>('connecting');
     const channelRef = useRef<ReturnType<typeof echo.channel> | null>(null);
@@ -85,7 +63,6 @@ export default function AuctionRoomPage() {
         enabled: !!id,
     });
 
-    const countdown = useCountdown(auction?.ends_at ?? null);
     useDocTitle(auction?.title ?? null);
 
     // Subscribe to real-time events via Reverb
@@ -115,8 +92,6 @@ export default function AuctionRoomPage() {
             .listen('.bid.placed', (e: BidEvent) => {
                 setLiveBids((prev) => ({ ...prev, [e.auctionItemId]: e }));
                 setRecentBids((prev) => [e, ...prev].slice(0, 20));
-                setOutbid(e.auctionItemId);
-                setTimeout(() => setOutbid(null), 4_000);
                 void queryClient.invalidateQueries({ queryKey: ['auction', id] });
             })
             .listen('.auction-item.status-changed', (e: ItemStatusEvent) => {
@@ -140,8 +115,14 @@ export default function AuctionRoomPage() {
         privateChannelRef.current = ch;
 
         ch.listen('.bid.outbid', (e: OutbidEvent) => {
-            setOutbidAlert(e);
-            setTimeout(() => setOutbidAlert(null), 8_000);
+            setOutbidByLot((prev) => ({
+                ...prev,
+                [e.auctionItemId]: {
+                    auctionItemId: e.auctionItemId,
+                    newLeadingBidCents: e.newLeadingBidCents,
+                    currency: e.currency,
+                },
+            }));
             void queryClient.invalidateQueries({ queryKey: ['auction', id] });
         });
 
@@ -153,17 +134,32 @@ export default function AuctionRoomPage() {
     }, [user?.id, id, queryClient]);
 
     const bidMutation = useMutation({
-        mutationFn: async ({ lotId, amount }: { lotId: number; amount: number }) => {
-            const res = await api.post(`/auctions/${id}/items/${lotId}/bids`, {
-                amount_cents: Math.round(amount * 100),
-            });
-            return res.data;
+        mutationFn: async ({ lotId, amountCents }: { lotId: number; amountCents: number }) => {
+            const res = await api.post(`/auctions/${id}/items/${lotId}/bids`, { amount_cents: amountCents });
+            return res.data as { id: number; amount_cents: number };
         },
-        onSuccess: (_data, { lotId }) => {
-            setBidAmounts((prev) => ({ ...prev, [lotId]: '' }));
+        onSuccess: () => {
             void queryClient.invalidateQueries({ queryKey: ['auction', id] });
         },
     });
+
+    const handleBid = useCallback(
+        (lotId: number) =>
+            async (amountCents: number): Promise<BidResult> => {
+                try {
+                    const data = await bidMutation.mutateAsync({ lotId, amountCents });
+                    return { status: 'accepted', amountCents: data.amount_cents ?? amountCents };
+                } catch (err: unknown) {
+                    const status = (err as { response?: { status?: number } })?.response?.status;
+                    if (status === 402) return { status: 'reauthorization_required' };
+                    const message =
+                        (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+                        ?? 'Bid failed. Please check the amount and try again.';
+                    return { status: 'rejected', message };
+                }
+            },
+        [id, bidMutation],
+    );
 
     if (isLoading) {
         return (
@@ -200,9 +196,9 @@ export default function AuctionRoomPage() {
                 )}
 
                 {/* Countdown */}
-                {isLive && countdown && (
-                    <span className="text-sm font-mono text-[var(--color-text-muted)] bg-[var(--color-bg-muted)] px-3 py-1 rounded-[var(--radius-sm)]">
-                        {countdown}
+                {isLive && (
+                    <span className="text-sm bg-[var(--color-bg-muted)] px-3 py-1 rounded-[var(--radius-sm)]">
+                        <AuctionTimer endsAt={auction.ends_at ?? null} />
                     </span>
                 )}
 
@@ -231,13 +227,7 @@ export default function AuctionRoomPage() {
                 </span>
             </div>
 
-            {/* Personal outbid banner */}
-            {outbidAlert && (
-                <div className="mb-4 rounded-[var(--radius-md)] bg-amber-50 border border-amber-300 px-4 py-3 text-sm text-amber-900">
-                    <span className="font-semibold">You've been outbid</span> on Lot #{outbidAlert.auctionItemId}. New leading bid:{' '}
-                    <span className="font-medium">{formatEur(outbidAlert.newLeadingBidCents, outbidAlert.currency)}</span>
-                </div>
-            )}
+
 
             {(!auction.items || auction.items.length === 0) && (
                 <p className="text-[var(--color-text-muted)] text-sm">No lots in this auction yet.</p>
@@ -254,14 +244,14 @@ export default function AuctionRoomPage() {
                         const minNextCents = live?.nextBidCents
                             ?? (currentBidCents ? currentBidCents + 1 : lot.starting_bid_cents ?? 0);
 
-                        const isOutbid = outbid === lot.id;
+                        const lotOutbidEvent = outbidByLot[lot.id] ?? null;
 
                         return (
                             <div
                                 key={lot.id}
                                 className={[
                                     'rounded-[var(--radius-lg)] border px-5 py-5 transition-all',
-                                    isOutbid ? 'border-amber-400 bg-amber-50' : live ? 'border-[var(--color-border-strong)]' : 'border-[var(--color-border)]',
+                                    lotOutbidEvent ? 'border-amber-400 bg-amber-50' : live ? 'border-[var(--color-border-strong)]' : 'border-[var(--color-border)]',
                                 ].join(' ')}
                             >
                                 <div className="flex items-start justify-between mb-3">
@@ -286,44 +276,16 @@ export default function AuctionRoomPage() {
                                     </Badge>
                                 </div>
 
-                                {isOutbid && (
-                                    <div className="mb-3 text-sm text-amber-800 bg-amber-100 rounded-[var(--radius-sm)] px-3 py-2">
-                                        New bid placed — minimum next bid is{' '}
-                                        <span className="font-medium">
-                                            {formatEur(minNextCents, lot.currency)}
-                                        </span>
-                                    </div>
-                                )}
-
                                 {isLive && effectiveStatus === 'active' && (
-                                    <div className="flex gap-2 mt-3">
-                                        <Input
-                                            type="number"
-                                            min={(minNextCents / 100).toFixed(2)}
-                                            step="0.01"
-                                            placeholder={`Min ${formatEur(minNextCents, lot.currency)}`}
-                                            value={bidAmounts[lot.id] ?? ''}
-                                            onChange={(e) => setBidAmounts((prev) => ({ ...prev, [lot.id]: e.target.value }))}
-                                            className="flex-1"
+                                    <div className="mt-3">
+                                        <BidControl
+                                            minBidCents={minNextCents}
+                                            currency={lot.currency}
+                                            connectionStatus={connStatus}
+                                            outbidEvent={lotOutbidEvent}
+                                            onBid={handleBid(lot.id)}
                                         />
-                                        <Button
-                                            disabled={bidMutation.isPending || !bidAmounts[lot.id]}
-                                            loading={bidMutation.isPending && bidMutation.variables?.lotId === lot.id}
-                                            onClick={() => {
-                                                const amt = bidAmounts[lot.id];
-                                                if (!amt) return;
-                                                bidMutation.mutate({ lotId: lot.id, amount: parseFloat(amt) });
-                                            }}
-                                        >
-                                            Bid
-                                        </Button>
                                     </div>
-                                )}
-
-                                {bidMutation.isError && bidMutation.variables?.lotId === lot.id && (
-                                    <p className="text-xs text-red-600 mt-2">
-                                        Bid failed. Please check the amount and try again.
-                                    </p>
                                 )}
                             </div>
                         );
