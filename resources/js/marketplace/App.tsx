@@ -1,4 +1,5 @@
 import { Routes, Route } from 'react-router-dom';
+import { Suspense } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import Layout from './components/Layout';
 import ArtworkListPage from './pages/ArtworkListPage';
@@ -18,7 +19,12 @@ import VenueListPage from './pages/metro/VenueListPage';
 import VenueDetailPage from './pages/metro/VenueDetailPage';
 import QrScanPage from './pages/metro/QrScanPage';
 import OfferManagePage from './pages/gallery/OfferManagePage';
+import { lazy } from 'react';
 import NotFoundPage from './pages/NotFoundPage';
+
+const DesignLabPage = import.meta.env.DEV
+    ? lazy(() => import('./pages/DesignLabPage'))
+    : null;
 
 export default function App() {
     return (
@@ -43,6 +49,13 @@ export default function App() {
                     <Route path="metro/scan" element={<QrScanPage />} />
                     <Route path="gallery/consignments" element={<ConsignmentListPage />} />
                     <Route path="gallery/offers" element={<OfferManagePage />} />
+                    {import.meta.env.DEV && DesignLabPage && (
+                        <Route path="design-lab" element={
+                            <Suspense fallback={null}>
+                                <DesignLabPage />
+                            </Suspense>
+                        } />
+                    )}
                     <Route path="*" element={<NotFoundPage />} />
                 </Route>
             </Routes>

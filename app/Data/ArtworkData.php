@@ -25,6 +25,9 @@ final class ArtworkData extends Data
         public readonly ?Carbon          $created_at,
         public readonly ?Carbon          $updated_at,
         public readonly ?ArtistSummaryData $artist,
+        /** @var array{thumb?: string, medium?: string, large?: string}|null */
+        public readonly ?array           $image_derivatives,
+        public readonly ?string          $primary_image_status,
     ) {}
 
     public static function fromArtwork(Artwork $artwork): self
@@ -45,9 +48,11 @@ final class ArtworkData extends Data
             is_original:    (bool) ($artwork->is_original ?? true),
             edition_number: $artwork->edition_number,
             edition_total:  $artwork->edition_total,
-            created_at:     $artwork->created_at,
-            updated_at:     $artwork->updated_at,
-            artist:         $artist,
+            created_at:            $artwork->created_at,
+            updated_at:            $artwork->updated_at,
+            artist:                $artist,
+            image_derivatives:     $artwork->image_derivatives,
+            primary_image_status:  $artwork->primary_image_status,
         );
     }
 }

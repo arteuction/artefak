@@ -35,6 +35,12 @@ export type PaginatedResponse<T> = {
     };
 };
 
+export type ArtworkImageDerivatives = {
+    thumb?: string;   /* 400×400 square crop, WebP */
+    medium?: string;  /* 800px wide, proportional, WebP */
+    large?: string;   /* 1600px wide, proportional, WebP */
+};
+
 export type Artwork = {
     id: number;
     title: string;
@@ -50,7 +56,16 @@ export type Artwork = {
     created_at: string;
     updated_at: string;
     artist: { id: number; name: string; profile_slug: string | null };
+    image_derivatives: ArtworkImageDerivatives | null;
+    primary_image_status: 'pending' | 'confirmed' | 'processing' | null;
 };
+
+/** Converts a backend storage key to a public URL. Returns null if key is falsy or base URL not configured. */
+export function imageUrl(key: string | null | undefined): string | null {
+    const base = (import.meta.env.VITE_STORAGE_URL as string | undefined) ?? '';
+    if (!key || !base) return null;
+    return `${base}/${key}`;
+}
 
 export type ArtistProfile = {
     id: number;

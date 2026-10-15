@@ -1,9 +1,8 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import laravel from 'laravel-vite-plugin';
 import { bunny } from 'laravel-vite-plugin/fonts';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
-import { resolve } from 'path';
 
 export default defineConfig({
     plugins: [
@@ -25,12 +24,27 @@ export default defineConfig({
     ],
     resolve: {
         alias: {
-            '@': resolve(__dirname, 'resources/js/marketplace'),
+            '@': `${import.meta.dirname}/resources/js/marketplace`,
         },
     },
     server: {
         watch: {
             ignored: ['**/storage/framework/views/**'],
+        },
+    },
+    test: {
+        environment: 'jsdom',
+        globals: true,
+        setupFiles: ['resources/js/marketplace/test/setup.ts'],
+        include: ['resources/js/marketplace/**/*.test.{ts,tsx}'],
+        coverage: {
+            provider: 'v8',
+            include: ['resources/js/marketplace/**'],
+        },
+        // Provide a stable base URL so imageUrl() returns real strings in tests.
+        // Production VITE_STORAGE_URL is set in .env.production.
+        env: {
+            VITE_STORAGE_URL: 'https://test-cdn.example',
         },
     },
 });
