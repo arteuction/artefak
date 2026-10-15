@@ -127,33 +127,26 @@ final class ExportUserDataTest extends TestCase
 
     public function test_watchlist_includes_users_watchlist_items(): void
     {
-        // Insert a dummy art_lot to watch
-        $artLotId = DB::table('art_lots')->insertGetId([
-            'artwork_id'  => Artwork::create([
-                'user_id' => User::factory()->create(['role' => 'artist'])->id,
-                'title'   => 'Watched Work',
-                'slug'    => 'watched-work-' . Str::random(4),
-                'status'  => 'listed',
-            ])->id,
-            'sale_mode'  => 'sell_now',
-            'status'     => 'active',
-            'buy_now_price_cents' => 50000,
-            'currency'   => 'EUR',
-            'created_at' => now(),
-            'updated_at' => now(),
+        $artwork = Artwork::create([
+            'user_id' => $this->user->id,
+            'title'   => 'Watched Work',
+            'slug'    => 'watched-work-' . Str::random(4),
+            'status'  => 'listed',
         ]);
 
-        DB::table('watchlist_items')->insert([
-            'user_id'    => $this->user->id,
-            'art_lot_id' => $artLotId,
-            'created_at' => now(),
-            'updated_at' => now(),
+        DB::table('watchlist')->insert([
+            'user_id'      => $this->user->id,
+            'subject_type' => 'App\\Models\\Artwork',
+            'subject_id'   => $artwork->id,
+            'created_at'   => now(),
+            'updated_at'   => now(),
         ]);
 
         $result = $this->exporter->execute($this->user);
 
-        $lotIds = array_column($result['watchlist'], 'art_lot_id');
-        $this->assertContains($artLotId, $lotIds);
+        $this->assertNotEmpty($result['watchlist']);
+        $subjectIds = array_column($result['watchlist'], 'subject_id');
+        $this->assertContains($artwork->id, $subjectIds);
     }
 
     public function test_watchlist_is_empty_when_user_has_none(): void
