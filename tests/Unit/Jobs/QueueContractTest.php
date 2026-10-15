@@ -9,6 +9,7 @@ use App\Jobs\DispatchStripeReversal;
 use App\Jobs\DispatchStripeTransfer;
 use App\Jobs\GenerateArtworkDerivativesJob;
 use App\Jobs\HandleStripeWebhook;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -39,7 +40,7 @@ final class QueueContractTest extends TestCase
         ];
     }
 
-    /** @dataProvider jobProvider */
+    #[DataProvider('jobProvider')]
     public function test_job_timeout_is_under_retry_after(string $class): void
     {
         $job = (new \ReflectionClass($class))->newInstanceWithoutConstructor();
@@ -57,7 +58,7 @@ final class QueueContractTest extends TestCase
         );
     }
 
-    /** @dataProvider jobProvider */
+    #[DataProvider('jobProvider')]
     public function test_job_has_bounded_retry_count(string $class): void
     {
         $job = (new \ReflectionClass($class))->newInstanceWithoutConstructor();
