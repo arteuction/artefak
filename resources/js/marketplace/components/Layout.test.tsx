@@ -11,6 +11,7 @@ import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { AuthContext } from '@/context/AuthContext';
+import type { AuthUser } from '@/lib/auth';
 import Layout from './Layout';
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
@@ -29,14 +30,12 @@ vi.mock('@/lib/auth', () => ({ logout: () => mockLogout() }));
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-type UserRole = 'artist' | 'buyer' | 'gallery';
-
-function makeUser(role: UserRole = 'buyer') {
+function makeUser(role: NonNullable<AuthUser['role']> = 'buyer'): AuthUser {
     return { id: 1, name: 'Иван Петров', email: 'ivan@example.com', role };
 }
 
 function renderLayout(
-    user: ReturnType<typeof makeUser> | null = null,
+    user: AuthUser | null = null,
     refresh: () => Promise<void> = async () => {},
 ) {
     return render(
