@@ -113,7 +113,7 @@ final class OnboardPartnerTest extends TestCase
     {
         $result = $this->action->execute(name: 'Read Only Partner', type: 'museum');
 
-        $scopes = json_decode($result['api_client']->scopes, true);
+        $scopes = $result['api_client']->scopes; // already cast to array
         $this->assertContains('artworks:read', $scopes);
         $this->assertContains('lots:read',     $scopes);
     }
@@ -126,7 +126,7 @@ final class OnboardPartnerTest extends TestCase
             scopes: ['artworks:read', 'provenance:read', 'impact:read'],
         );
 
-        $scopes = json_decode($result['api_client']->scopes, true);
+        $scopes = $result['api_client']->scopes; // already cast to array
         $this->assertContains('impact:read', $scopes);
     }
 
@@ -136,7 +136,7 @@ final class OnboardPartnerTest extends TestCase
     {
         $before = \Illuminate\Support\Facades\DB::table('institutions')->count();
 
-        $this->action->execute(name: 'New Partner', type: 'auction_house');
+        $this->action->execute(name: 'New Partner', type: 'foundation');
 
         $after = \Illuminate\Support\Facades\DB::table('institutions')->count();
         $this->assertSame($before + 1, $after);
