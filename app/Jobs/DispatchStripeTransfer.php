@@ -35,6 +35,10 @@ class DispatchStripeTransfer implements ShouldQueue
     private const MAX_ATTEMPTS   = 5;
     private const LEASE_MINUTES  = 5;
 
+    public int $tries   = 5;
+    public int $backoff = 60;
+    public int $timeout = 60;  // Stripe transfer API; under retry_after=90 so the lease (5 min) prevents re-queue overlap
+
     public function __construct(
         public readonly int $outboxId,
     ) {}
@@ -43,14 +47,22 @@ class DispatchStripeTransfer implements ShouldQueue
     {
         // ── Step 1: Claim the row (short TX, no Stripe I/O) ──────────────
         $claimed = DB::transaction(function (): bool {
+            // Claim 'pending' OR a stale 'processing' row whose lease has expired
+            // (worker was SIGKILL'd after claiming but before completing Stripe I/O).
             $row = DB::table('transfer_outbox')
                 ->where('id', $this->outboxId)
-                ->where('status', 'pending')
+                ->where(function ($q) {
+                    $q->where('status', 'pending')
+                      ->orWhere(function ($q2) {
+                          $q2->where('status', 'processing')
+                             ->where('processing_started_at', '<', now()->subMinutes(self::LEASE_MINUTES));
+                      });
+                })
                 ->lockForUpdate()
                 ->first();
 
             if ($row === null) {
-                return false; // already processing/dispatched/canceled/failed
+                return false; // active lease held by another worker, or already done
             }
 
             DB::table('transfer_outbox')->where('id', $this->outboxId)->update([

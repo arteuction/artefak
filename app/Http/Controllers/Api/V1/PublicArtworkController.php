@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Data\ArtworkData;
 use App\Domain\Metadata\SchemaOrgArtwork;
 use App\Http\Controllers\Controller;
 use App\Models\Artwork;
@@ -23,13 +24,19 @@ final class PublicArtworkController extends Controller
      * GET /api/v1/artworks
      *
      * Query params:
-     *   q        — full-text search on title + description
-     *   medium   — one of painting|sculpture|photography|digital|nft|mixed|other
-     *   sdg      — integer 1–17 (UN SDG number)
+     *   q         — full-text search on title + description
+     *   medium    — one of painting|sculpture|photography|digital|nft|mixed|other
+     *   sdg       — integer 1–17 (UN SDG number)
      *   min_price — price floor in cents (against art_lots.buy_now_price_cents or starting_bid_cents)
      *   max_price — price ceiling in cents
-     *   sort     — newest (default) | price_asc | price_desc
-     *   page     — pagination page (default 1)
+     *   sort      — newest (default) | price_asc | price_desc
+     *   page      — pagination page (default 1; ignored when cursor is present)
+     *   cursor    — opaque keyset cursor for the next page (only valid with sort=newest)
+     *
+     * When cursor is supplied and sort=newest, cursor/keyset pagination is used instead of
+     * OFFSET-based pagination: no COUNT(*) query, O(1) seek via (created_at, id) index.
+     * The response meta will include next_cursor (null if no further pages exist) and omit
+     * total/last_page (which require COUNT and are unavailable in keyset mode).
      */
     public function index(Request $request): JsonResponse
     {
@@ -41,12 +48,13 @@ final class PublicArtworkController extends Controller
             'max_price' => ['nullable', 'integer', 'min:0'],
             'sort'      => ['nullable', 'in:newest,price_asc,price_desc'],
             'page'      => ['nullable', 'integer', 'min:1'],
+            'cursor'    => ['nullable', 'string', 'max:500'],
         ]);
 
         $query = Artwork::query()
             ->where('artworks.status', 'listed')
             ->select('artworks.*')
-            ->with(['artist:id,name']);
+            ->with(['artist:id,name', 'artist.artistProfile:user_id,slug']);
 
         // Full-text search: MATCH AGAINST in production (uses migration-077 FULLTEXT index).
         // Falls back to LIKE in testing — RefreshDatabase recreates the schema but
@@ -102,8 +110,16 @@ final class PublicArtworkController extends Controller
             }
         }
 
-        // Sort
         $sort = $validated['sort'] ?? 'newest';
+
+        // ── Cursor / keyset pagination (newest sort only) ────────────────────
+        // Avoids COUNT(*) and OFFSET. Uses (created_at DESC, id DESC) seek.
+        // Only offered for the default 'newest' sort; price sorts use OFFSET.
+        if ($sort === 'newest' && ! empty($validated['cursor'])) {
+            return $this->indexWithCursor($query, $validated['cursor']);
+        }
+
+        // ── Sort ─────────────────────────────────────────────────────────────
         if ($sort === 'price_asc') {
             $query->orderByRaw('COALESCE(art_lots.buy_now_price_cents, art_lots.starting_bid_cents) IS NULL ASC')
                   ->orderByRaw('COALESCE(art_lots.buy_now_price_cents, art_lots.starting_bid_cents) ASC');
@@ -111,7 +127,9 @@ final class PublicArtworkController extends Controller
             $query->orderByRaw('COALESCE(art_lots.buy_now_price_cents, art_lots.starting_bid_cents) IS NULL ASC')
                   ->orderByRaw('COALESCE(art_lots.buy_now_price_cents, art_lots.starting_bid_cents) DESC');
         } else {
-            $query->orderByDesc('artworks.created_at');
+            // newest: add id as a unique tiebreaker so the cursor is stable when
+            // two artworks share the same created_at timestamp.
+            $query->orderByDesc('artworks.created_at')->orderByDesc('artworks.id');
         }
 
         $results = $query
@@ -119,37 +137,114 @@ final class PublicArtworkController extends Controller
             ->paginate(self::PAGE_SIZE, ['artworks.*'], 'page', $validated['page'] ?? 1);
 
         return response()->json([
-            'data'  => $results->items(),
+            'data'  => array_map(fn ($a) => ArtworkData::fromArtwork($a), $results->items()),
             'meta'  => [
                 'total'        => $results->total(),
                 'per_page'     => $results->perPage(),
                 'current_page' => $results->currentPage(),
                 'last_page'    => $results->lastPage(),
+                'next_cursor'  => null,  // cursor mode not active; use page param
             ],
         ]);
+    }
+
+    /**
+     * Cursor/keyset pagination for the 'newest' sort.
+     *
+     * Fetches PAGE_SIZE + 1 rows after the cursor position, then uses the extra
+     * row to determine whether a next page exists (without a COUNT(*) query).
+     *
+     * Cursor format (opaque to callers): base64url(json({created_at, id}))
+     */
+    private function indexWithCursor(\Illuminate\Database\Eloquent\Builder $query, string $rawCursor): JsonResponse
+    {
+        $cursor = $this->decodeCursor($rawCursor);
+
+        if ($cursor !== null) {
+            // Keyset condition: rows strictly after (created_at, id) in DESC order.
+            // "(created_at < pivot) OR (created_at = pivot AND id < pivot_id)"
+            $query->where(function ($q) use ($cursor): void {
+                $q->where('artworks.created_at', '<', $cursor['created_at'])
+                  ->orWhere(function ($q2) use ($cursor): void {
+                      $q2->where('artworks.created_at', '=', $cursor['created_at'])
+                         ->where('artworks.id', '<', $cursor['id']);
+                  });
+            });
+        }
+
+        $query->orderByDesc('artworks.created_at')->orderByDesc('artworks.id');
+
+        // Fetch one extra to detect has_next_page without COUNT(*)
+        $rows = $query->distinct()->limit(self::PAGE_SIZE + 1)->get();
+
+        $hasNextPage = $rows->count() > self::PAGE_SIZE;
+        $items       = $rows->take(self::PAGE_SIZE);
+
+        $nextCursor = null;
+        if ($hasNextPage) {
+            $last       = $items->last();
+            $nextCursor = $this->encodeCursor($last->created_at->toISOString(), $last->id);
+        }
+
+        return response()->json([
+            'data' => $items->values()->map(fn ($a) => ArtworkData::fromArtwork($a)),
+            'meta' => [
+                'per_page'    => self::PAGE_SIZE,
+                'next_cursor' => $nextCursor,
+                // total and last_page are not available in keyset mode
+            ],
+        ]);
+    }
+
+    private function encodeCursor(string $createdAt, int $id): string
+    {
+        return rtrim(strtr(base64_encode(json_encode(['c' => $createdAt, 'i' => $id])), '+/', '-_'), '=');
+    }
+
+    private function decodeCursor(string $cursor): ?array
+    {
+        $json = base64_decode(strtr($cursor, '-_', '+/'), strict: false);
+        if ($json === false) {
+            return null;
+        }
+        $decoded = json_decode($json, true);
+        if (! isset($decoded['c'], $decoded['i'])) {
+            return null;
+        }
+        return ['created_at' => (string) $decoded['c'], 'id' => (int) $decoded['i']];
     }
 
     /**
      * GET /api/v1/artworks/{artwork}
      *
      * Public detail view. Only 'listed' artworks.
+     * Returns ETag for conditional GET (If-None-Match → 304) and
+     * Cache-Control for CDN/browser caching of public artwork pages.
      */
-    public function show(Artwork $artwork): JsonResponse
+    public function show(Request $request, Artwork $artwork): JsonResponse
     {
         if ($artwork->status !== 'listed') {
             abort(404);
         }
 
+        $etag = '"' . md5($artwork->id . '|' . $artwork->updated_at?->timestamp) . '"';
+
+        if ($request->header('If-None-Match') === $etag) {
+            return response()->json(null, 304);
+        }
+
         $artwork->load([
             'artist:id,name',
+            'artist.artistProfile:user_id,slug',
             'sdgClaims:artwork_id,sdg_number,status',
         ]);
 
         $schemaOrg = (new SchemaOrgArtwork())->build($artwork);
 
         return response()->json([
-            'data'      => $artwork,
+            'data'       => ArtworkData::fromArtwork($artwork),
             'schema_org' => $schemaOrg,
-        ]);
+        ])->header('ETag', $etag)
+          ->header('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
     }
 }

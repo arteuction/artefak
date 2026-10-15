@@ -69,8 +69,12 @@ final class GenerateArtworkDerivatives
 
     private function derivativeKey(string $originalKey, string $size): string
     {
-        // artworks/{id}/images/{uuid}.ext  →  artworks/{id}/images/derivatives/{size}.webp
-        $dir = dirname($originalKey);
-        return "{$dir}/derivatives/{$size}.webp";
+        // Versioned key: artworks/{id}/images/derivatives/{sha8}/{size}.webp
+        // Using the first 8 chars of a sha256 of the source key as the version prefix
+        // ensures a new source image always writes to a new path, making Cloudflare
+        // edge cache serve the right version without requiring manual cache purges.
+        $dir     = dirname($originalKey);
+        $version = substr(hash('sha256', $originalKey), 0, 8);
+        return "{$dir}/derivatives/{$version}/{$size}.webp";
     }
 }

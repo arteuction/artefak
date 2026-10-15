@@ -25,7 +25,7 @@ final class ScrambleApiSpecTest extends TestCase
             'info' => ['title', 'version'],
             'paths',
         ]);
-        $this->assertSame('3.1.0', $response->json('openapi'));
+        $this->assertSame('3.1.2', $response->json('openapi'));
     }
 
     public function test_docs_ui_endpoint_is_reachable(): void

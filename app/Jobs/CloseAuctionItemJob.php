@@ -17,7 +17,8 @@ final class CloseAuctionItemJob implements ShouldQueue
 {
     use Queueable;
 
-    public int $tries = 3;
+    public int $tries   = 3;
+    public int $timeout = 20;  // DB-only; well under retry_after=90
     public int $backoff = 30;
 
     public function __construct(

@@ -20,6 +20,7 @@ class HandleStripeWebhook implements ShouldQueue
     use Queueable;
 
     public int $tries   = 3;
+    public int $timeout = 30;  // well under retry_after=90; Stripe webhook handlers are lightweight DB ops
     public int $backoff = 60;
 
     public function __construct(private int $webhookEventId) {}
