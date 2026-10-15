@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Data\ArtworkData;
 use App\Domain\Metadata\SchemaOrgArtwork;
 use App\Http\Controllers\Controller;
 use App\Models\Artwork;
@@ -46,7 +47,7 @@ final class PublicArtworkController extends Controller
         $query = Artwork::query()
             ->where('artworks.status', 'listed')
             ->select('artworks.*')
-            ->with(['artist:id,name']);
+            ->with(['artist:id,name', 'artist.artistProfile:user_id,slug']);
 
         // Full-text search: MATCH AGAINST in production (uses migration-077 FULLTEXT index).
         // Falls back to LIKE in testing — RefreshDatabase recreates the schema but
@@ -119,7 +120,7 @@ final class PublicArtworkController extends Controller
             ->paginate(self::PAGE_SIZE, ['artworks.*'], 'page', $validated['page'] ?? 1);
 
         return response()->json([
-            'data'  => $results->items(),
+            'data'  => array_map(fn ($a) => ArtworkData::fromArtwork($a), $results->items()),
             'meta'  => [
                 'total'        => $results->total(),
                 'per_page'     => $results->perPage(),
@@ -133,23 +134,34 @@ final class PublicArtworkController extends Controller
      * GET /api/v1/artworks/{artwork}
      *
      * Public detail view. Only 'listed' artworks.
+     * Supports conditional GET via ETag (artwork updated_at + id).
      */
-    public function show(Artwork $artwork): JsonResponse
+    public function show(Request $request, Artwork $artwork): JsonResponse
     {
         if ($artwork->status !== 'listed') {
             abort(404);
         }
 
+        // ETag based on the artwork's last modification time.
+        // Safe to cache publicly — only 'listed' artworks are served here.
+        $etag = '"' . md5($artwork->id . '|' . $artwork->updated_at?->timestamp) . '"';
+
+        if ($request->header('If-None-Match') === $etag) {
+            return response()->json(null, 304);
+        }
+
         $artwork->load([
             'artist:id,name',
+            'artist.artistProfile:user_id,slug',
             'sdgClaims:artwork_id,sdg_number,status',
         ]);
 
         $schemaOrg = (new SchemaOrgArtwork())->build($artwork);
 
         return response()->json([
-            'data'      => $artwork,
+            'data'       => ArtworkData::fromArtwork($artwork),
             'schema_org' => $schemaOrg,
-        ]);
+        ])->header('ETag', $etag)
+          ->header('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
     }
 }
