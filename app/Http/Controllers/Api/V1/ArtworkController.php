@@ -265,7 +265,7 @@ final class ArtworkController extends Controller
             abort(422, "Artwork {$artwork->id} has no confirmed primary image.");
         }
 
-        \App\Jobs\GenerateArtworkDerivativesJob::dispatch($artwork->id)->onQueue('low');
+        \App\Jobs\GenerateArtworkDerivativesJob::dispatch($artwork->id, $artwork->primary_image_key)->onQueue('low');
 
         return response()->json(['status' => 'processing'], 202);
     }

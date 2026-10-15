@@ -203,4 +203,79 @@ class DispatchStripeTransferTest extends TestCase
         $job->handle($stripe);
         $this->assertTrue(true);
     }
+
+    // ── Abandoned lease reclaim ───────────────────────────────────
+
+    public function test_stale_processing_row_is_reclaimed_and_dispatched(): void
+    {
+        // Simulate: worker was SIGKILL'd after claiming (status=processing) but
+        // before completing the Stripe call. The lease expired 10 minutes ago.
+        $sid = $this->insertSettlement('pi_stale1');
+        $lid = $this->insertLine($sid);
+        $oid = $this->insertOutbox($lid, 'idem_stale1');
+
+        DB::table('transfer_outbox')->where('id', $oid)->update([
+            'status'                => 'processing',
+            'processing_started_at' => now()->subMinutes(10),
+        ]);
+        // Matching settlement_line already in 'processing' from the original lease
+        DB::table('settlement_lines')->where('id', $lid)->update(['status' => 'processing']);
+
+        $stripe = $this->makeStripeSuccess('tr_reclaim1');
+
+        (new DispatchStripeTransfer($oid))->handle($stripe);
+
+        $row = DB::table('transfer_outbox')->find($oid);
+        $this->assertSame('dispatched', $row->status,
+            'Stale processing row must be reclaimed and dispatched.');
+        $this->assertSame('tr_reclaim1', $row->stripe_transfer_id);
+    }
+
+    public function test_active_processing_lease_is_not_reclaimed(): void
+    {
+        // Lease is only 1 minute old — another worker holds it; must not claim.
+        $sid = $this->insertSettlement('pi_active1');
+        $lid = $this->insertLine($sid);
+        $oid = $this->insertOutbox($lid, 'idem_active1');
+
+        DB::table('transfer_outbox')->where('id', $oid)->update([
+            'status'                => 'processing',
+            'processing_started_at' => now()->subMinutes(1),
+        ]);
+
+        $transfers = $this->createMock(\Stripe\Service\TransferService::class);
+        $transfers->expects($this->never())->method('create');
+        $stripe = $this->createMock(StripeClient::class);
+        $stripe->method('__get')->with('transfers')->willReturn($transfers);
+
+        (new DispatchStripeTransfer($oid))->handle($stripe);
+
+        $this->assertSame('processing', DB::table('transfer_outbox')->find($oid)->status,
+            'Active lease must not be stolen by a concurrent worker.');
+    }
+
+    public function test_stale_lease_reclaim_succeeds_after_stripe_error(): void
+    {
+        // Stale processing row reclaimed, but Stripe then fails → reset to pending with backoff.
+        Queue::fake();
+
+        $sid = $this->insertSettlement('pi_stale2');
+        $lid = $this->insertLine($sid);
+        $oid = $this->insertOutbox($lid, 'idem_stale2');
+
+        DB::table('transfer_outbox')->where('id', $oid)->update([
+            'status'                => 'processing',
+            'processing_started_at' => now()->subMinutes(10),
+            'attempt'               => 0,
+        ]);
+
+        $stripe = $this->makeStripeFailure(new \Stripe\Exception\ApiConnectionException('Network error'));
+
+        (new DispatchStripeTransfer($oid))->handle($stripe);
+
+        $row = DB::table('transfer_outbox')->find($oid);
+        $this->assertSame('pending', $row->status);
+        $this->assertSame(1, (int) $row->attempt);
+        Queue::assertPushed(DispatchStripeTransfer::class);
+    }
 }
