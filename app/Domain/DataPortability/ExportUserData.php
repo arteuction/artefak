@@ -74,7 +74,7 @@ final class ExportUserData
     {
         return DB::table('bids')
             ->where('user_id', $user->id)
-            ->get(['id', 'auction_item_id', 'amount_cents', 'currency', 'status', 'created_at'])
+            ->get(['id', 'auction_item_id', 'amount_cents', 'status', 'created_at'])
             ->map(fn ($row) => (array) $row)
             ->all();
     }
