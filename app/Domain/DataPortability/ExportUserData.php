@@ -74,7 +74,7 @@ final class ExportUserData
     {
         return DB::table('bids')
             ->where('user_id', $user->id)
-            ->get(['id', 'auction_item_id', 'amount_cents', 'currency', 'status', 'created_at'])
+            ->get(['id', 'auction_item_id', 'amount_cents', 'status', 'created_at'])
             ->map(fn ($row) => (array) $row)
             ->all();
     }
@@ -83,7 +83,7 @@ final class ExportUserData
     {
         return DB::table('donations')
             ->where('donor_id', $user->id)
-            ->get(['id', 'amount_cents', 'currency', 'status', 'created_at'])
+            ->get(['id', 'donated_cents', 'currency', 'status', 'created_at'])
             ->map(fn ($row) => (array) $row)
             ->all();
     }
@@ -144,9 +144,9 @@ final class ExportUserData
 
     private function watchlist(User $user): array
     {
-        return DB::table('watchlist_items')
+        return DB::table('watchlist')
             ->where('user_id', $user->id)
-            ->get(['id', 'art_lot_id', 'created_at'])
+            ->get(['id', 'subject_type', 'subject_id', 'created_at'])
             ->map(fn ($row) => (array) $row)
             ->all();
     }
