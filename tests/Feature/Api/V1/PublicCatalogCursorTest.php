@@ -94,11 +94,17 @@ final class PublicCatalogCursorTest extends TestCase
         $expectedOrder = array_reverse($expectedTitles);
 
         $collectedTitles = [];
-        $cursor = null;
+        // Sentinel cursor pointing past all items (far-future created_at, max id)
+        // so that cursor mode is active from the very first request and the
+        // controller's keyset condition (created_at < pivot) matches all 25 rows.
+        $cursor = rtrim(
+            strtr(base64_encode(json_encode(['c' => now()->addYear()->toISOString(), 'i' => PHP_INT_MAX])), '+/', '-_'),
+            '='
+        );
         $pages  = 0;
 
         do {
-            $url      = '/api/v1/search/artworks' . ($cursor ? "?cursor={$cursor}" : '');
+            $url      = '/api/v1/search/artworks?cursor=' . $cursor;
             $response = $this->getJson($url)->assertOk()->json();
 
             foreach ($response['data'] as $item) {
