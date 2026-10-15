@@ -469,3 +469,100 @@ describe('AuctionRoomPage — non-live auction', () => {
         expect(screen.queryByText('LIVE')).not.toBeInTheDocument();
     });
 });
+
+// ── 8. Auction item status variants ──────────────────────────────────────────
+
+describe('AuctionRoomPage — item status variants', () => {
+    it('shows reserve_not_met status badge and hides BidControl for that lot', async () => {
+        const { publicChannel } = await renderAndConnect();
+        const controlsBefore = screen.getAllByTestId('bid-submit').length;
+
+        act(() => publicChannel.emit('.auction-item.status-changed', {
+            auctionItemId: 101,
+            newStatus: 'reserve_not_met',
+            hammerPriceCents: null,
+            currency: 'EUR',
+        }));
+
+        await waitFor(() => expect(screen.getByText('reserve_not_met')).toBeInTheDocument());
+        // BidControl removed for the lot whose status changed
+        expect(screen.getAllByTestId('bid-submit').length).toBeLessThan(controlsBefore);
+    });
+
+    it('preserves BidControl on unaffected lot when a different lot closes', async () => {
+        const { publicChannel } = await renderAndConnect();
+
+        // Close lot 101 only
+        act(() => publicChannel.emit('.auction-item.status-changed', {
+            auctionItemId: 101,
+            newStatus: 'sold',
+            hammerPriceCents: 6_500,
+            currency: 'EUR',
+        }));
+
+        await waitFor(() => expect(screen.getByText('sold')).toBeInTheDocument());
+        // Lot 102 BidControl must still be present
+        expect(screen.getAllByTestId('bid-submit').length).toBeGreaterThanOrEqual(1);
+    });
+});
+
+// ── 9. Double-submit prevention ───────────────────────────────────────────────
+
+describe('AuctionRoomPage — double-submit prevention', () => {
+    it('disables bid submit button while mutation is in-flight', async () => {
+        // Hold the POST promise open so the mutation stays pending
+        mockPost.mockReturnValue(new Promise(() => {}));
+        await renderAndConnect();
+
+        const inputs = screen.getAllByTestId('bid-input');
+        fireEvent.change(inputs[0], { target: { value: '60.00' } });
+        fireEvent.click(screen.getAllByTestId('bid-submit')[0]);
+
+        // While pending the submit button must be disabled to prevent double-submit
+        await waitFor(() => {
+            expect(screen.getAllByTestId('bid-submit')[0]).toBeDisabled();
+        });
+    });
+});
+
+// ── 10. WebSocket reconnect ───────────────────────────────────────────────────
+
+describe('AuctionRoomPage — WebSocket reconnect', () => {
+    it('resubscribes after a 3-second error recovery and becomes Connected again', async () => {
+        vi.useFakeTimers();
+        const { publicChannel } = await renderAndConnect();
+
+        // Trigger channel error → "Reconnecting…"
+        await act(async () => { publicChannel.triggerError(); });
+        expect(screen.getByText('Reconnecting…')).toBeInTheDocument();
+
+        // Fast-forward past the 3s timeout — component calls echo.channel again
+        await act(async () => { vi.advanceTimersByTime(3_100); });
+
+        // New channel was created; trigger its subscribed callback
+        await act(async () => { channels['auction.7']?.triggerSubscribed(); });
+
+        await waitFor(() => expect(screen.getByText('Connected')).toBeInTheDocument());
+    });
+
+    it('can receive realtime events after reconnect', async () => {
+        vi.useFakeTimers();
+        const { publicChannel } = await renderAndConnect();
+
+        await act(async () => { publicChannel.triggerError(); });
+        await act(async () => { vi.advanceTimersByTime(3_100); });
+        await act(async () => { channels['auction.7']?.triggerSubscribed(); });
+
+        // Emit a bid event on the new channel after reconnect
+        act(() => channels['auction.7']!.emit('.bid.placed', {
+            bidId: 2001,
+            auctionItemId: 101,
+            amountCents: 9_000,
+            currency: 'EUR',
+            nextBidCents: 9_500,
+            bidderId: 77,
+        }));
+
+        await waitFor(() => expect(screen.getAllByText('€90.00').length).toBeGreaterThanOrEqual(1));
+    });
+});
