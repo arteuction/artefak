@@ -11,6 +11,7 @@ export default function Spinner({ size = 'md', className = '' }: Props) {
             className={['animate-spin text-[var(--color-text-faint)]', sizeClasses[size], className].join(' ')}
             viewBox="0 0 24 24"
             fill="none"
+            role="status"
             aria-label="Loading"
         >
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />

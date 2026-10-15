@@ -86,7 +86,16 @@ export default function AuctionRoomPage() {
                     channelRef.current = retry;
                     retry
                         .subscribed(() => setConnStatus('connected'))
-                        .error(() => setConnStatus('disconnected'));
+                        .error(() => setConnStatus('disconnected'))
+                        .listen('.bid.placed', (e: BidEvent) => {
+                            setLiveBids((prev) => ({ ...prev, [e.auctionItemId]: e }));
+                            setRecentBids((prev) => [e, ...prev].slice(0, 20));
+                            void queryClient.invalidateQueries({ queryKey: ['auction', id] });
+                        })
+                        .listen('.auction-item.status-changed', (e: ItemStatusEvent) => {
+                            setClosedLots((prev) => ({ ...prev, [e.auctionItemId]: e }));
+                            void queryClient.invalidateQueries({ queryKey: ['auction', id] });
+                        });
                 }, 3_000);
             })
             .listen('.bid.placed', (e: BidEvent) => {

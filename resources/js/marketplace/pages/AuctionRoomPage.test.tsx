@@ -529,8 +529,8 @@ describe('AuctionRoomPage — double-submit prevention', () => {
 
 describe('AuctionRoomPage — WebSocket reconnect', () => {
     it('resubscribes after a 3-second error recovery and becomes Connected again', async () => {
-        vi.useFakeTimers();
         const { publicChannel } = await renderAndConnect();
+        vi.useFakeTimers();
 
         // Trigger channel error → "Reconnecting…"
         await act(async () => { publicChannel.triggerError(); });
@@ -538,6 +538,7 @@ describe('AuctionRoomPage — WebSocket reconnect', () => {
 
         // Fast-forward past the 3s timeout — component calls echo.channel again
         await act(async () => { vi.advanceTimersByTime(3_100); });
+        vi.useRealTimers();
 
         // New channel was created; trigger its subscribed callback
         await act(async () => { channels['auction.7']?.triggerSubscribed(); });
@@ -546,22 +547,29 @@ describe('AuctionRoomPage — WebSocket reconnect', () => {
     });
 
     it('can receive realtime events after reconnect', async () => {
-        vi.useFakeTimers();
         const { publicChannel } = await renderAndConnect();
+        vi.useFakeTimers();
 
         await act(async () => { publicChannel.triggerError(); });
         await act(async () => { vi.advanceTimersByTime(3_100); });
+        vi.useRealTimers();
+
+        // Wait for component to subscribe on new channel before triggering subscribed
+        await waitFor(() => expect(channels['auction.7']).toBeDefined());
         await act(async () => { channels['auction.7']?.triggerSubscribed(); });
+        await waitFor(() => expect(screen.getByText('Connected')).toBeInTheDocument());
 
         // Emit a bid event on the new channel after reconnect
-        act(() => channels['auction.7']!.emit('.bid.placed', {
-            bidId: 2001,
-            auctionItemId: 101,
-            amountCents: 9_000,
-            currency: 'EUR',
-            nextBidCents: 9_500,
-            bidderId: 77,
-        }));
+        await act(async () => {
+            channels['auction.7']!.emit('.bid.placed', {
+                bidId: 2001,
+                auctionItemId: 101,
+                amountCents: 9_000,
+                currency: 'EUR',
+                nextBidCents: 9_500,
+                bidderId: 77,
+            });
+        });
 
         await waitFor(() => expect(screen.getAllByText('€90.00').length).toBeGreaterThanOrEqual(1));
     });

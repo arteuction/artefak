@@ -62,7 +62,7 @@ function makeArtwork(overrides: Partial<{
         title: overrides.title ?? 'Изгрев над София',
         slug: overrides.slug ?? 'izgrev-nad-sofiya',
         status: overrides.status ?? 'draft',
-        medium: overrides.medium ?? 'painting',
+        medium: Object.prototype.hasOwnProperty.call(overrides, 'medium') ? (overrides.medium as string | null) : 'painting',
         year_created: overrides.year_created ?? 2024,
         is_original: true,
     };
@@ -230,7 +230,7 @@ describe('DashboardPage — status count summary', () => {
             makeArtwork({ id: 3, status: 'listed' }),
         ]));
         render(<Wrapper><DashboardPage /></Wrapper>);
-        await waitFor(() => screen.getByText('Изгрев над София'));
+        await waitFor(() => screen.getAllByText('Изгрев над София'));
         // Each Badge in summary + row; at minimum the count "2" should appear
         const counts = screen.getAllByText('2');
         expect(counts.length).toBeGreaterThanOrEqual(1);
