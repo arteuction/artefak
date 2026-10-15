@@ -197,4 +197,43 @@ class DispatchStripeReversalTest extends TestCase
         (new DispatchStripeReversal($f['orderId']))->handle($stripe);
         $this->assertTrue(true);
     }
+
+    // ── Abandoned lease reclaim ───────────────────────────────────
+
+    public function test_stale_processing_order_is_reclaimed_and_reversed(): void
+    {
+        // Worker was SIGKILL'd after step 1 (lease claimed) but before Stripe call.
+        $f = $this->fixtures('tr_stale1');
+        DB::table('transfer_reversal_orders')->where('id', $f['orderId'])->update([
+            'status'                => 'processing',
+            'processing_started_at' => now()->subMinutes(10),
+        ]);
+
+        (new DispatchStripeReversal($f['orderId']))->handle($this->makeStripeSuccess('trr_reclaim1'));
+
+        $o = DB::table('transfer_reversal_orders')->find($f['orderId']);
+        $this->assertSame('reversed', $o->status,
+            'Stale processing lease must be reclaimed and completed.');
+        $this->assertSame('trr_reclaim1', $o->stripe_reversal_id);
+    }
+
+    public function test_active_processing_lease_is_not_stolen(): void
+    {
+        // Lease is 1 minute old — another worker may still be active; must not claim.
+        $f = $this->fixtures('tr_active1');
+        DB::table('transfer_reversal_orders')->where('id', $f['orderId'])->update([
+            'status'                => 'processing',
+            'processing_started_at' => now()->subMinutes(1),
+        ]);
+
+        $transfers = $this->createMock(\Stripe\Service\TransferService::class);
+        $transfers->expects($this->never())->method('createReversal');
+        $stripe = $this->createMock(StripeClient::class);
+        $stripe->method('__get')->with('transfers')->willReturn($transfers);
+
+        (new DispatchStripeReversal($f['orderId']))->handle($stripe);
+
+        $this->assertSame('processing', DB::table('transfer_reversal_orders')->find($f['orderId'])->status,
+            'Active lease must not be stolen by a concurrent worker.');
+    }
 }

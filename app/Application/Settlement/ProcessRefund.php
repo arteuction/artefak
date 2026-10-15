@@ -41,7 +41,7 @@ use Illuminate\Support\Facades\DB;
  *
  * Idempotent on stripe_refund_id (same ID → same result, no new rows).
  */
-final class ProcessRefund
+class ProcessRefund
 {
     /**
      * @param  string $stripeRefundId   Stripe refund.id
