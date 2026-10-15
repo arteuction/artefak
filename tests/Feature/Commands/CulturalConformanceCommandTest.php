@@ -31,11 +31,10 @@ final class CulturalConformanceCommandTest extends TestCase
 
     public function test_json_format_returns_parseable_json(): void
     {
-        $result = $this->artisan('cultural:conformance --format=json');
-        $result->assertExitCode(0);
+        $exitCode = \Illuminate\Support\Facades\Artisan::call('cultural:conformance', ['--format' => 'json']);
+        $this->assertSame(0, $exitCode);
 
-        // Capture output via the underlying Artisan facade
-        $output = \Illuminate\Support\Facades\Artisan::output();
+        $output  = \Illuminate\Support\Facades\Artisan::output();
         $decoded = json_decode($output, true);
 
         $this->assertIsArray($decoded);
@@ -71,7 +70,7 @@ final class CulturalConformanceCommandTest extends TestCase
         $output  = \Illuminate\Support\Facades\Artisan::output();
         $decoded = json_decode($output, true);
 
-        $spdxCheck = collect($decoded['checks'])->firstWhere('check', fn ($v) => str_contains($v, 'SPDX'));
+        $spdxCheck = collect($decoded['checks'])->first(fn ($c) => str_contains($c['check'], 'SPDX'));
         $this->assertNotNull($spdxCheck, 'SPDX check should be present in output');
         $this->assertTrue($spdxCheck['pass'], 'SPDX check should pass on clean database');
     }
