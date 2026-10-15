@@ -126,7 +126,7 @@ final class GoldenPathTest extends TestCase
             'title'      => 'Spring Sale 2025',
             'slug'       => 'spring-sale-2025',
             'status'     => 'published',
-            'currency'   => 'BGN',
+            'currency'   => 'EUR',
             'starts_at'  => now()->subHour(),
             'ends_at'    => now()->addDays(3),
         ]);
