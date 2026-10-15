@@ -67,7 +67,7 @@ final class HandleStripeWebhookTest extends TestCase
 
         // Replace ProcessRefund with a throwing stub
         $throwingRefund = new class extends \App\Application\Settlement\ProcessRefund {
-            public function execute(...$args): void
+            public function execute(...$args): int
             {
                 throw new \RuntimeException('Injected fault for testing');
             }
@@ -120,7 +120,7 @@ final class HandleStripeWebhookTest extends TestCase
 
         // First attempt — throws
         $throwingRefund = new class extends \App\Application\Settlement\ProcessRefund {
-            public function execute(...$args): void
+            public function execute(...$args): int
             {
                 throw new \RuntimeException('Transient fault');
             }
