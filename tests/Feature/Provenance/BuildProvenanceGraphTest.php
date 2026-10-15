@@ -102,7 +102,7 @@ final class BuildProvenanceGraphTest extends TestCase
         $node  = $this->findNode($graph['@graph'], "arto:artwork/{$this->artwork->id}");
 
         $this->assertSame(
-            [['@id' => "arto:artist/{$this->artist->id}"]],
+            ['@id' => "arto:artist/{$this->artist->id}"],
             $node['prov:wasAttributedTo'],
         );
     }
