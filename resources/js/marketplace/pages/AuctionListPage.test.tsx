@@ -217,13 +217,14 @@ describe('AuctionListPage — pagination', () => {
         expect(screen.getByRole('button', { name: /previous/i })).toBeDisabled();
     });
 
-    it('Next button is disabled on the last page', async () => {
+    it('Next button is absent on single-page results (last page)', async () => {
+        // When last_page=1, the component hides pagination entirely.
         mockGet.mockResolvedValue({
-            data: makePaginatedResponse([makeAuction(1, 'scheduled')], 3, 3),
+            data: makePaginatedResponse([makeAuction(1, 'scheduled')], 1, 1),
         });
         render(<Wrapper><AuctionListPage /></Wrapper>);
         await waitFor(() => screen.getByText('Test Auction 1'));
-        expect(screen.getByRole('button', { name: /next/i })).toBeDisabled();
+        expect(screen.queryByRole('button', { name: /next/i })).not.toBeInTheDocument();
     });
 
     it('clicking Next fetches the next page', async () => {

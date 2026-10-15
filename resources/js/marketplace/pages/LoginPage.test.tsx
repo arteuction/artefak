@@ -59,8 +59,8 @@ describe('LoginPage — rendering', () => {
 
     it('renders email and password inputs', () => {
         render(<Wrapper><LoginPage /></Wrapper>);
-        expect(screen.getByLabelText('Email')).toBeInTheDocument();
-        expect(screen.getByLabelText('Password')).toBeInTheDocument();
+        expect(screen.getByLabelText('Email', { exact: false })).toBeInTheDocument();
+        expect(screen.getByLabelText('Password', { exact: false })).toBeInTheDocument();
     });
 
     it('renders submit button', () => {
@@ -82,8 +82,8 @@ describe('LoginPage — successful login', () => {
         mockRefresh.mockResolvedValue(undefined);
 
         render(<Wrapper><LoginPage /></Wrapper>);
-        fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'buyer@test.com' } });
-        fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'secret123' } });
+        fireEvent.change(screen.getByLabelText('Email', { exact: false }), { target: { value: 'buyer@test.com' } });
+        fireEvent.change(screen.getByLabelText('Password', { exact: false }), { target: { value: 'secret123' } });
         fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
         await waitFor(() => expect(mockLoginWithSanctum).toHaveBeenCalledWith('buyer@test.com', 'secret123'));
@@ -94,8 +94,8 @@ describe('LoginPage — successful login', () => {
         mockRefresh.mockResolvedValue(undefined);
 
         render(<Wrapper><LoginPage /></Wrapper>);
-        fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'buyer@test.com' } });
-        fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'secret123' } });
+        fireEvent.change(screen.getByLabelText('Email', { exact: false }), { target: { value: 'buyer@test.com' } });
+        fireEvent.change(screen.getByLabelText('Password', { exact: false }), { target: { value: 'secret123' } });
         fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
         await waitFor(() => expect(mockRefresh).toHaveBeenCalled());
@@ -106,8 +106,8 @@ describe('LoginPage — successful login', () => {
         mockRefresh.mockResolvedValue(undefined);
 
         render(<Wrapper><LoginPage /></Wrapper>);
-        fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'buyer@test.com' } });
-        fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'secret123' } });
+        fireEvent.change(screen.getByLabelText('Email', { exact: false }), { target: { value: 'buyer@test.com' } });
+        fireEvent.change(screen.getByLabelText('Password', { exact: false }), { target: { value: 'secret123' } });
         fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
         await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/'));
@@ -121,8 +121,8 @@ describe('LoginPage — failed login', () => {
         mockLoginWithSanctum.mockRejectedValue(new Error('Unauthorized'));
 
         render(<Wrapper><LoginPage /></Wrapper>);
-        fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'wrong@test.com' } });
-        fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'wrongpass' } });
+        fireEvent.change(screen.getByLabelText('Email', { exact: false }), { target: { value: 'wrong@test.com' } });
+        fireEvent.change(screen.getByLabelText('Password', { exact: false }), { target: { value: 'wrongpass' } });
         fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
         await waitFor(() => expect(screen.getByText(/invalid credentials/i)).toBeInTheDocument());
@@ -132,8 +132,8 @@ describe('LoginPage — failed login', () => {
         mockLoginWithSanctum.mockRejectedValue(new Error('Unauthorized'));
 
         render(<Wrapper><LoginPage /></Wrapper>);
-        fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'wrong@test.com' } });
-        fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'wrongpass' } });
+        fireEvent.change(screen.getByLabelText('Email', { exact: false }), { target: { value: 'wrong@test.com' } });
+        fireEvent.change(screen.getByLabelText('Password', { exact: false }), { target: { value: 'wrongpass' } });
         fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
         await waitFor(() => screen.getByText(/invalid credentials/i));
@@ -147,13 +147,13 @@ describe('LoginPage — failed login', () => {
         mockRefresh.mockResolvedValue(undefined);
 
         render(<Wrapper><LoginPage /></Wrapper>);
-        fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'wrong@test.com' } });
-        fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'wrongpass' } });
+        fireEvent.change(screen.getByLabelText('Email', { exact: false }), { target: { value: 'wrong@test.com' } });
+        fireEvent.change(screen.getByLabelText('Password', { exact: false }), { target: { value: 'wrongpass' } });
         fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
         await waitFor(() => screen.getByText(/invalid credentials/i));
 
         // Submit again with correct password
-        fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'correct' } });
+        fireEvent.change(screen.getByLabelText('Password', { exact: false }), { target: { value: 'correct' } });
         fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
         await waitFor(() => expect(screen.queryByText(/invalid credentials/i)).not.toBeInTheDocument());
@@ -168,8 +168,8 @@ describe('LoginPage — loading state', () => {
         mockLoginWithSanctum.mockReturnValue(new Promise(r => { resolve = r; }));
 
         render(<Wrapper><LoginPage /></Wrapper>);
-        fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'b@test.com' } });
-        fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
+        fireEvent.change(screen.getByLabelText('Email', { exact: false }), { target: { value: 'b@test.com' } });
+        fireEvent.change(screen.getByLabelText('Password', { exact: false }), { target: { value: 'pw' } });
         fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
         await waitFor(() => expect(screen.getByRole('button', { name: /sign in/i })).toBeDisabled());

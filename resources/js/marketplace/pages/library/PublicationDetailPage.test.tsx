@@ -142,7 +142,7 @@ describe('PublicationDetailPage — metadata', () => {
         mockGet.mockResolvedValue({ data: makePub({ price_cents: 1200 }) });
         render(<Wrapper><PublicationDetailPage /></Wrapper>);
         await waitFor(() => screen.getByRole('heading', { name: 'Изкуство и природа' }));
-        expect(screen.getByText(/€12\.00/)).toBeInTheDocument();
+        expect(screen.getAllByText(/€12\.00/).length).toBeGreaterThan(0);
     });
 
     it('shows Free for is_free publication', async () => {

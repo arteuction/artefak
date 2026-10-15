@@ -50,7 +50,7 @@ export default function PublicationDetailPage() {
             }
             setPurchasing(false);
         },
-        onError: () => setPurchasing(false),
+        onError: () => {},
     });
 
     useDocTitle(pub?.title ?? null);
