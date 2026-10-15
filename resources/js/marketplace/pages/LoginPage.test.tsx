@@ -164,7 +164,7 @@ describe('LoginPage — failed login', () => {
 
 describe('LoginPage — loading state', () => {
     it('submit button is disabled while login is in-flight', async () => {
-        let resolve!: () => void;
+        let resolve!: (value?: unknown) => void;
         mockLoginWithSanctum.mockReturnValue(new Promise(r => { resolve = r; }));
 
         render(<Wrapper><LoginPage /></Wrapper>);
