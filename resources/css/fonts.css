@@ -1,0 +1,28 @@
+/*
+ * Self-hosted via Fontsource (SIL Open Font License 1.1).
+ * Cyrillic subsets included for Bulgarian content.
+ * Latin + Cyrillic weights: 300 (Light), 400 (Regular), 600 (SemiBold).
+ * Italic variants included for editorial emphasis.
+ */
+
+/* ── Cormorant Garamond: Latin ──────────────────────────────────────────── */
+@import '@fontsource/cormorant-garamond/latin-300.css';
+@import '@fontsource/cormorant-garamond/latin-300-italic.css';
+@import '@fontsource/cormorant-garamond/latin-400.css';
+@import '@fontsource/cormorant-garamond/latin-400-italic.css';
+@import '@fontsource/cormorant-garamond/latin-600.css';
+@import '@fontsource/cormorant-garamond/latin-600-italic.css';
+
+/* ── Cormorant Garamond: Cyrillic (Bulgarian artist names, titles) ──────── */
+@import '@fontsource/cormorant-garamond/cyrillic-300.css';
+@import '@fontsource/cormorant-garamond/cyrillic-300-italic.css';
+@import '@fontsource/cormorant-garamond/cyrillic-400.css';
+@import '@fontsource/cormorant-garamond/cyrillic-400-italic.css';
+@import '@fontsource/cormorant-garamond/cyrillic-600.css';
+@import '@fontsource/cormorant-garamond/cyrillic-600-italic.css';
+
+/*
+ * Inter is loaded via the system font stack in most environments.
+ * Add an explicit @fontsource/inter import here only if system Inter
+ * diverges noticeably from the design intent.
+ */
