@@ -8,7 +8,7 @@ type AuthContextValue = {
     refresh: () => Promise<void>;
 };
 
-const AuthContext = createContext<AuthContextValue>({
+export const AuthContext = createContext<AuthContextValue>({
     user: null,
     loading: true,
     refresh: async () => {},
