@@ -78,7 +78,7 @@ final class Phase46ApiTest extends TestCase
             'title'    => 'Old Title',
             'slug'     => 'old-' . uniqid(),
             'status'   => 'draft',
-            'currency' => 'BGN',
+            'currency' => 'EUR',
             'starts_at'=> now()->addDays(10),
             'ends_at'  => now()->addDays(11),
         ]);
@@ -100,7 +100,7 @@ final class Phase46ApiTest extends TestCase
             'title'    => 'Live Auction',
             'slug'     => 'live-' . uniqid(),
             'status'   => 'live',
-            'currency' => 'BGN',
+            'currency' => 'EUR',
             'starts_at'=> now()->subHour(),
             'ends_at'  => now()->addHour(),
         ]);
@@ -119,7 +119,7 @@ final class Phase46ApiTest extends TestCase
         $artLot  = $this->makeArtLot($artist, 'draft');
         $auction = Auction::create([
             'title' => 'Auction A', 'slug' => 'auction-' . uniqid(),
-            'status' => 'draft', 'currency' => 'BGN',
+            'status' => 'draft', 'currency' => 'EUR',
             'starts_at' => now()->addDays(5), 'ends_at' => now()->addDays(6),
         ]);
 
@@ -141,7 +141,7 @@ final class Phase46ApiTest extends TestCase
         $artLot  = $this->makeArtLot($artist, 'draft');
         $auction = Auction::create([
             'title' => 'Auction B', 'slug' => 'auction-b-' . uniqid(),
-            'status' => 'draft', 'currency' => 'BGN',
+            'status' => 'draft', 'currency' => 'EUR',
             'starts_at' => now()->addDays(5), 'ends_at' => now()->addDays(6),
         ]);
 
@@ -166,7 +166,7 @@ final class Phase46ApiTest extends TestCase
         $artLot  = $this->makeArtLot($artist);
         $auction = Auction::create([
             'title' => 'Auction C', 'slug' => 'auction-c-' . uniqid(),
-            'status' => 'draft', 'currency' => 'BGN',
+            'status' => 'draft', 'currency' => 'EUR',
             'starts_at' => now()->addDays(5), 'ends_at' => now()->addDays(6),
         ]);
         $item = AuctionItem::create([

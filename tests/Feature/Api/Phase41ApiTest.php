@@ -26,7 +26,7 @@ final class Phase41ApiTest extends TestCase
             'slug'     => 'book-' . uniqid(),
             'status'   => 'draft',
             'is_free'  => true,
-            'currency' => 'BGN',
+            'currency' => 'EUR',
             'language' => 'bg',
         ]);
         return [$owner, $book];

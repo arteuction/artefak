@@ -31,7 +31,7 @@ final class Phase53ApiTest extends TestCase
             'title'        => 'Test Artwork ' . uniqid(),
             'slug'         => 'artwork-' . uniqid(),
             'status'       => 'listed',
-            'currency'     => 'BGN',
+            'currency'     => 'EUR',
             'year_created' => 2022,
             'medium'       => 'painting',
         ], $overrides));
@@ -45,7 +45,7 @@ final class Phase53ApiTest extends TestCase
             'status'              => 'active',
             'buy_now_price_cents' => $buyNowCents,
             'starting_bid_cents'  => $startingBidCents,
-            'currency'            => 'BGN',
+            'currency'            => 'EUR',
         ]);
     }
 

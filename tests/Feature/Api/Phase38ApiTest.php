@@ -75,7 +75,7 @@ final class Phase38ApiTest extends TestCase
             'artwork_id'   => $artwork->id,
             'consignor_id' => $owner->id,
             'sale_mode'    => 'auction',
-            'currency'     => 'BGN',
+            'currency'     => 'EUR',
             'status'       => 'draft',
         ]);
 
@@ -95,7 +95,7 @@ final class Phase38ApiTest extends TestCase
             'artwork_id'   => $artwork->id,
             'consignor_id' => $owner->id,
             'sale_mode'    => 'auction',
-            'currency'     => 'BGN',
+            'currency'     => 'EUR',
             'status'       => 'submitted',
         ]);
 
@@ -112,7 +112,7 @@ final class Phase38ApiTest extends TestCase
             'artwork_id'   => $artwork->id,
             'consignor_id' => $owner->id,
             'sale_mode'    => 'auction',
-            'currency'     => 'BGN',
+            'currency'     => 'EUR',
             'status'       => 'draft',
         ]);
 

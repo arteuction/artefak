@@ -40,7 +40,7 @@ final class Phase51ApiTest extends TestCase
         $notif   = new PaymentConfirmedNotification(
             subject: 'Test Purchase',
             amountCents: 5000,
-            currency: 'BGN',
+            currency: 'EUR',
             reference: 'pi_test123',
         );
 
@@ -61,7 +61,7 @@ final class Phase51ApiTest extends TestCase
         $user    = User::factory()->create();
         $service = app(NotificationService::class);
         $key     = 'payment_confirmed.pi_test456.' . $user->id;
-        $notif   = new PaymentConfirmedNotification('Test', 5000, 'BGN', 'pi_test456');
+        $notif   = new PaymentConfirmedNotification('Test', 5000, 'EUR', 'pi_test456');
 
         $service->sendOnce($user, $notif, $key);
         $result2 = $service->sendOnce($user, $notif, $key);
@@ -81,7 +81,7 @@ final class Phase51ApiTest extends TestCase
             'title'         => 'Test Artwork',
             'slug'          => 'test-artwork-' . uniqid(),
             'status'        => 'listed',
-            'currency'      => 'BGN',
+            'currency'      => 'EUR',
             'year_created'  => 2020,
             'medium'        => 'painting',
         ]);
@@ -90,13 +90,13 @@ final class Phase51ApiTest extends TestCase
             'sale_mode'          => 'auction',
             'status'             => 'active',
             'starting_bid_cents' => 10000,
-            'currency'           => 'BGN',
+            'currency'           => 'EUR',
         ]);
         $auction = \App\Models\Auction::create([
             'title'    => 'Test Auction',
             'slug'     => 'test-auction-' . uniqid(),
             'status'   => 'live',
-            'currency' => 'BGN',
+            'currency' => 'EUR',
             'starts_at' => now()->subHour(),
             'ends_at'   => now()->addHour(),
         ]);
@@ -114,7 +114,7 @@ final class Phase51ApiTest extends TestCase
         $user = User::factory()->create(['name' => 'Art Buyer']);
         $item = $this->makeAuctionItem();
 
-        $notif   = new AuctionWonNotification($item, 15000, 'BGN');
+        $notif   = new AuctionWonNotification($item, 15000, 'EUR');
         $message = $notif->toMail($user);
 
         $this->assertInstanceOf(MailMessage::class, $message);
@@ -127,7 +127,7 @@ final class Phase51ApiTest extends TestCase
         $user = User::factory()->create(['name' => 'Winner']);
         $item = $this->makeAuctionItem();
 
-        $notif   = new WinnerPaymentRequiredNotification($item, 15000, 'BGN', now()->addDays(3));
+        $notif   = new WinnerPaymentRequiredNotification($item, 15000, 'EUR', now()->addDays(3));
         $message = $notif->toMail($user);
 
         $this->assertStringContainsString('Payment required', $message->subject);
@@ -138,7 +138,7 @@ final class Phase51ApiTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $notif   = new PaymentConfirmedNotification('Test Book', 2500, 'BGN', 'pi_abc');
+        $notif   = new PaymentConfirmedNotification('Test Book', 2500, 'EUR', 'pi_abc');
         $message = $notif->toMail($user);
 
         $this->assertStringContainsString('Payment confirmed', $message->subject);
@@ -178,7 +178,7 @@ final class Phase51ApiTest extends TestCase
             'donor_id'              => $user->id,
             'donation_recipient_id' => $recipientId,
             'donated_cents'         => 10000,
-            'currency'              => 'BGN',
+            'currency'              => 'EUR',
             'eligibility_basis'     => 'ZKPO_ART31_1',
             'deduction_bps'         => 1000,
             'max_deductible_cents'  => 1000,

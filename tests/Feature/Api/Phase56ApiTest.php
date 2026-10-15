@@ -42,7 +42,7 @@ final class Phase56ApiTest extends TestCase
             'title'        => 'Painting ' . uniqid(),
             'slug'         => 'painting-' . uniqid(),
             'status'       => 'listed',
-            'currency'     => 'BGN',
+            'currency'     => 'EUR',
             'year_created' => 2023,
             'medium'       => 'painting',
         ]);
@@ -103,7 +103,7 @@ final class Phase56ApiTest extends TestCase
             'title'        => 'Draft Painting',
             'slug'         => 'draft-painting-' . uniqid(),
             'status'       => 'draft',
-            'currency'     => 'BGN',
+            'currency'     => 'EUR',
             'year_created' => 2023,
             'medium'       => 'painting',
         ]);

@@ -28,7 +28,7 @@ final class Phase64ApiTest extends TestCase
             'slug'     => 'test-book-' . uniqid(),
             'status'   => 'draft',
             'is_free'  => false,
-            'currency' => 'BGN',
+            'currency' => 'EUR',
         ]);
     }
 

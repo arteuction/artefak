@@ -67,7 +67,7 @@ final class Phase47ApiTest extends TestCase
             'slug'       => 'live-' . uniqid(),
             'ruleset_id' => $ruleset->id,
             'status'     => 'live',
-            'currency'   => 'BGN',
+            'currency'   => 'EUR',
             'starts_at'  => now()->subHour(),
             'ends_at'    => now()->addHour(),
         ]);
@@ -95,7 +95,7 @@ final class Phase47ApiTest extends TestCase
             'stripe_account_id'       => 'acct_' . uniqid(),
             'stripe_idempotency_key'  => 'ik_' . uniqid(),
             'amount_cents'            => 5000,
-            'currency'                => 'BGN',
+            'currency'                => 'EUR',
             'status'                  => 'pending',
             'attempt'                 => 0,
             'created_at'              => now(),
@@ -108,7 +108,7 @@ final class Phase47ApiTest extends TestCase
         $settlementId = DB::table('settlements')->insertGetId([
             'stripe_payment_intent_id' => 'pi_' . uniqid(),
             'stripe_event_id'          => 'evt_' . uniqid(),
-            'gross_cents' => 10000, 'currency' => 'BGN',
+            'gross_cents' => 10000, 'currency' => 'EUR',
             'profile_key' => 'default', 'profile_version' => 1,
             'artist_bps' => 7500, 'fund_bps' => 1000, 'ops_bps' => 1500,
             'artist_cents' => 7500, 'fund_cents' => 1000, 'ops_cents' => 1500,
@@ -116,7 +116,7 @@ final class Phase47ApiTest extends TestCase
         ]);
         return DB::table('settlement_lines')->insertGetId([
             'settlement_id' => $settlementId, 'recipient_type' => 'artist',
-            'amount_cents' => 7500, 'currency' => 'BGN', 'status' => 'pending',
+            'amount_cents' => 7500, 'currency' => 'EUR', 'status' => 'pending',
             'created_at' => now(), 'updated_at' => now(),
         ]);
     }

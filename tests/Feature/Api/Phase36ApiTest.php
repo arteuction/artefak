@@ -32,7 +32,7 @@ final class Phase36ApiTest extends TestCase
             'status'      => $status,
             'is_free'     => false,
             'price_cents' => 1500,
-            'currency'    => 'BGN',
+            'currency'    => 'EUR',
             'language'    => 'bg',
         ]);
     }

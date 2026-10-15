@@ -22,7 +22,7 @@ final class Phase39ApiTest extends TestCase
             'stripe_payment_intent_id' => 'pi_test_' . uniqid(),
             'stripe_event_id'          => 'evt_' . uniqid(),
             'gross_cents'              => 10000,
-            'currency'                 => 'BGN',
+            'currency'                 => 'EUR',
             'profile_key'              => 'default',
             'profile_version'          => 1,
             'artist_bps'               => 7500,

@@ -68,7 +68,7 @@ final class Phase44ApiTest extends TestCase
             'stripe_payment_intent_id' => 'pi_' . uniqid(),
             'stripe_event_id'          => 'evt_' . uniqid(),
             'gross_cents'              => 10000,
-            'currency'                 => 'BGN',
+            'currency'                 => 'EUR',
             'profile_key'              => 'default',
             'profile_version'          => 1,
             'artist_bps'               => 7500,
@@ -86,7 +86,7 @@ final class Phase44ApiTest extends TestCase
             'settlement_id' => $settlementId,
             'recipient_type'=> 'artist',
             'amount_cents'  => 7500,
-            'currency'      => 'BGN',
+            'currency'      => 'EUR',
             'status'        => 'pending',
             'created_at'    => now(),
             'updated_at'    => now(),
@@ -179,7 +179,7 @@ final class Phase44ApiTest extends TestCase
             'slug'       => 'old-title-' . time(),
             'status'     => 'draft',
             'is_free'    => false,
-            'currency'   => 'BGN',
+            'currency'   => 'EUR',
             'price_cents'=> 500,
         ]);
 

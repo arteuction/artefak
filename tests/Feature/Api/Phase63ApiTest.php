@@ -133,7 +133,7 @@ final class Phase63ApiTest extends TestCase
                 'title'     => 'Spring Auction 2026',
                 'starts_at' => now()->addDays(7)->toDateTimeString(),
                 'ends_at'   => now()->addDays(14)->toDateTimeString(),
-                'currency'  => 'BGN',
+                'currency'  => 'EUR',
             ])
             ->assertCreated();
 
@@ -148,7 +148,7 @@ final class Phase63ApiTest extends TestCase
             'title'     => 'Live Auction',
             'slug'      => 'live-auction-' . uniqid(),
             'status'    => 'live',
-            'currency'  => 'BGN',
+            'currency'  => 'EUR',
             'starts_at' => now()->subHour(),
             'ends_at'   => now()->addHour(),
         ]);
@@ -166,7 +166,7 @@ final class Phase63ApiTest extends TestCase
             'title'     => 'Auction With Item',
             'slug'      => 'auction-with-item-' . uniqid(),
             'status'    => 'draft',
-            'currency'  => 'BGN',
+            'currency'  => 'EUR',
             'starts_at' => now()->addDays(5),
             'ends_at'   => now()->addDays(10),
         ]);
@@ -191,7 +191,7 @@ final class Phase63ApiTest extends TestCase
             'title'     => 'Duplicate Test',
             'slug'      => 'dup-test-' . uniqid(),
             'status'    => 'draft',
-            'currency'  => 'BGN',
+            'currency'  => 'EUR',
             'starts_at' => now()->addDays(5),
             'ends_at'   => now()->addDays(10),
         ]);
@@ -220,7 +220,7 @@ final class Phase63ApiTest extends TestCase
             'title'     => 'Publishable Auction',
             'slug'      => 'pub-auction-' . uniqid(),
             'status'    => 'draft',
-            'currency'  => 'BGN',
+            'currency'  => 'EUR',
             'starts_at' => now()->addDays(5),
             'ends_at'   => now()->addDays(10),
         ]);
@@ -245,7 +245,7 @@ final class Phase63ApiTest extends TestCase
             'title'     => 'Empty Auction',
             'slug'      => 'empty-auction-' . uniqid(),
             'status'    => 'draft',
-            'currency'  => 'BGN',
+            'currency'  => 'EUR',
             'starts_at' => now()->addDays(5),
             'ends_at'   => now()->addDays(10),
         ]);
@@ -263,7 +263,7 @@ final class Phase63ApiTest extends TestCase
             'title'     => 'To Open',
             'slug'      => 'to-open-' . uniqid(),
             'status'    => 'published',
-            'currency'  => 'BGN',
+            'currency'  => 'EUR',
             'starts_at' => now()->subMinutes(5),
             'ends_at'   => now()->addHour(),
         ]);

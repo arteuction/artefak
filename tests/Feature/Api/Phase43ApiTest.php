@@ -22,7 +22,7 @@ final class Phase43ApiTest extends TestCase
             'stripe_payment_intent_id' => 'pi_' . uniqid(),
             'stripe_event_id'          => 'evt_' . uniqid(),
             'gross_cents'              => 10000,
-            'currency'                 => 'BGN',
+            'currency'                 => 'EUR',
             'profile_key'              => 'default',
             'profile_version'          => 1,
             'artist_bps'               => 7500,
@@ -37,8 +37,8 @@ final class Phase43ApiTest extends TestCase
         ]);
 
         DB::table('ledger_entries')->insert([
-            ['settlement_id' => $settlementId, 'type' => 'credit', 'amount_cents' => 10000, 'currency' => 'BGN', 'idempotency_key' => 'ik_cr_' . uniqid(), 'created_at' => now(), 'updated_at' => now()],
-            ['settlement_id' => $settlementId, 'type' => 'debit',  'amount_cents' => 2500,  'currency' => 'BGN', 'idempotency_key' => 'ik_db_' . uniqid(), 'created_at' => now(), 'updated_at' => now()],
+            ['settlement_id' => $settlementId, 'type' => 'credit', 'amount_cents' => 10000, 'currency' => 'EUR', 'idempotency_key' => 'ik_cr_' . uniqid(), 'created_at' => now(), 'updated_at' => now()],
+            ['settlement_id' => $settlementId, 'type' => 'debit',  'amount_cents' => 2500,  'currency' => 'EUR', 'idempotency_key' => 'ik_db_' . uniqid(), 'created_at' => now(), 'updated_at' => now()],
         ]);
 
         return $settlementId;
@@ -89,7 +89,7 @@ final class Phase43ApiTest extends TestCase
             'stripe_refund_id'       => 're_' . uniqid(),
             'settlement_id'          => $settlementId,
             'amount_cents'           => 5000,
-            'currency'               => 'BGN',
+            'currency'               => 'EUR',
             'refund_status'          => 'succeeded',
             'reconciliation_status'  => 'completed',
             'created_at'             => now(),
