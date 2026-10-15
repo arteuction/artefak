@@ -10,6 +10,7 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "skipLibCheck": true,
+    "types": ["vitest/globals"],
     "resolveJsonModule": true,
     "allowImportingTsExtensions": true,
     "noEmit": true,

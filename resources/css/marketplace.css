@@ -20,14 +20,17 @@
     --color-border-strong: #BFB8AD;
 
     /* ── Text ───────────────────────────────────────────────────────────── */
-    --color-text:          #1A1A1A;  /* graphite */
-    --color-text-muted:    #6B6560;
-    --color-text-faint:    #9B948D;
+    --color-text:          #1A1A1A;  /* graphite — 16.6:1 on bg */
+    --color-text-muted:    #6B6560;  /* 5.32:1 on bg — passes AA normal */
+    --color-text-faint:    #716A63;  /* 4.52:1 on bg — passes AA normal (was #9B948D = 2.77, failed) */
 
-    /* ── Brand / interactive ────────────────────────────────────────────── */
-    --color-accent:        #C4622D;  /* terracotta */
-    --color-accent-hover:  #A8511F;
-    --color-accent-fg:     #FFFFFF;
+    /* ── Brand (decorative terracotta — do NOT use for text on bg or action buttons) */
+    --color-accent:        #C4622D;  /* terracotta — passes 3:1 on bg (large text only) */
+
+    /* ── Primary actions (white text ≥ 4.5:1 on all surface layers) ────── */
+    --color-action:        #A8511F;  /* 4.61:1 on --color-bg  */
+    --color-action-hover:  #8B401A;
+    --color-action-fg:     #FFFFFF;
 
     /* ── Status ─────────────────────────────────────────────────────────── */
     --color-live:          #B91C1C;

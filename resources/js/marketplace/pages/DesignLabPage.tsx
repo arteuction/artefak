@@ -104,8 +104,8 @@ export default function DesignLabPage() {
                 <SectionTitle>Accent &amp; interactive</SectionTitle>
                 <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
                     <button style={{
-                        background: 'var(--color-accent)',
-                        color: 'var(--color-accent-fg)',
+                        background: 'var(--color-action)',
+                        color: 'var(--color-action-fg)',
                         border: 'none',
                         borderRadius: 'var(--radius-md)',
                         padding: '0.625rem 1.25rem',
@@ -119,8 +119,8 @@ export default function DesignLabPage() {
                     </button>
                     <button style={{
                         background: 'transparent',
-                        color: 'var(--color-accent)',
-                        border: '1px solid var(--color-accent)',
+                        color: 'var(--color-action)',
+                        border: '1px solid var(--color-action)',
                         borderRadius: 'var(--radius-md)',
                         padding: '0.625rem 1.25rem',
                         fontFamily: 'var(--font-ui)',
@@ -177,8 +177,8 @@ export default function DesignLabPage() {
                                 padding: '0.25rem 0.75rem',
                                 borderRadius: 'var(--radius-full)',
                                 border: '1px solid var(--color-border)',
-                                background: i === activeBg ? 'var(--color-accent)' : 'transparent',
-                                color: i === activeBg ? 'var(--color-accent-fg)' : 'var(--color-text-muted)',
+                                background: i === activeBg ? 'var(--color-action)' : 'transparent',
+                                color: i === activeBg ? 'var(--color-action-fg)' : 'var(--color-text-muted)',
                                 cursor: 'pointer',
                             }}
                         >
