@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Asset;
 
 use App\Domain\Asset\GenerateArtworkDerivatives;
+use App\Jobs\GenerateArtworkDerivativesJob;
 use App\Models\Artwork;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -103,15 +104,57 @@ final class ArtworkDerivativesTest extends TestCase
         $this->assertArrayHasKey('medium', $result);
         $this->assertArrayHasKey('large', $result);
 
-        // All derivative keys must be under the derivatives/ subdirectory
+        // Keys must be versioned: derivatives/{sha8}/{size}.webp
+        $expectedVersion = substr(hash('sha256', $key), 0, 8);
         foreach ($result as $name => $derivKey) {
-            $this->assertStringContainsString('derivatives/', $derivKey,
-                "{$name} key must be in derivatives/ directory.");
+            $this->assertStringContainsString("derivatives/{$expectedVersion}/", $derivKey,
+                "{$name} key must contain the versioned derivatives path.");
             $this->assertStringEndsWith('.webp', $derivKey,
                 "{$name} must be a WebP file.");
         }
 
         // Derivatives should be persisted on the model
+        $artwork->refresh();
+        $this->assertNotNull($artwork->image_derivatives);
+        $this->assertArrayHasKey('thumb', $artwork->image_derivatives);
+    }
+
+    public function test_stale_job_is_discarded_when_source_key_changed(): void
+    {
+        Storage::fake('s3');
+
+        $artist  = $this->artist();
+        $artwork = $this->artworkWithConfirmedImage($artist);
+        $oldKey  = $artwork->primary_image_key;
+
+        // Job was dispatched for the old key
+        $job = new GenerateArtworkDerivativesJob($artwork->id, $oldKey);
+
+        // Artwork's source image is replaced before the job runs
+        $newKey = "artworks/{$artist->id}/images/new-uuid.jpg";
+        $artwork->update(['primary_image_key' => $newKey]);
+
+        // Job should exit without generating anything
+        Storage::disk('s3')->put($newKey, $this->validJpeg());
+        $job->handle();
+
+        $artwork->refresh();
+        $this->assertNull($artwork->image_derivatives,
+            'Stale job must not overwrite derivative pointers set by a newer source.');
+    }
+
+    public function test_job_generates_derivatives_when_source_key_matches(): void
+    {
+        Storage::fake('s3');
+
+        $artist  = $this->artist();
+        $artwork = $this->artworkWithConfirmedImage($artist);
+
+        Storage::disk('s3')->put($artwork->primary_image_key, $this->validJpeg());
+
+        $job = new GenerateArtworkDerivativesJob($artwork->id, $artwork->primary_image_key);
+        $job->handle();
+
         $artwork->refresh();
         $this->assertNotNull($artwork->image_derivatives);
         $this->assertArrayHasKey('thumb', $artwork->image_derivatives);
