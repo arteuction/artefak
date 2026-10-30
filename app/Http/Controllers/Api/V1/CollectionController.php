@@ -76,7 +76,7 @@ final class CollectionController extends Controller
             collection: $collection,
             artwork:    $artwork,
             by:         $request->user(),
-            note:       $data['note'] ?? null,
+            note:       $data['note'] ?? '',
         );
 
         return response()->json(['added' => true]);

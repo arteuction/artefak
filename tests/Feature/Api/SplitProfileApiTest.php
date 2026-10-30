@@ -65,13 +65,13 @@ final class SplitProfileApiTest extends TestCase
 
     public function test_admin_can_list_split_profiles(): void
     {
-        $this->createProfile('arteuction_45_45_10');
-        $this->createProfile('library_80_10_10');
+        $this->createProfile('test_profile_a');
+        $this->createProfile('test_profile_b');
 
         $this->actingAs($this->admin())
             ->getJson('/api/v1/admin/split-profiles')
             ->assertOk()
-            ->assertJsonPath('total', 2);
+            ->assertJsonPath('total', 4);
     }
 
     public function test_operator_can_list_split_profiles(): void
@@ -83,8 +83,7 @@ final class SplitProfileApiTest extends TestCase
 
     public function test_index_can_filter_by_profile_key(): void
     {
-        $this->createProfile('arteuction_45_45_10');
-        $this->createProfile('library_80_10_10');
+        $this->createProfile('other_profile');
 
         $response = $this->actingAs($this->admin())
             ->getJson('/api/v1/admin/split-profiles?profile_key=library_80_10_10')

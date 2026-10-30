@@ -35,7 +35,7 @@ final class SettlementApiTest extends TestCase
         $id = DB::table('settlements')->insertGetId([
             'auction_id'   => 1,
             'status'       => $status,
-            'total_cents'  => 100000,
+            'gross_cents'  => 100000,
             'currency'     => 'EUR',
             'created_at'   => now(),
             'updated_at'   => now(),

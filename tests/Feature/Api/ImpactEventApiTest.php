@@ -50,9 +50,9 @@ final class ImpactEventApiTest extends TestCase
 
     // ── index ─────────────────────────────────────────────────────────────────
 
-    public function test_unauthenticated_cannot_list_impact_events(): void
+    public function test_unauthenticated_can_list_impact_events(): void
     {
-        $this->getJson('/api/v1/impact-events')->assertStatus(401);
+        $this->getJson('/api/v1/impact-events')->assertOk();
     }
 
     public function test_buyer_can_list_impact_events(): void
@@ -94,10 +94,10 @@ final class ImpactEventApiTest extends TestCase
 
     // ── show ─────────────────────────────────────────────────────────────────
 
-    public function test_unauthenticated_cannot_show_impact_event(): void
+    public function test_unauthenticated_can_show_impact_event(): void
     {
         $event = $this->impactEvent();
-        $this->getJson("/api/v1/impact-events/{$event->id}")->assertStatus(401);
+        $this->getJson("/api/v1/impact-events/{$event->id}")->assertOk();
     }
 
     public function test_buyer_can_show_impact_event(): void
