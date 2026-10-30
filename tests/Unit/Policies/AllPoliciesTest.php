@@ -86,11 +86,11 @@ final class AllPoliciesTest extends TestCase
     private function offer(User $buyer, ArtLot $lot): SellNowOffer
     {
         return SellNowOffer::create([
-            'art_lot_id'   => $lot->id,
-            'buyer_id'     => $buyer->id,
-            'amount_cents' => 10000,
-            'currency'     => 'EUR',
-            'status'       => 'pending',
+            'art_lot_id'          => $lot->id,
+            'buyer_id'            => $buyer->id,
+            'offered_price_cents' => 10000,
+            'currency'            => 'EUR',
+            'status'              => 'pending',
         ]);
     }
 
