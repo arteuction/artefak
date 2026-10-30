@@ -83,7 +83,7 @@ final class GalleryController extends Controller
             'contact_email' => ['nullable', 'email', 'max:200'],
             'legal_name'    => ['nullable', 'string', 'max:200'],
             'eik'           => ['nullable', 'string', 'max:20'],
-            'status'        => $isAdmin ? ['sometimes', 'in:active,inactive'] : ['prohibited'],
+            'status'        => Gate::check('admin-area') ? ['sometimes', 'in:active,inactive'] : ['prohibited'],
         ]);
 
         $gallery->update($data);

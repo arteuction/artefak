@@ -28,7 +28,7 @@ final class SubmitBookReview
 
         $hasPurchased = $book->entitlements()
             ->where('user_id', $reviewer->id)
-            ->where('status', 'active')
+            ->whereNull('revoked_at')
             ->exists();
 
         if (! $hasPurchased && ! $book->is_free) {
