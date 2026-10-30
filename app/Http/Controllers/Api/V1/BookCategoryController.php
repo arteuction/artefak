@@ -76,6 +76,8 @@ final class BookCategoryController extends Controller
     /** POST /api/v1/admin/book-categories */
     public function store(Request $request): JsonResponse
     {
+        $this->authorize('create', BookCategory::class);
+
         $data = $request->validate([
             'name'        => ['required', 'string', 'max:120'],
             'slug'        => ['nullable', 'string', 'max:120', 'unique:book_categories,slug'],
@@ -95,6 +97,8 @@ final class BookCategoryController extends Controller
     /** PATCH /api/v1/admin/book-categories/{category} */
     public function update(Request $request, BookCategory $category): JsonResponse
     {
+        $this->authorize('update', $category);
+
         $data = $request->validate([
             'name'        => ['sometimes', 'string', 'max:120'],
             'slug'        => ['sometimes', 'string', 'max:120', 'unique:book_categories,slug,' . $category->id],
@@ -112,6 +116,8 @@ final class BookCategoryController extends Controller
     /** DELETE /api/v1/admin/book-categories/{category} — deactivates, does not hard-delete */
     public function destroy(BookCategory $category): JsonResponse
     {
+        $this->authorize('delete', $category);
+
         $category->update(['is_active' => false]);
 
         return response()->json(['deactivated' => true]);

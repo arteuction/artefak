@@ -177,6 +177,26 @@ final class BookReviewApiTest extends TestCase
             ->assertUnauthorized();
     }
 
+    public function test_regular_user_cannot_view_pending_queue(): void
+    {
+        $buyer = User::factory()->create(['role' => 'buyer']);
+
+        $this->actingAs($buyer, 'sanctum')
+            ->getJson("/api/v1/books/{$this->freeBook->id}/reviews/pending")
+            ->assertForbidden();
+    }
+
+    public function test_curator_can_view_pending_queue(): void
+    {
+        $curator = User::factory()->create(['role' => 'curator']);
+        $user    = User::factory()->create(['role' => 'buyer']);
+        BookReview::create(['book_id' => $this->freeBook->id, 'user_id' => $user->id, 'rating' => 4]);
+
+        $this->actingAs($curator, 'sanctum')
+            ->getJson("/api/v1/books/{$this->freeBook->id}/reviews/pending")
+            ->assertOk();
+    }
+
     // ── PATCH /api/v1/books/{book}/reviews/{review}/approve ──────────────────
 
     public function test_admin_can_approve_review(): void
@@ -196,6 +216,50 @@ final class BookReviewApiTest extends TestCase
 
         $this->freeBook->refresh();
         $this->assertSame(5.0, $this->freeBook->avg_rating);
+    }
+
+    public function test_regular_user_cannot_approve_review(): void
+    {
+        $buyer  = User::factory()->create(['role' => 'buyer']);
+        $user   = User::factory()->create(['role' => 'buyer']);
+        $review = BookReview::create([
+            'book_id' => $this->freeBook->id,
+            'user_id' => $user->id,
+            'rating'  => 5,
+        ]);
+
+        $this->actingAs($buyer, 'sanctum')
+            ->patchJson("/api/v1/books/{$this->freeBook->id}/reviews/{$review->id}/approve")
+            ->assertForbidden();
+    }
+
+    public function test_curator_can_approve_review(): void
+    {
+        $curator = User::factory()->create(['role' => 'curator']);
+        $user    = User::factory()->create(['role' => 'buyer']);
+        $review  = BookReview::create([
+            'book_id' => $this->freeBook->id,
+            'user_id' => $user->id,
+            'rating'  => 3,
+        ]);
+
+        $this->actingAs($curator, 'sanctum')
+            ->patchJson("/api/v1/books/{$this->freeBook->id}/reviews/{$review->id}/approve")
+            ->assertOk()
+            ->assertJsonPath('is_approved', true);
+    }
+
+    public function test_guest_cannot_approve_review(): void
+    {
+        $user   = User::factory()->create(['role' => 'buyer']);
+        $review = BookReview::create([
+            'book_id' => $this->freeBook->id,
+            'user_id' => $user->id,
+            'rating'  => 4,
+        ]);
+
+        $this->patchJson("/api/v1/books/{$this->freeBook->id}/reviews/{$review->id}/approve")
+            ->assertUnauthorized();
     }
 
     public function test_approve_404_if_review_belongs_to_different_book(): void
@@ -244,5 +308,54 @@ final class BookReviewApiTest extends TestCase
 
         $this->deleteJson("/api/v1/books/{$this->freeBook->id}/reviews/{$review->id}")
             ->assertUnauthorized();
+    }
+
+    public function test_regular_user_cannot_delete_another_users_review(): void
+    {
+        $owner  = User::factory()->create(['role' => 'buyer']);
+        $other  = User::factory()->create(['role' => 'buyer']);
+        $review = BookReview::create([
+            'book_id' => $this->freeBook->id,
+            'user_id' => $owner->id,
+            'rating'  => 3,
+        ]);
+
+        $this->actingAs($other, 'sanctum')
+            ->deleteJson("/api/v1/books/{$this->freeBook->id}/reviews/{$review->id}")
+            ->assertForbidden();
+    }
+
+    public function test_user_can_delete_own_pending_review(): void
+    {
+        $user   = User::factory()->create(['role' => 'buyer']);
+        $review = BookReview::create([
+            'book_id'     => $this->freeBook->id,
+            'user_id'     => $user->id,
+            'rating'      => 2,
+            'is_approved' => false,
+        ]);
+
+        $this->actingAs($user, 'sanctum')
+            ->deleteJson("/api/v1/books/{$this->freeBook->id}/reviews/{$review->id}")
+            ->assertOk()
+            ->assertJsonPath('rejected', true);
+    }
+
+    public function test_user_cannot_delete_own_approved_review(): void
+    {
+        $user   = User::factory()->create(['role' => 'buyer']);
+        $mod    = User::factory()->create(['role' => 'admin']);
+        $review = BookReview::create([
+            'book_id'     => $this->freeBook->id,
+            'user_id'     => $user->id,
+            'rating'      => 5,
+            'is_approved' => true,
+            'approved_by' => $mod->id,
+            'approved_at' => now(),
+        ]);
+
+        $this->actingAs($user, 'sanctum')
+            ->deleteJson("/api/v1/books/{$this->freeBook->id}/reviews/{$review->id}")
+            ->assertForbidden();
     }
 }

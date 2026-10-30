@@ -9,6 +9,7 @@ use App\Domain\Library\SubmitBookReview;
 use App\Http\Controllers\Controller;
 use App\Models\Book;
 use App\Models\BookReview;
+use App\Policies\BookReviewPolicy;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -72,6 +73,8 @@ final class BookReviewController extends Controller
     /** GET /api/v1/books/{book}/reviews/pending */
     public function pending(Request $request, Book $book): JsonResponse
     {
+        $this->authorize('viewPending', BookReview::class);
+
         $reviews = BookReview::where('book_id', $book->id)
             ->pending()
             ->with('user:id,name')
@@ -84,6 +87,7 @@ final class BookReviewController extends Controller
     /** PATCH /api/v1/books/{book}/reviews/{review}/approve */
     public function approveReview(Request $request, Book $book, BookReview $review): JsonResponse
     {
+        $this->authorize('moderate', BookReview::class);
         abort_if($review->book_id !== $book->id, 404);
 
         $approved = $this->approve->execute($review, $request->user());
@@ -92,8 +96,9 @@ final class BookReviewController extends Controller
     }
 
     /** DELETE /api/v1/books/{book}/reviews/{review} */
-    public function destroy(Book $book, BookReview $review): JsonResponse
+    public function destroy(Request $request, Book $book, BookReview $review): JsonResponse
     {
+        $this->authorize('delete', $review);
         abort_if($review->book_id !== $book->id, 404);
 
         $this->approve->reject($review);

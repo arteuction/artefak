@@ -165,6 +165,33 @@ final class BookCategoryApiTest extends TestCase
         $this->postJson('/api/v1/admin/book-categories', ['name' => 'X'])->assertUnauthorized();
     }
 
+    public function test_regular_user_cannot_create_category(): void
+    {
+        $buyer = User::factory()->create(['role' => 'buyer']);
+
+        $this->actingAs($buyer, 'sanctum')
+            ->postJson('/api/v1/admin/book-categories', ['name' => 'Hijacked'])
+            ->assertForbidden();
+    }
+
+    public function test_artist_cannot_create_category(): void
+    {
+        $artist = User::factory()->create(['role' => 'artist']);
+
+        $this->actingAs($artist, 'sanctum')
+            ->postJson('/api/v1/admin/book-categories', ['name' => 'Art'])
+            ->assertForbidden();
+    }
+
+    public function test_operator_can_create_category(): void
+    {
+        $operator = User::factory()->create(['role' => 'operator']);
+
+        $this->actingAs($operator, 'sanctum')
+            ->postJson('/api/v1/admin/book-categories', ['name' => 'Operator Category'])
+            ->assertCreated();
+    }
+
     // ── PATCH /api/v1/admin/book-categories/{category} ───────────────────────
 
     public function test_admin_can_update_category(): void
@@ -176,6 +203,24 @@ final class BookCategoryApiTest extends TestCase
             ->patchJson("/api/v1/admin/book-categories/{$cat->id}", ['name' => 'New Name'])
             ->assertOk()
             ->assertJsonPath('name', 'New Name');
+    }
+
+    public function test_regular_user_cannot_update_category(): void
+    {
+        $buyer = User::factory()->create(['role' => 'buyer']);
+        $cat   = $this->makeRoot();
+
+        $this->actingAs($buyer, 'sanctum')
+            ->patchJson("/api/v1/admin/book-categories/{$cat->id}", ['name' => 'Hijacked'])
+            ->assertForbidden();
+    }
+
+    public function test_guest_cannot_update_category(): void
+    {
+        $cat = $this->makeRoot();
+
+        $this->patchJson("/api/v1/admin/book-categories/{$cat->id}", ['name' => 'X'])
+            ->assertUnauthorized();
     }
 
     // ── DELETE /api/v1/admin/book-categories/{category} ──────────────────────
@@ -191,5 +236,25 @@ final class BookCategoryApiTest extends TestCase
             ->assertJsonPath('deactivated', true);
 
         $this->assertFalse($cat->fresh()->is_active);
+    }
+
+    public function test_regular_user_cannot_deactivate_category(): void
+    {
+        $buyer = User::factory()->create(['role' => 'buyer']);
+        $cat   = $this->makeRoot();
+
+        $this->actingAs($buyer, 'sanctum')
+            ->deleteJson("/api/v1/admin/book-categories/{$cat->id}")
+            ->assertForbidden();
+
+        $this->assertTrue($cat->fresh()->is_active);
+    }
+
+    public function test_guest_cannot_deactivate_category(): void
+    {
+        $cat = $this->makeRoot();
+
+        $this->deleteJson("/api/v1/admin/book-categories/{$cat->id}")
+            ->assertUnauthorized();
     }
 }
