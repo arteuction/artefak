@@ -46,6 +46,7 @@ final class ArtmetroAdminApiTest extends TestCase
     {
         Schema::disableForeignKeyConstraints();
         $id = DB::table('venues')->insertGetId([
+            'geo_locality_id' => 1,
             'name'       => 'Test Venue ' . uniqid(),
             'slug'       => 'venue-' . uniqid(),
             'is_active'  => true,

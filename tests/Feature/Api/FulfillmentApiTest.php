@@ -41,9 +41,8 @@ final class FulfillmentApiTest extends TestCase
         Schema::disableForeignKeyConstraints();
         $id = DB::table('auction_items')->insertGetId([
             'auction_id'     => 1,
-            'artwork_id'         => 1,
-            'lot_number'         => 1,
-            'starting_bid_cents' => 10000,
+            'art_lot_id'  => 1,
+            'lot_number'  => 1,
             'status'      => 'sold',
             'created_at'  => now(),
             'updated_at'  => now(),

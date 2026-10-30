@@ -35,9 +35,9 @@ final class BuyerDashboardApiTest extends TestCase
         $id = DB::table('auction_items')->insertGetId([
             'auction_id'       => 1,
             'art_lot_id'       => 1,
-            'lot_number'       => random_int(100, 99999),
-            'status'           => $status,
-            'fulfillment_status' => 'pending',
+            'lot_number'         => 1,
+            'status'             => $status,
+            'fulfillment_status' => 'none',
             'created_at'       => now(),
             'updated_at'       => now(),
         ]);
@@ -116,7 +116,7 @@ final class BuyerDashboardApiTest extends TestCase
     {
         $buyer1    = $this->buyer();
         $buyer2    = $this->buyer();
-        $itemId    = $this->auctionItem('closed');
+        $itemId    = $this->auctionItem('sold');
 
         $this->bid($itemId, $buyer1->id, 50000, 'outbid');
         $this->bid($itemId, $buyer2->id, 60000, 'won');
@@ -143,7 +143,7 @@ final class BuyerDashboardApiTest extends TestCase
     public function test_bid_history_on_closed_item_shows_all_bids(): void
     {
         $buyer  = $this->buyer();
-        $itemId = $this->auctionItem('closed');
+        $itemId = $this->auctionItem('sold');
 
         $this->bid($itemId, $buyer->id, 50000, 'outbid');
 
@@ -156,7 +156,7 @@ final class BuyerDashboardApiTest extends TestCase
     public function test_bid_history_does_not_expose_user_id_after_close(): void
     {
         $buyer  = $this->buyer();
-        $itemId = $this->auctionItem('closed');
+        $itemId = $this->auctionItem('sold');
 
         $this->bid($itemId, $buyer->id, 50000, 'outbid');
 

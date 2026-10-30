@@ -56,9 +56,9 @@ final class AdminAuctionApiTest extends TestCase
         $id = DB::table('auction_items')->insertGetId([
             'auction_id'  => $auctionId,
             'art_lot_id'  => 1,
-            'lot_number'  => random_int(100, 99999),
+            'lot_number'  => 1,
             'status'      => $status,
-            'fulfillment_status' => 'pending',
+            'fulfillment_status' => 'none',
             'created_at'  => now(),
             'updated_at'  => now(),
         ]);
