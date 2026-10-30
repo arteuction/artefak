@@ -43,6 +43,8 @@ use App\Http\Controllers\Api\V1\SplitProfileController;
 use App\Http\Controllers\Api\V1\UserAdminController;
 use App\Http\Controllers\Api\V1\AdminAuctionController;
 use App\Http\Controllers\Api\V1\AdminBookController;
+use App\Http\Controllers\Api\V1\BookCategoryController;
+use App\Http\Controllers\Api\V1\BookReviewController;
 use App\Http\Controllers\Api\V1\AdminPayoutController;
 use App\Http\Controllers\Api\V1\AdminConnectedPayoutController;
 use App\Http\Controllers\Api\V1\AdminRulesetController;
@@ -180,6 +182,14 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
     // Library — public catalogue
     Route::get('/books',           [LibraryController::class, 'index'])->name('books.index');
     Route::get('/books/{book}',    [LibraryController::class, 'show'])->name('books.show');
+
+    // Book categories — public tree
+    Route::get('/book-categories',                          [BookCategoryController::class, 'index'])->name('book-categories.index');
+    Route::get('/book-categories/{category}',               [BookCategoryController::class, 'show'])->name('book-categories.show');
+    Route::get('/book-categories/{category}/books',         [BookCategoryController::class, 'books'])->name('book-categories.books');
+
+    // Book reviews — public approved list
+    Route::get('/books/{book}/reviews',                     [BookReviewController::class, 'index'])->name('books.reviews.index');
 
     // Impact events (public read)
     Route::get('/impact-events',                  [ImpactEventController::class, 'index'])->name('impact-events.index');
@@ -431,6 +441,9 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         Route::patch('/admin/split-profiles/{id}/deprecate', [SplitProfileController::class, 'deprecate'])->name('admin.split-profiles.deprecate');
         Route::patch('/books/{book}/unpublish', [LibraryController::class, 'unpublish'])->name('books.unpublish');
 
+        // Book reviews — submit (any authenticated user with entitlement)
+        Route::post('/books/{book}/reviews',                    [BookReviewController::class, 'store'])->name('books.reviews.store');
+
         // Library — authenticated purchase, entitlement, and admin grant
         Route::get('/my-books',                                        [LibraryController::class, 'myBooks'])->name('books.my');
         Route::get('/books/{book}/entitlement',                        [LibraryController::class, 'entitlement'])->name('books.entitlement');
@@ -493,6 +506,16 @@ Route::prefix('v1')->name('v1.')->group(function (): void {
         // Admin book management — create/update (publish via LibraryController)
         Route::post('/admin/books',        [AdminBookController::class, 'store'])->name('admin.books.store');
         Route::patch('/admin/books/{book}', [AdminBookController::class, 'update'])->name('admin.books.update');
+
+        // Book categories — admin write
+        Route::post('/admin/book-categories',                                [BookCategoryController::class, 'store'])->name('admin.book-categories.store');
+        Route::patch('/admin/book-categories/{category}',                    [BookCategoryController::class, 'update'])->name('admin.book-categories.update');
+        Route::delete('/admin/book-categories/{category}',                   [BookCategoryController::class, 'destroy'])->name('admin.book-categories.destroy');
+
+        // Book reviews — moderation (admin/curator)
+        Route::get('/books/{book}/reviews/pending',                          [BookReviewController::class, 'pending'])->name('books.reviews.pending');
+        Route::patch('/books/{book}/reviews/{review}/approve',               [BookReviewController::class, 'approveReview'])->name('books.reviews.approve');
+        Route::delete('/books/{book}/reviews/{review}',                      [BookReviewController::class, 'destroy'])->name('books.reviews.destroy');
 
         // Consignment terminate (cancel by owner/consignor/admin)
         Route::post('/consignments/{consignment}/terminate', [ConsignmentController::class, 'cancel'])->name('consignments.terminate');
