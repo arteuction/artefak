@@ -65,9 +65,6 @@ final class SellNowOfferController extends Controller
     /** POST /api/v1/sell-now-offers/{offer}/counter */
     public function counter(Request $request, SellNowOffer $offer): JsonResponse
     {
-        // Only the consignor (seller) of the lot may counter
-        $lot = $offer->artLot;
-        $userId = $request->user()->id;
         $this->authorize('counter', $offer);
 
         $data = $request->validate([
@@ -86,10 +83,6 @@ final class SellNowOfferController extends Controller
     /** POST /api/v1/sell-now-offers/{offer}/accept */
     public function accept(Request $request, SellNowOffer $offer): JsonResponse
     {
-        // Buyer accepts a counter; consignor accepts an original offer.
-        // Either party may call accept — but never a third party.
-        $lot    = $offer->artLot;
-        $userId = $request->user()->id;
         $this->authorize('actOnOffer', $offer);
 
         try {
@@ -146,9 +139,6 @@ final class SellNowOfferController extends Controller
     /** POST /api/v1/sell-now-offers/{offer}/reject */
     public function reject(Request $request, SellNowOffer $offer): JsonResponse
     {
-        // Either party (buyer or consignor) may reject; third parties cannot.
-        $lot    = $offer->artLot;
-        $userId = $request->user()->id;
         $this->authorize('actOnOffer', $offer);
 
         try {

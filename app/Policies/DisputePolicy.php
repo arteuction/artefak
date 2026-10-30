@@ -25,13 +25,13 @@ final class DisputePolicy
     }
 
     /** Assign a dispute to a handler — staff only. */
-    public function assign(User $user): bool
+    public function assign(User $user, Dispute $dispute): bool
     {
         return in_array($user->role, self::STAFF, true);
     }
 
     /** Resolve a dispute — staff only. */
-    public function resolve(User $user): bool
+    public function resolve(User $user, Dispute $dispute): bool
     {
         return in_array($user->role, self::STAFF, true);
     }
