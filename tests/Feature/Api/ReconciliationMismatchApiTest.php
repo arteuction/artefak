@@ -43,7 +43,7 @@ final class ReconciliationMismatchApiTest extends TestCase
     {
         return ReconciliationMismatch::create([
             'reconciliation_run_id' => $reconciliationRun->id,
-            'check_type'            => 'amount_delta',
+            'check_type'            => 'payment',
             'delta_cents'           => 1000,
             'description'           => 'Test mismatch',
             'resolution_status'     => $status,
@@ -126,7 +126,7 @@ final class ReconciliationMismatchApiTest extends TestCase
             ->assertOk();
 
         $this->assertSame($mismatch->id, $response->json('data.id'));
-        $this->assertSame('amount_delta', $response->json('data.check_type'));
+        $this->assertSame('payment', $response->json('data.check_type'));
     }
 
     public function test_show_returns_404_for_unknown(): void

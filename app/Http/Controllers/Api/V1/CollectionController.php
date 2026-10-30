@@ -75,7 +75,7 @@ final class CollectionController extends Controller
         (new AddArtworkToCollection())->execute(
             collection: $collection,
             artwork:    $artwork,
-            owner:      $request->user(),
+            by:         $request->user(),
             note:       $data['note'] ?? null,
         );
 

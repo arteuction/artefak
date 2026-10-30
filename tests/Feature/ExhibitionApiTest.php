@@ -47,7 +47,7 @@ final class ExhibitionApiTest extends TestCase
         $venue = Venue::create([
             'name'           => 'Venue ' . uniqid(),
             'slug'           => 'venue-' . uniqid(),
-            'type'           => 'gallery',
+            'type'           => 'state',
             'is_active'      => true,
             'geo_locality_id' => 1,
         ]);

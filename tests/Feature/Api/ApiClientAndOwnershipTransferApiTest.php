@@ -111,7 +111,7 @@ final class ApiClientAndOwnershipTransferApiTest extends TestCase
             ->deleteJson("/api/v1/api-clients/{$client->id}")
             ->assertStatus(204);
 
-        $this->assertDatabaseMissing('api_clients', ['id' => $client->id]);
+        $this->assertSoftDeleted('api_clients', ['id' => $client->id]);
     }
 
     // ── Ownership transfers ───────────────────────────────────────────────────

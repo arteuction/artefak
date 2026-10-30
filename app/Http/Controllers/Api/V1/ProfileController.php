@@ -51,7 +51,7 @@ final class ProfileController extends Controller
             'website'           => $data['website'] ?? null,
             'instagram_handle'  => $data['instagram_handle'] ?? null,
             'status'            => 'pending',
-            'terms_accepted_at' => $data['terms_version'] ? now() : null,
+            'terms_accepted_at' => ($data['terms_version'] ?? null) ? now() : null,
             'terms_version'     => $data['terms_version'] ?? null,
         ]);
 

@@ -79,6 +79,7 @@ final class CulturalInteropApiTest extends TestCase
             'metric'               => 'audience_reach',
             'magnitude'            => 5,
             'description'          => 'Test event.',
+            'idempotency_key'      => uniqid('ie_', true),
         ]);
         Schema::enableForeignKeyConstraints();
         return $event;

@@ -28,14 +28,18 @@ final class OwnershipTransferApiTest extends TestCase
 
     private function transfer(User $from, User $to): OwnershipTransfer
     {
-        return OwnershipTransfer::create([
-            'from_user_id'        => $from->id,
-            'to_user_id'          => $to->id,
+        \Illuminate\Support\Facades\Schema::disableForeignKeyConstraints();
+        $transfer = OwnershipTransfer::create([
+            'art_lot_id'           => 1,
+            'from_user_id'         => $from->id,
+            'to_user_id'           => $to->id,
             'transfer_price_cents' => 5000,
-            'currency'            => 'EUR',
-            'channel'             => 'sell_now',
-            'transferred_at'      => now(),
+            'currency'             => 'EUR',
+            'channel'              => 'sell_now',
+            'transferred_at'       => now(),
         ]);
+        \Illuminate\Support\Facades\Schema::enableForeignKeyConstraints();
+        return $transfer;
     }
 
     // ── unauthenticated ───────────────────────────────────────────────────────

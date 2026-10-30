@@ -42,6 +42,7 @@ final class ImpactEventApiTest extends TestCase
             'metric'               => $metric,
             'magnitude'            => 10,
             'description'          => 'Test event.',
+            'idempotency_key'      => uniqid('ie_', true),
         ]);
         Schema::enableForeignKeyConstraints();
         return $event;
