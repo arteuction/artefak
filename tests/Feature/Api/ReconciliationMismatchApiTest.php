@@ -30,7 +30,7 @@ final class ReconciliationMismatchApiTest extends TestCase
         return User::factory()->create(['role' => 'buyer']);
     }
 
-    private function run(): ReconciliationRun
+    private function reconciliationRun(): ReconciliationRun
     {
         return ReconciliationRun::create([
             'period_start' => now()->subDays(7)->toDateString(),
@@ -39,10 +39,10 @@ final class ReconciliationMismatchApiTest extends TestCase
         ]);
     }
 
-    private function mismatch(ReconciliationRun $run, string $status = 'open'): ReconciliationMismatch
+    private function mismatch(ReconciliationRun $reconciliationRun, string $status = 'open'): ReconciliationMismatch
     {
         return ReconciliationMismatch::create([
-            'reconciliation_run_id' => $run->id,
+            'reconciliation_run_id' => $reconciliationRun->id,
             'check_type'            => 'amount_delta',
             'delta_cents'           => 1000,
             'description'           => 'Test mismatch',
@@ -66,7 +66,7 @@ final class ReconciliationMismatchApiTest extends TestCase
 
     public function test_admin_can_list_mismatches(): void
     {
-        $run = $this->run();
+        $run = $this->reconciliationRun();
         $this->mismatch($run);
         $this->mismatch($run);
 
@@ -79,7 +79,7 @@ final class ReconciliationMismatchApiTest extends TestCase
 
     public function test_index_can_filter_by_resolution_status(): void
     {
-        $run = $this->run();
+        $run = $this->reconciliationRun();
         $this->mismatch($run, 'open');
         $this->mismatch($run, 'resolved');
 
@@ -93,8 +93,8 @@ final class ReconciliationMismatchApiTest extends TestCase
 
     public function test_index_can_filter_by_reconciliation_run_id(): void
     {
-        $run1 = $this->run();
-        $run2 = $this->run();
+        $run1 = $this->reconciliationRun();
+        $run2 = $this->reconciliationRun();
         $this->mismatch($run1);
         $this->mismatch($run2);
 
@@ -109,7 +109,7 @@ final class ReconciliationMismatchApiTest extends TestCase
 
     public function test_unauthenticated_cannot_show_mismatch(): void
     {
-        $run      = $this->run();
+        $run      = $this->reconciliationRun();
         $mismatch = $this->mismatch($run);
 
         $this->getJson("/api/v1/admin/reconciliation-mismatches/{$mismatch->id}")
@@ -118,7 +118,7 @@ final class ReconciliationMismatchApiTest extends TestCase
 
     public function test_admin_can_show_mismatch(): void
     {
-        $run      = $this->run();
+        $run      = $this->reconciliationRun();
         $mismatch = $this->mismatch($run);
 
         $response = $this->actingAs($this->admin())
@@ -140,7 +140,7 @@ final class ReconciliationMismatchApiTest extends TestCase
 
     public function test_unauthenticated_cannot_update_mismatch(): void
     {
-        $run      = $this->run();
+        $run      = $this->reconciliationRun();
         $mismatch = $this->mismatch($run);
 
         $this->patchJson("/api/v1/admin/reconciliation-mismatches/{$mismatch->id}", [])
@@ -149,7 +149,7 @@ final class ReconciliationMismatchApiTest extends TestCase
 
     public function test_admin_can_transition_open_to_investigating(): void
     {
-        $run      = $this->run();
+        $run      = $this->reconciliationRun();
         $mismatch = $this->mismatch($run, 'open');
 
         $response = $this->actingAs($this->admin())
@@ -163,7 +163,7 @@ final class ReconciliationMismatchApiTest extends TestCase
 
     public function test_admin_can_transition_investigating_to_resolved(): void
     {
-        $run      = $this->run();
+        $run      = $this->reconciliationRun();
         $mismatch = $this->mismatch($run, 'investigating');
 
         $response = $this->actingAs($this->admin())
@@ -179,7 +179,7 @@ final class ReconciliationMismatchApiTest extends TestCase
 
     public function test_admin_can_suppress_open_mismatch(): void
     {
-        $run      = $this->run();
+        $run      = $this->reconciliationRun();
         $mismatch = $this->mismatch($run, 'open');
 
         $response = $this->actingAs($this->admin())
@@ -193,7 +193,7 @@ final class ReconciliationMismatchApiTest extends TestCase
 
     public function test_update_validates_required_resolution_status(): void
     {
-        $run      = $this->run();
+        $run      = $this->reconciliationRun();
         $mismatch = $this->mismatch($run, 'open');
 
         $this->actingAs($this->admin())
