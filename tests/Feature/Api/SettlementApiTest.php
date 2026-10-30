@@ -33,12 +33,21 @@ final class SettlementApiTest extends TestCase
     {
         Schema::disableForeignKeyConstraints();
         $id = DB::table('settlements')->insertGetId([
-            'auction_id'   => 1,
-            'status'       => $status,
-            'gross_cents'  => 100000,
-            'currency'     => 'EUR',
-            'created_at'   => now(),
-            'updated_at'   => now(),
+            'auction_id'               => 1,
+            'status'                   => $status,
+            'gross_cents'              => 100000,
+            'stripe_payment_intent_id' => 'pi_test_' . uniqid(),
+            'profile_key'              => 'social_pilot_45_45_10',
+            'profile_version'          => 1,
+            'artist_bps'               => 4500,
+            'fund_bps'                 => 4500,
+            'ops_bps'                  => 1000,
+            'artist_cents'             => 45000,
+            'fund_cents'               => 45000,
+            'ops_cents'                => 10000,
+            'currency'                 => 'EUR',
+            'created_at'               => now(),
+            'updated_at'               => now(),
         ]);
         Schema::enableForeignKeyConstraints();
         return $id;

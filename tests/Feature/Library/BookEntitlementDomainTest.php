@@ -49,6 +49,11 @@ final class BookEntitlementDomainTest extends TestCase
             'price_cents'      => 1999,
             'gross_cents'      => 1999,
             'split_base_cents' => 1999,
+            'profile_key'      => 'library_80_10_10',
+            'profile_version'  => 1,
+            'author_bps'       => 8000,
+            'fund_bps'         => 1000,
+            'ops_bps'          => 1000,
             'currency'         => 'EUR',
             'idempotency_key'  => 'test-' . uniqid(),
         ]);

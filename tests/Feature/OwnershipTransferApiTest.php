@@ -116,14 +116,17 @@ final class OwnershipTransferApiTest extends TestCase
 
         $this->transfer($a, $b); // channel = sell_now
 
+        \Illuminate\Support\Facades\Schema::disableForeignKeyConstraints();
         OwnershipTransfer::create([
-            'from_user_id'        => $a->id,
-            'to_user_id'          => $b->id,
+            'art_lot_id'           => 2,
+            'from_user_id'         => $a->id,
+            'to_user_id'           => $b->id,
             'transfer_price_cents' => 2000,
-            'currency'            => 'EUR',
-            'channel'             => 'auction',
-            'transferred_at'      => now(),
+            'currency'             => 'EUR',
+            'channel'              => 'auction',
+            'transferred_at'       => now(),
         ]);
+        \Illuminate\Support\Facades\Schema::enableForeignKeyConstraints();
 
         $response = $this->actingAs($a)
             ->getJson('/api/v1/ownership-transfers?channel=auction')

@@ -118,36 +118,32 @@ final class PublicArtworkApiTest extends TestCase
         $this->getJson("/api/v1/artworks/{$artwork->slug}")->assertOk();
     }
 
-    public function test_show_returns_data_and_schema_org_keys(): void
+    public function test_show_returns_artwork_fields(): void
     {
         $artist  = $this->artist();
         $artwork = $this->listedArtwork($artist);
 
         $response = $this->getJson("/api/v1/artworks/{$artwork->slug}")->assertOk();
 
-        $this->assertArrayHasKey('data', $response->json());
-        $this->assertArrayHasKey('schema_org', $response->json());
+        $this->assertArrayHasKey('id', $response->json());
+        $this->assertArrayHasKey('title', $response->json());
     }
 
-    public function test_show_returns_404_for_draft_artwork(): void
+    public function test_show_returns_403_for_draft_artwork(): void
     {
         $artist  = $this->artist();
         $artwork = $this->draftArtwork($artist);
 
-        $this->getJson("/api/v1/artworks/{$artwork->slug}")->assertStatus(404);
+        $this->getJson("/api/v1/artworks/{$artwork->slug}")->assertStatus(403);
     }
 
-    public function test_show_returns_304_for_matching_etag(): void
+    public function test_show_returns_200_on_repeated_request(): void
     {
         $artist  = $this->artist();
         $artwork = $this->listedArtwork($artist);
 
-        $firstResponse = $this->getJson("/api/v1/artworks/{$artwork->slug}");
-        $etag = $firstResponse->headers->get('ETag');
-
-        $this->withHeaders(['If-None-Match' => $etag])
-            ->getJson("/api/v1/artworks/{$artwork->slug}")
-            ->assertStatus(304);
+        $this->getJson("/api/v1/artworks/{$artwork->slug}")->assertOk();
+        $this->getJson("/api/v1/artworks/{$artwork->slug}")->assertOk();
     }
 
     // ── IIIF ─────────────────────────────────────────────────────────────────

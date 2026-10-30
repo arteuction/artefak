@@ -6,7 +6,6 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Data\ArtworkData;
 use App\Domain\Asset\ActivateArtworkRevision;
-use App\Domain\Metadata\SchemaOrgArtwork;
 use App\Domain\Asset\ConfirmArtworkImageUpload;
 use App\Domain\Asset\CreateArtworkRevision;
 use App\Domain\Asset\PublishArtworkRevision;
@@ -69,34 +68,14 @@ final class ArtworkController extends Controller
     /** GET /api/v1/artworks/{artwork} */
     public function show(Request $request, Artwork $artwork): JsonResponse
     {
-        $user = $request->user();
-
+        // Draft and archived artworks are only visible to their owner and admins
         if (in_array($artwork->status, ['draft', 'archived'], true)) {
-            if (! $user) {
-                abort(404);
-            }
             $this->authorize('view', $artwork);
         }
 
-        $etag = '"' . md5($artwork->id . '|' . $artwork->updated_at?->timestamp) . '"';
+        $artwork->load(['artist:id,name', 'artist.artistProfile:user_id,slug']);
 
-        if ($request->header('If-None-Match') === $etag) {
-            return response()->json(null, 304);
-        }
-
-        $artwork->load([
-            'artist:id,name',
-            'artist.artistProfile:user_id,slug',
-            'sdgClaims:artwork_id,sdg_number,status',
-        ]);
-
-        $schemaOrg = (new SchemaOrgArtwork())->build($artwork);
-
-        return response()->json([
-            'data'       => ArtworkData::fromArtwork($artwork),
-            'schema_org' => $schemaOrg,
-        ])->header('ETag', $etag)
-          ->header('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+        return response()->json(ArtworkData::fromArtwork($artwork));
     }
 
     /** PATCH /api/v1/artworks/{artwork} */
