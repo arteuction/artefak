@@ -172,8 +172,8 @@ final class BuyerDashboardApiTest extends TestCase
         $buyer2 = $this->buyer();
         $itemId = $this->auctionItem('open');
 
-        $this->bid($itemId, $buyer1->id, 50000, 'active');
-        $this->bid($itemId, $buyer2->id, 60000, 'active');
+        $this->bid($itemId, $buyer1->id, 50000, 'pending');
+        $this->bid($itemId, $buyer2->id, 60000, 'pending');
 
         $response = $this->actingAs($buyer1)
             ->getJson("/api/v1/auction-items/{$itemId}/bid-history")
@@ -187,7 +187,7 @@ final class BuyerDashboardApiTest extends TestCase
         $buyer  = $this->buyer();
         $itemId = $this->auctionItem('open');
 
-        $this->bid($itemId, $buyer->id, 75000, 'active');
+        $this->bid($itemId, $buyer->id, 75000, 'pending');
 
         $response = $this->actingAs($buyer)
             ->getJson("/api/v1/auction-items/{$itemId}/bid-history")

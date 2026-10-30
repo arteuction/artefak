@@ -13,9 +13,9 @@ use Tests\TestCase;
 
 /**
  * Tests for API client management and ownership transfer endpoints:
- *   GET    /api/v1/admin/api-clients
- *   POST   /api/v1/admin/api-clients
- *   DELETE /api/v1/admin/api-clients/{client}
+ *   GET    /api/v1/api-clients
+ *   POST   /api/v1/api-clients
+ *   DELETE /api/v1/api-clients/{client}
  *   GET    /api/v1/ownership-transfers
  *   GET    /api/v1/ownership-transfers/{transfer}
  */
@@ -52,40 +52,40 @@ final class ApiClientAndOwnershipTransferApiTest extends TestCase
 
     public function test_unauthenticated_cannot_list_api_clients(): void
     {
-        $this->getJson('/api/v1/admin/api-clients')->assertStatus(401);
+        $this->getJson('/api/v1/api-clients')->assertStatus(401);
     }
 
     public function test_buyer_cannot_list_api_clients(): void
     {
         $this->actingAs($this->buyer())
-            ->getJson('/api/v1/admin/api-clients')
+            ->getJson('/api/v1/api-clients')
             ->assertStatus(403);
     }
 
     public function test_admin_can_list_api_clients(): void
     {
         $this->actingAs($this->admin())
-            ->getJson('/api/v1/admin/api-clients')
+            ->getJson('/api/v1/api-clients')
             ->assertOk()
             ->assertJsonStructure(['data']);
     }
 
     public function test_unauthenticated_cannot_create_api_client(): void
     {
-        $this->postJson('/api/v1/admin/api-clients', ['name' => 'Test'])->assertStatus(401);
+        $this->postJson('/api/v1/api-clients', ['name' => 'Test'])->assertStatus(401);
     }
 
     public function test_buyer_cannot_create_api_client(): void
     {
         $this->actingAs($this->buyer())
-            ->postJson('/api/v1/admin/api-clients', ['name' => 'Test'])
+            ->postJson('/api/v1/api-clients', ['name' => 'Test'])
             ->assertStatus(403);
     }
 
     public function test_admin_can_create_api_client(): void
     {
         $response = $this->actingAs($this->admin())
-            ->postJson('/api/v1/admin/api-clients', [
+            ->postJson('/api/v1/api-clients', [
                 'name'   => 'External Integration',
                 'scopes' => ['artworks:read'],
             ])
@@ -98,7 +98,7 @@ final class ApiClientAndOwnershipTransferApiTest extends TestCase
     public function test_store_api_client_validates_required_name(): void
     {
         $this->actingAs($this->admin())
-            ->postJson('/api/v1/admin/api-clients', [])
+            ->postJson('/api/v1/api-clients', [])
             ->assertStatus(422)
             ->assertJsonValidationErrors(['name']);
     }
@@ -108,7 +108,7 @@ final class ApiClientAndOwnershipTransferApiTest extends TestCase
         [$client] = ApiClient::generate(name: 'Revokable', scopes: []);
 
         $this->actingAs($this->admin())
-            ->deleteJson("/api/v1/admin/api-clients/{$client->id}")
+            ->deleteJson("/api/v1/api-clients/{$client->id}")
             ->assertStatus(204);
 
         $this->assertDatabaseMissing('api_clients', ['id' => $client->id]);

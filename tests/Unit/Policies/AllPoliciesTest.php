@@ -146,7 +146,7 @@ final class AllPoliciesTest extends TestCase
 
         return ArtistApplication::create([
             'artist_profile_id' => $profile->id,
-            'status'            => 'pending',
+            'status'            => 'submitted',
             'motivation'        => 'I make art.',
         ]);
     }
