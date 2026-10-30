@@ -55,7 +55,7 @@ final class BookFileUploadApiTest extends TestCase
         $owner = $this->admin();
         $book  = $this->publishedBook($owner);
 
-        $this->postJson("/api/v1/books/{$book->slug}/files/upload-intent", [
+        $this->postJson("/api/v1/books/{$book->id}/files/upload-intent", [
             'filename'   => 'book.pdf',
             'type'       => 'full',
             'mime'       => 'application/pdf',
@@ -71,7 +71,7 @@ final class BookFileUploadApiTest extends TestCase
         $buyer = $this->buyer();
 
         $this->actingAs($buyer)
-            ->postJson("/api/v1/books/{$book->slug}/files/upload-intent", [
+            ->postJson("/api/v1/books/{$book->id}/files/upload-intent", [
                 'filename'   => 'book.pdf',
                 'type'       => 'full',
                 'mime'       => 'application/pdf',
@@ -86,7 +86,7 @@ final class BookFileUploadApiTest extends TestCase
         $book  = $this->publishedBook($owner);
 
         $this->actingAs($owner)
-            ->postJson("/api/v1/books/{$book->slug}/files/upload-intent", [
+            ->postJson("/api/v1/books/{$book->id}/files/upload-intent", [
                 'filename'   => 'book.pdf',
                 'type'       => 'illegal_type',
                 'mime'       => 'application/pdf',
@@ -102,7 +102,7 @@ final class BookFileUploadApiTest extends TestCase
         $book  = $this->publishedBook($owner);
 
         $this->actingAs($owner)
-            ->postJson("/api/v1/books/{$book->slug}/files/upload-intent", [
+            ->postJson("/api/v1/books/{$book->id}/files/upload-intent", [
                 'filename'   => 'book.pdf',
                 'type'       => 'full',
                 'mime'       => 'application/pdf',
@@ -118,7 +118,7 @@ final class BookFileUploadApiTest extends TestCase
         $book  = $this->publishedBook($owner);
 
         $this->actingAs($owner)
-            ->postJson("/api/v1/books/{$book->slug}/files/upload-intent", [
+            ->postJson("/api/v1/books/{$book->id}/files/upload-intent", [
                 'filename'   => 'book.pdf',
                 'type'       => 'full',
                 'mime'       => 'application/pdf',
@@ -170,7 +170,7 @@ final class BookFileUploadApiTest extends TestCase
         $owner = $this->admin();
         $book  = $this->publishedBook($owner);
 
-        $this->getJson("/api/v1/my-books/{$book->slug}/download-url")
+        $this->getJson("/api/v1/my-books/{$book->id}/download-url")
             ->assertStatus(401);
     }
 
@@ -181,7 +181,7 @@ final class BookFileUploadApiTest extends TestCase
         $buyer = $this->buyer();
 
         $this->actingAs($buyer)
-            ->getJson("/api/v1/my-books/{$book->slug}/download-url")
+            ->getJson("/api/v1/my-books/{$book->id}/download-url")
             ->assertStatus(403);
     }
 }

@@ -77,7 +77,7 @@ final class BookReviewApiTest extends TestCase
         $owner = $this->buyer();
         $book  = $this->publishedBook($owner);
 
-        $this->getJson("/api/v1/books/{$book->slug}/reviews")->assertOk();
+        $this->getJson("/api/v1/books/{$book->id}/reviews")->assertOk();
     }
 
     public function test_draft_book_reviews_returns_404(): void
@@ -85,7 +85,7 @@ final class BookReviewApiTest extends TestCase
         $owner = $this->buyer();
         $book  = $this->draftBook($owner);
 
-        $this->getJson("/api/v1/books/{$book->slug}/reviews")->assertStatus(404);
+        $this->getJson("/api/v1/books/{$book->id}/reviews")->assertStatus(404);
     }
 
     public function test_index_returns_only_approved_reviews(): void
@@ -96,7 +96,7 @@ final class BookReviewApiTest extends TestCase
         $this->review($book, $reviewer, 'pending');
         $this->review($book, $reviewer, 'approved');
 
-        $response = $this->getJson("/api/v1/books/{$book->slug}/reviews")->assertOk();
+        $response = $this->getJson("/api/v1/books/{$book->id}/reviews")->assertOk();
 
         $this->assertSame(1, $response->json('total'));
     }
@@ -108,7 +108,7 @@ final class BookReviewApiTest extends TestCase
         $owner = $this->buyer();
         $book  = $this->publishedBook($owner);
 
-        $this->postJson("/api/v1/books/{$book->slug}/reviews", ['rating' => 4])
+        $this->postJson("/api/v1/books/{$book->id}/reviews", ['rating' => 4])
             ->assertStatus(401);
     }
 
@@ -119,7 +119,7 @@ final class BookReviewApiTest extends TestCase
         $book     = $this->publishedBook($owner);
 
         $response = $this->actingAs($reviewer)
-            ->postJson("/api/v1/books/{$book->slug}/reviews", [
+            ->postJson("/api/v1/books/{$book->id}/reviews", [
                 'rating'   => 5,
                 'headline' => 'Excellent!',
                 'body'     => 'A great read.',
@@ -137,7 +137,7 @@ final class BookReviewApiTest extends TestCase
         $book     = $this->publishedBook($owner);
 
         $this->actingAs($reviewer)
-            ->postJson("/api/v1/books/{$book->slug}/reviews", ['rating' => 6])
+            ->postJson("/api/v1/books/{$book->id}/reviews", ['rating' => 6])
             ->assertStatus(422)
             ->assertJsonValidationErrors(['rating']);
     }
@@ -149,7 +149,7 @@ final class BookReviewApiTest extends TestCase
         $book     = $this->draftBook($owner);
 
         $this->actingAs($reviewer)
-            ->postJson("/api/v1/books/{$book->slug}/reviews", ['rating' => 4])
+            ->postJson("/api/v1/books/{$book->id}/reviews", ['rating' => 4])
             ->assertStatus(404);
     }
 
@@ -160,7 +160,7 @@ final class BookReviewApiTest extends TestCase
         $owner = $this->buyer();
         $book  = $this->publishedBook($owner);
 
-        $this->getJson("/api/v1/books/{$book->slug}/reviews/pending")->assertStatus(401);
+        $this->getJson("/api/v1/books/{$book->id}/reviews/pending")->assertStatus(401);
     }
 
     public function test_buyer_cannot_list_pending_reviews(): void
@@ -169,7 +169,7 @@ final class BookReviewApiTest extends TestCase
         $book  = $this->publishedBook($owner);
 
         $this->actingAs($this->buyer())
-            ->getJson("/api/v1/books/{$book->slug}/reviews/pending")
+            ->getJson("/api/v1/books/{$book->id}/reviews/pending")
             ->assertStatus(403);
     }
 
@@ -181,7 +181,7 @@ final class BookReviewApiTest extends TestCase
         $this->review($book, $reviewer, 'pending');
 
         $response = $this->actingAs($this->admin())
-            ->getJson("/api/v1/books/{$book->slug}/reviews/pending")
+            ->getJson("/api/v1/books/{$book->id}/reviews/pending")
             ->assertOk();
 
         $this->assertSame(1, $response->json('total'));
@@ -196,7 +196,7 @@ final class BookReviewApiTest extends TestCase
         $book     = $this->publishedBook($owner);
         $review   = $this->review($book, $reviewer, 'pending');
 
-        $this->patchJson("/api/v1/books/{$book->slug}/reviews/{$review->id}/approve")
+        $this->patchJson("/api/v1/books/{$book->id}/reviews/{$review->id}/approve")
             ->assertStatus(401);
     }
 
@@ -208,7 +208,7 @@ final class BookReviewApiTest extends TestCase
         $review   = $this->review($book, $reviewer, 'pending');
 
         $this->actingAs($this->buyer())
-            ->patchJson("/api/v1/books/{$book->slug}/reviews/{$review->id}/approve")
+            ->patchJson("/api/v1/books/{$book->id}/reviews/{$review->id}/approve")
             ->assertStatus(403);
     }
 
@@ -220,7 +220,7 @@ final class BookReviewApiTest extends TestCase
         $review   = $this->review($book, $reviewer, 'pending');
 
         $response = $this->actingAs($this->admin())
-            ->patchJson("/api/v1/books/{$book->slug}/reviews/{$review->id}/approve")
+            ->patchJson("/api/v1/books/{$book->id}/reviews/{$review->id}/approve")
             ->assertOk();
 
         $this->assertSame('approved', $response->json('status'));

@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Api;
 
-use App\Models\SellNowOffer;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 /**
@@ -34,6 +33,23 @@ final class BidReAuthAndSellNowCheckoutApiTest extends TestCase
         return User::factory()->create(['role' => 'artist']);
     }
 
+    private function auctionItem(): int
+    {
+        Schema::disableForeignKeyConstraints();
+        $id = DB::table('auction_items')->insertGetId([
+            'auction_id' => 1,
+            'art_lot_id' => 1,
+            'winner_id'  => 1,
+            'status'     => 'payment_pending',
+            'final_bid'  => 50000,
+            'currency'   => 'EUR',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        Schema::enableForeignKeyConstraints();
+        return $id;
+    }
+
     // ── BidReAuthorizationController ─────────────────────────────────────────
 
     public function test_re_authorize_requires_authentication(): void
@@ -47,12 +63,11 @@ final class BidReAuthAndSellNowCheckoutApiTest extends TestCase
 
     public function test_re_authorize_validates_payment_method_id_format(): void
     {
-        $buyer = $this->buyer();
+        $buyer  = $this->buyer();
+        $itemId = $this->auctionItem();
 
-        // Any valid auction_item_id — use 99999 (not found, so the controller
-        // never runs but validation fires first)
         $this->actingAs($buyer)
-            ->postJson('/api/v1/auction-items/1/re-authorize', [
+            ->postJson("/api/v1/auction-items/{$itemId}/re-authorize", [
                 'payment_method_id' => 'not-starting-with-pm',
             ])
             ->assertStatus(422);
@@ -74,14 +89,13 @@ final class BidReAuthAndSellNowCheckoutApiTest extends TestCase
         // Create a sell-now offer owned by artist, buyer trying to access it
         Schema::disableForeignKeyConstraints();
         $offerId = DB::table('sell_now_offers')->insertGetId([
-            'art_lot_id'    => 1,
-            'seller_id'     => $artist->id,
-            'buyer_id'      => $artist->id,  // artist is buyer of their own offer
-            'price_cents'   => 100000,
-            'currency'      => 'EUR',
-            'status'        => 'accepted',
-            'created_at'    => now(),
-            'updated_at'    => now(),
+            'art_lot_id'          => 1,
+            'buyer_id'            => $artist->id,
+            'offered_price_cents' => 100000,
+            'currency'            => 'EUR',
+            'status'              => 'accepted',
+            'created_at'          => now(),
+            'updated_at'          => now(),
         ]);
         Schema::enableForeignKeyConstraints();
 
@@ -97,14 +111,13 @@ final class BidReAuthAndSellNowCheckoutApiTest extends TestCase
 
         Schema::disableForeignKeyConstraints();
         $offerId = DB::table('sell_now_offers')->insertGetId([
-            'art_lot_id'    => 1,
-            'seller_id'     => 1,
-            'buyer_id'      => $buyer->id,
-            'price_cents'   => 100000,
-            'currency'      => 'EUR',
-            'status'        => 'pending',  // not accepted
-            'created_at'    => now(),
-            'updated_at'    => now(),
+            'art_lot_id'          => 1,
+            'buyer_id'            => $buyer->id,
+            'offered_price_cents' => 100000,
+            'currency'            => 'EUR',
+            'status'              => 'pending',
+            'created_at'          => now(),
+            'updated_at'          => now(),
         ]);
         Schema::enableForeignKeyConstraints();
 

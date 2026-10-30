@@ -57,14 +57,13 @@ final class FulfillmentApiTest extends TestCase
     {
         Schema::disableForeignKeyConstraints();
         $id = DB::table('sell_now_offers')->insertGetId([
-            'art_lot_id'  => 1,
-            'seller_id'   => 1,
-            'buyer_id'    => 1,
-            'price_cents' => 100000,
-            'currency'    => 'EUR',
-            'status'      => $status,
-            'created_at'  => now(),
-            'updated_at'  => now(),
+            'art_lot_id'          => 1,
+            'buyer_id'            => 1,
+            'offered_price_cents' => 100000,
+            'currency'            => 'EUR',
+            'status'              => $status,
+            'created_at'          => now(),
+            'updated_at'          => now(),
         ]);
         Schema::enableForeignKeyConstraints();
         return $id;

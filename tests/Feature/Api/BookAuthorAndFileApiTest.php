@@ -50,7 +50,7 @@ final class BookAuthorAndFileApiTest extends TestCase
         $owner = $this->admin();
         $book  = $this->book($owner);
 
-        $this->getJson("/api/v1/books/{$book->slug}/authors")->assertStatus(401);
+        $this->getJson("/api/v1/books/{$book->id}/authors")->assertStatus(401);
     }
 
     public function test_owner_can_list_book_authors(): void
@@ -59,7 +59,7 @@ final class BookAuthorAndFileApiTest extends TestCase
         $book  = $this->book($owner);
 
         $response = $this->actingAs($owner)
-            ->getJson("/api/v1/books/{$book->slug}/authors")
+            ->getJson("/api/v1/books/{$book->id}/authors")
             ->assertOk();
 
         $this->assertArrayHasKey('data', $response->json());
@@ -71,7 +71,7 @@ final class BookAuthorAndFileApiTest extends TestCase
         $book   = $this->book($owner);
         $author = $this->buyer();
 
-        $this->postJson("/api/v1/books/{$book->slug}/authors", [
+        $this->postJson("/api/v1/books/{$book->id}/authors", [
             'author_id' => $author->id,
             'share_bps' => 5000,
         ])->assertStatus(401);
@@ -85,7 +85,7 @@ final class BookAuthorAndFileApiTest extends TestCase
         $author = $this->buyer();
 
         $this->actingAs($buyer)
-            ->postJson("/api/v1/books/{$book->slug}/authors", [
+            ->postJson("/api/v1/books/{$book->id}/authors", [
                 'author_id' => $author->id,
                 'share_bps' => 5000,
             ])->assertStatus(403);
@@ -98,7 +98,7 @@ final class BookAuthorAndFileApiTest extends TestCase
         $author = $this->buyer();
 
         $response = $this->actingAs($owner)
-            ->postJson("/api/v1/books/{$book->slug}/authors", [
+            ->postJson("/api/v1/books/{$book->id}/authors", [
                 'author_id' => $author->id,
                 'share_bps' => 5000,
             ])->assertStatus(201);
@@ -114,7 +114,7 @@ final class BookAuthorAndFileApiTest extends TestCase
         $author = $this->buyer();
 
         $this->actingAs($owner)
-            ->postJson("/api/v1/books/{$book->slug}/authors", [
+            ->postJson("/api/v1/books/{$book->id}/authors", [
                 'author_id' => $author->id,
                 'share_bps' => 10001, // over max
             ])->assertStatus(422)
@@ -128,13 +128,13 @@ final class BookAuthorAndFileApiTest extends TestCase
         $author = $this->buyer();
 
         $this->actingAs($owner)
-            ->postJson("/api/v1/books/{$book->slug}/authors", [
+            ->postJson("/api/v1/books/{$book->id}/authors", [
                 'author_id' => $author->id,
                 'share_bps' => 3000,
             ])->assertStatus(201);
 
         $this->actingAs($owner)
-            ->postJson("/api/v1/books/{$book->slug}/authors", [
+            ->postJson("/api/v1/books/{$book->id}/authors", [
                 'author_id' => $author->id,
                 'share_bps' => 1000,
             ])->assertStatus(422);
@@ -147,7 +147,7 @@ final class BookAuthorAndFileApiTest extends TestCase
         $owner = $this->admin();
         $book  = $this->book($owner);
 
-        $this->getJson("/api/v1/books/{$book->slug}/files")->assertStatus(401);
+        $this->getJson("/api/v1/books/{$book->id}/files")->assertStatus(401);
     }
 
     public function test_buyer_cannot_list_book_files(): void
@@ -157,7 +157,7 @@ final class BookAuthorAndFileApiTest extends TestCase
         $buyer = $this->buyer();
 
         $this->actingAs($buyer)
-            ->getJson("/api/v1/books/{$book->slug}/files")
+            ->getJson("/api/v1/books/{$book->id}/files")
             ->assertStatus(403);
     }
 
@@ -167,7 +167,7 @@ final class BookAuthorAndFileApiTest extends TestCase
         $book  = $this->book($owner);
 
         $response = $this->actingAs($owner)
-            ->getJson("/api/v1/books/{$book->slug}/files")
+            ->getJson("/api/v1/books/{$book->id}/files")
             ->assertOk();
 
         $this->assertArrayHasKey('data', $response->json());
@@ -179,7 +179,7 @@ final class BookAuthorAndFileApiTest extends TestCase
         $book  = $this->book($owner);
 
         $this->actingAs($owner)
-            ->postJson("/api/v1/books/{$book->slug}/files", [
+            ->postJson("/api/v1/books/{$book->id}/files", [
                 'disk'       => 's3',
                 'path'       => 'books/test.pdf',
                 'filename'   => 'test.pdf',
@@ -197,7 +197,7 @@ final class BookAuthorAndFileApiTest extends TestCase
         $book  = $this->book($owner);
 
         $this->actingAs($owner)
-            ->postJson("/api/v1/books/{$book->slug}/files", [
+            ->postJson("/api/v1/books/{$book->id}/files", [
                 'disk'       => 's3',
                 'path'       => 'books/test.pdf',
                 'filename'   => 'test.pdf',

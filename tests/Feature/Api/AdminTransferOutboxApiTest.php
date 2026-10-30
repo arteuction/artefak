@@ -33,13 +33,14 @@ final class AdminTransferOutboxApiTest extends TestCase
     {
         Schema::disableForeignKeyConstraints();
         $id = DB::table('transfer_outbox')->insertGetId([
-            'settlement_line_id'  => 1,
-            'stripe_account_id'   => 'acct_test_' . uniqid(),
-            'amount_cents'        => 5000,
-            'currency'            => 'EUR',
-            'status'              => $status,
-            'created_at'          => now(),
-            'updated_at'          => now(),
+            'settlement_line_id'    => 1,
+            'stripe_account_id'     => 'acct_test_' . uniqid(),
+            'stripe_idempotency_key' => 'idem_' . uniqid(),
+            'amount_cents'          => 5000,
+            'currency'              => 'EUR',
+            'status'                => $status,
+            'created_at'            => now(),
+            'updated_at'            => now(),
         ]);
         Schema::enableForeignKeyConstraints();
         return $id;

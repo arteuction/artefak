@@ -33,6 +33,7 @@ final class AdminConnectedPayoutApiTest extends TestCase
         return ConnectedAccountPayout::create([
             'stripe_payout_id'  => 'po_' . uniqid(),
             'stripe_account_id' => 'acct_test_' . uniqid(),
+            'stripe_event_id'   => 'evt_' . uniqid(),
             'amount_cents'      => 10000,
             'currency'          => 'EUR',
             'status'            => $status,
