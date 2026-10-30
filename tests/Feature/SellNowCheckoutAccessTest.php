@@ -62,11 +62,11 @@ final class SellNowCheckoutAccessTest extends TestCase
     private function offer(User $buyer, ArtLot $lot, string $status = 'pending'): SellNowOffer
     {
         return SellNowOffer::create([
-            'art_lot_id'   => $lot->id,
-            'buyer_id'     => $buyer->id,
-            'amount_cents' => 10000,
-            'currency'     => 'EUR',
-            'status'       => $status,
+            'art_lot_id'          => $lot->id,
+            'buyer_id'            => $buyer->id,
+            'offered_price_cents' => 10000,
+            'currency'            => 'EUR',
+            'status'              => $status,
         ]);
     }
 
@@ -102,7 +102,7 @@ final class SellNowCheckoutAccessTest extends TestCase
     {
         $buyer = $this->buyer();
         $lot   = $this->lot($this->artist());
-        $offer = $this->offer($buyer, $lot, 'pending');
+        $offer = $this->offer($buyer, $lot, 'submitted');
 
         $this->actingAs($buyer)
             ->postJson("/api/v1/sell-now-offers/{$offer->id}/checkout-session")

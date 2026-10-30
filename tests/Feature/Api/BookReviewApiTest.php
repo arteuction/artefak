@@ -90,11 +90,12 @@ final class BookReviewApiTest extends TestCase
 
     public function test_index_returns_only_approved_reviews(): void
     {
-        $owner    = $this->buyer();
-        $reviewer = $this->buyer();
-        $book     = $this->publishedBook($owner);
-        $this->review($book, $reviewer, 'pending');
-        $this->review($book, $reviewer, 'approved');
+        $owner     = $this->buyer();
+        $reviewer1 = $this->buyer();
+        $reviewer2 = $this->buyer();
+        $book      = $this->publishedBook($owner);
+        $this->review($book, $reviewer1, 'pending');
+        $this->review($book, $reviewer2, 'approved');
 
         $response = $this->getJson("/api/v1/books/{$book->id}/reviews")->assertOk();
 

@@ -37,11 +37,11 @@ final class BidReAuthAndSellNowCheckoutApiTest extends TestCase
     {
         Schema::disableForeignKeyConstraints();
         $id = DB::table('auction_items')->insertGetId([
-            'auction_id'     => 1,
-            'art_lot_id'     => 1,
-            'winner_user_id' => 1,
-            'status'         => 'payment_pending',
-            'final_bid'  => 50000,
+            'auction_id'         => 1,
+            'artwork_id'         => 1,
+            'lot_number'         => 1,
+            'starting_bid_cents' => 10000,
+            'status'             => 'open',
             'currency'   => 'EUR',
             'created_at' => now(),
             'updated_at' => now(),

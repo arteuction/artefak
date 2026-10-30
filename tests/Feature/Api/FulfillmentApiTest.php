@@ -36,16 +36,15 @@ final class FulfillmentApiTest extends TestCase
         return User::factory()->create(['role' => 'buyer']);
     }
 
-    private function auctionItem(string $status = 'paid'): int
+    private function auctionItem(): int
     {
         Schema::disableForeignKeyConstraints();
         $id = DB::table('auction_items')->insertGetId([
             'auction_id'     => 1,
-            'art_lot_id'     => 1,
-            'winner_user_id' => 1,
-            'status'         => $status,
-            'final_bid'   => 50000,
-            'currency'    => 'EUR',
+            'artwork_id'         => 1,
+            'lot_number'         => 1,
+            'starting_bid_cents' => 10000,
+            'status'      => 'sold',
             'created_at'  => now(),
             'updated_at'  => now(),
         ]);

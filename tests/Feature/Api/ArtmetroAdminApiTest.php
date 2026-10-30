@@ -113,7 +113,7 @@ final class ArtmetroAdminApiTest extends TestCase
         $response = $this->actingAs($this->admin())
             ->patchJson("/api/v1/admin/artmetro/routes/{$route->id}", [
                 'title'      => 'Updated Trail',
-                'difficulty' => 'hard',
+                'difficulty' => 'challenging',
             ])
             ->assertOk();
 
