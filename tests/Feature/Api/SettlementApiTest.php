@@ -37,6 +37,7 @@ final class SettlementApiTest extends TestCase
             'status'                   => $status,
             'gross_cents'              => 100000,
             'stripe_payment_intent_id' => 'pi_test_' . uniqid(),
+            'stripe_event_id'          => 'evt_test_' . uniqid(),
             'profile_key'              => 'social_pilot_45_45_10',
             'profile_version'          => 1,
             'artist_bps'               => 4500,
