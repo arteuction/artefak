@@ -19,6 +19,7 @@ final class VenueMapApiTest extends TestCase
     private function activeVenueWithCoords(float $lat = 48.8566, float $lng = 2.3522): Venue
     {
         return Venue::create([
+            'geo_locality_id' => 1,
             'name'      => 'Venue ' . uniqid(),
             'slug'      => 'venue-' . uniqid(),
             'latitude'  => $lat,
@@ -30,6 +31,7 @@ final class VenueMapApiTest extends TestCase
     private function venueWithoutCoords(): Venue
     {
         return Venue::create([
+            'geo_locality_id' => 1,
             'name'      => 'No Coords ' . uniqid(),
             'slug'      => 'no-coords-' . uniqid(),
             'latitude'  => null,
@@ -41,6 +43,7 @@ final class VenueMapApiTest extends TestCase
     private function inactiveVenue(): Venue
     {
         return Venue::create([
+            'geo_locality_id' => 1,
             'name'      => 'Inactive ' . uniqid(),
             'slug'      => 'inactive-' . uniqid(),
             'latitude'  => 51.5,

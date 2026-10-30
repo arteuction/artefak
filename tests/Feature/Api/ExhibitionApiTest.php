@@ -37,11 +37,12 @@ final class ExhibitionApiTest extends TestCase
     {
         Schema::disableForeignKeyConstraints();
         $id = DB::table('venues')->insertGetId([
-            'name'       => 'Venue ' . uniqid(),
-            'slug'       => 'venue-' . uniqid(),
-            'is_active'  => true,
-            'created_at' => now(),
-            'updated_at' => now(),
+            'geo_locality_id' => 1,
+            'name'            => 'Venue ' . uniqid(),
+            'slug'            => 'venue-' . uniqid(),
+            'is_active'       => true,
+            'created_at'      => now(),
+            'updated_at'      => now(),
         ]);
         Schema::enableForeignKeyConstraints();
         return $id;

@@ -152,9 +152,8 @@ final class BookFileUploadApiTest extends TestCase
             'sha256'      => str_repeat('a', 64),
             'type'        => 'full',
             'version'     => 1,
-            'status'      => 'published',  // not processing
+            'status'      => 'published',
             'created_at'  => now(),
-            'updated_at'  => now(),
         ]);
         Schema::enableForeignKeyConstraints();
 

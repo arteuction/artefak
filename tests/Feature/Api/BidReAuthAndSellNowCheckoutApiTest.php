@@ -37,10 +37,10 @@ final class BidReAuthAndSellNowCheckoutApiTest extends TestCase
     {
         Schema::disableForeignKeyConstraints();
         $id = DB::table('auction_items')->insertGetId([
-            'auction_id' => 1,
-            'art_lot_id' => 1,
-            'winner_id'  => 1,
-            'status'     => 'payment_pending',
+            'auction_id'     => 1,
+            'art_lot_id'     => 1,
+            'winner_user_id' => 1,
+            'status'         => 'payment_pending',
             'final_bid'  => 50000,
             'currency'   => 'EUR',
             'created_at' => now(),
@@ -115,13 +115,13 @@ final class BidReAuthAndSellNowCheckoutApiTest extends TestCase
             'buyer_id'            => $buyer->id,
             'offered_price_cents' => 100000,
             'currency'            => 'EUR',
-            'status'              => 'pending',
+            'status'              => 'submitted',
             'created_at'          => now(),
             'updated_at'          => now(),
         ]);
         Schema::enableForeignKeyConstraints();
 
-        // Offer is pending, not accepted — 422 before Stripe is called
+        // Offer is not accepted — 422 before Stripe is called
         $this->actingAs($buyer)
             ->postJson("/api/v1/sell-now-offers/{$offerId}/checkout-session")
             ->assertStatus(422);

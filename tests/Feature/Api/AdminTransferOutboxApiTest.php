@@ -29,18 +29,21 @@ final class AdminTransferOutboxApiTest extends TestCase
         return User::factory()->create(['role' => 'buyer']);
     }
 
+    private static int $outboxAttempt = 0;
+
     private function outboxRow(string $status = 'pending'): int
     {
         Schema::disableForeignKeyConstraints();
         $id = DB::table('transfer_outbox')->insertGetId([
-            'settlement_line_id'    => 1,
-            'stripe_account_id'     => 'acct_test_' . uniqid(),
+            'settlement_line_id'     => 1,
+            'stripe_account_id'      => 'acct_test_' . uniqid(),
             'stripe_idempotency_key' => 'idem_' . uniqid(),
-            'amount_cents'          => 5000,
-            'currency'              => 'EUR',
-            'status'                => $status,
-            'created_at'            => now(),
-            'updated_at'            => now(),
+            'amount_cents'           => 5000,
+            'currency'               => 'EUR',
+            'status'                 => $status,
+            'attempt'                => self::$outboxAttempt++,
+            'created_at'             => now(),
+            'updated_at'             => now(),
         ]);
         Schema::enableForeignKeyConstraints();
         return $id;

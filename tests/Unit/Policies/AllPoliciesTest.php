@@ -90,7 +90,7 @@ final class AllPoliciesTest extends TestCase
             'buyer_id'            => $buyer->id,
             'offered_price_cents' => 10000,
             'currency'            => 'EUR',
-            'status'              => 'pending',
+            'status'              => 'submitted',
         ]);
     }
 
