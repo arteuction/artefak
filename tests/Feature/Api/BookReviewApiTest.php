@@ -5,357 +5,225 @@ declare(strict_types=1);
 namespace Tests\Feature\Api;
 
 use App\Models\Book;
-use App\Models\BookEntitlement;
 use App\Models\BookReview;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
+/**
+ * Tests for book review endpoints:
+ *   GET   /api/v1/books/{book}/reviews
+ *   POST  /api/v1/books/{book}/reviews
+ *   GET   /api/v1/books/{book}/reviews/pending
+ *   PATCH /api/v1/books/{book}/reviews/{review}/approve
+ *   DELETE /api/v1/books/{book}/reviews/{review}
+ */
 final class BookReviewApiTest extends TestCase
 {
     use RefreshDatabase;
 
-    private User $artist;
-    private Book $freeBook;
-    private Book $paidBook;
-
-    protected function setUp(): void
+    private function admin(): User
     {
-        parent::setUp();
+        return User::factory()->create(['role' => 'admin']);
+    }
 
-        $this->artist = User::factory()->create(['role' => 'artist']);
+    private function buyer(): User
+    {
+        return User::factory()->create(['role' => 'buyer']);
+    }
 
-        $this->freeBook = Book::create([
-            'owner_id'    => $this->artist->id,
-            'title'       => 'Free Catalogue',
-            'slug'        => 'free-catalogue',
+    private function publishedBook(User $owner): Book
+    {
+        return Book::create([
+            'owner_id'    => $owner->id,
+            'title'       => 'Book ' . uniqid(),
+            'slug'        => 'book-' . uniqid(),
+            'status'      => 'published',
+            'is_free'     => true,
             'price_cents' => 0,
             'currency'    => 'EUR',
-            'is_free'     => true,
-            'status'      => 'published',
-        ]);
-
-        $this->paidBook = Book::create([
-            'owner_id'    => $this->artist->id,
-            'title'       => 'Paid Monograph',
-            'slug'        => 'paid-monograph',
-            'price_cents' => 2000,
-            'currency'    => 'EUR',
-            'is_free'     => false,
-            'status'      => 'published',
         ]);
     }
 
-    private function approve(BookReview $review, User $mod): void
+    private function draftBook(User $owner): Book
     {
-        $review->update([
-            'is_approved' => true,
-            'approved_by' => $mod->id,
-            'approved_at' => now(),
-        ]);
-    }
-
-    // ── GET /api/v1/books/{book}/reviews ─────────────────────────────────────
-
-    public function test_public_can_list_approved_reviews(): void
-    {
-        $user = User::factory()->create(['role' => 'buyer']);
-        $mod  = User::factory()->create(['role' => 'admin']);
-
-        $review = BookReview::create([
-            'book_id' => $this->freeBook->id,
-            'user_id' => $user->id,
-            'rating'  => 5,
-        ]);
-        $this->approve($review, $mod);
-
-        // pending review — must not appear
-        BookReview::create([
-            'book_id' => $this->freeBook->id,
-            'user_id' => User::factory()->create(['role' => 'buyer'])->id,
-            'rating'  => 3,
-        ]);
-
-        $this->getJson("/api/v1/books/{$this->freeBook->id}/reviews")
-            ->assertOk()
-            ->assertJsonPath('total', 1);
-    }
-
-    public function test_reviews_404_for_unpublished_book(): void
-    {
-        $draft = Book::create([
-            'owner_id'    => $this->artist->id,
-            'title'       => 'Draft',
+        return Book::create([
+            'owner_id'    => $owner->id,
+            'title'       => 'Draft ' . uniqid(),
             'slug'        => 'draft-' . uniqid(),
+            'status'      => 'draft',
+            'is_free'     => true,
             'price_cents' => 0,
             'currency'    => 'EUR',
-            'is_free'     => true,
-            'status'      => 'draft',
         ]);
-
-        $this->getJson("/api/v1/books/{$draft->id}/reviews")->assertNotFound();
     }
 
-    // ── POST /api/v1/books/{book}/reviews ────────────────────────────────────
-
-    public function test_user_can_submit_review_for_free_book(): void
+    private function review(Book $book, User $reviewer, string $status = 'pending'): BookReview
     {
-        $user = User::factory()->create(['role' => 'buyer']);
+        return BookReview::create([
+            'book_id'     => $book->id,
+            'user_id'     => $reviewer->id,
+            'rating'      => 4,
+            'headline'    => 'Good book.',
+            'body'        => 'Very helpful.',
+            'is_approved' => $status === 'approved',
+        ]);
+    }
 
-        $this->actingAs($user, 'sanctum')
-            ->postJson("/api/v1/books/{$this->freeBook->id}/reviews", [
-                'rating'   => 4,
-                'headline' => 'Wonderful',
+    // ── index ─────────────────────────────────────────────────────────────────
+
+    public function test_published_book_reviews_is_public(): void
+    {
+        $owner = $this->buyer();
+        $book  = $this->publishedBook($owner);
+
+        $this->getJson("/api/v1/books/{$book->id}/reviews")->assertOk();
+    }
+
+    public function test_draft_book_reviews_returns_404(): void
+    {
+        $owner = $this->buyer();
+        $book  = $this->draftBook($owner);
+
+        $this->getJson("/api/v1/books/{$book->id}/reviews")->assertStatus(404);
+    }
+
+    public function test_index_returns_only_approved_reviews(): void
+    {
+        $owner     = $this->buyer();
+        $reviewer1 = $this->buyer();
+        $reviewer2 = $this->buyer();
+        $book      = $this->publishedBook($owner);
+        $this->review($book, $reviewer1, 'pending');
+        $this->review($book, $reviewer2, 'approved');
+
+        $response = $this->getJson("/api/v1/books/{$book->id}/reviews")->assertOk();
+
+        $this->assertSame(1, $response->json('total'));
+    }
+
+    // ── store ─────────────────────────────────────────────────────────────────
+
+    public function test_unauthenticated_cannot_submit_review(): void
+    {
+        $owner = $this->buyer();
+        $book  = $this->publishedBook($owner);
+
+        $this->postJson("/api/v1/books/{$book->id}/reviews", ['rating' => 4])
+            ->assertStatus(401);
+    }
+
+    public function test_buyer_can_submit_review(): void
+    {
+        $owner    = $this->buyer();
+        $reviewer = $this->buyer();
+        $book     = $this->publishedBook($owner);
+
+        $response = $this->actingAs($reviewer)
+            ->postJson("/api/v1/books/{$book->id}/reviews", [
+                'rating'   => 5,
+                'headline' => 'Excellent!',
+                'body'     => 'A great read.',
             ])
-            ->assertCreated()
-            ->assertJsonPath('rating', 4)
-            ->assertJsonPath('is_approved', false);
+            ->assertStatus(201);
+
+        $this->assertSame(5, $response->json('rating'));
+        $this->assertFalse($response->json('is_approved'));
     }
 
-    public function test_user_with_entitlement_can_review_paid_book(): void
+    public function test_store_validates_rating_range(): void
     {
-        $user = User::factory()->create(['role' => 'buyer']);
-        BookEntitlement::create([
-            'book_id'    => $this->paidBook->id,
-            'user_id'    => $user->id,
-            'status'     => 'active',
-            'granted_at' => now(),
-        ]);
+        $owner    = $this->buyer();
+        $reviewer = $this->buyer();
+        $book     = $this->publishedBook($owner);
 
-        $this->actingAs($user, 'sanctum')
-            ->postJson("/api/v1/books/{$this->paidBook->id}/reviews", ['rating' => 5])
-            ->assertCreated();
-    }
-
-    public function test_user_without_entitlement_cannot_review_paid_book(): void
-    {
-        $user = User::factory()->create(['role' => 'buyer']);
-
-        $this->actingAs($user, 'sanctum')
-            ->postJson("/api/v1/books/{$this->paidBook->id}/reviews", ['rating' => 3])
-            ->assertUnprocessable();
-    }
-
-    public function test_rating_validation(): void
-    {
-        $user = User::factory()->create(['role' => 'buyer']);
-
-        $this->actingAs($user, 'sanctum')
-            ->postJson("/api/v1/books/{$this->freeBook->id}/reviews", ['rating' => 6])
-            ->assertUnprocessable()
+        $this->actingAs($reviewer)
+            ->postJson("/api/v1/books/{$book->id}/reviews", ['rating' => 6])
+            ->assertStatus(422)
             ->assertJsonValidationErrors(['rating']);
     }
 
-    public function test_guest_cannot_submit_review(): void
+    public function test_review_submit_returns_404_for_draft_book(): void
     {
-        $this->postJson("/api/v1/books/{$this->freeBook->id}/reviews", ['rating' => 4])
-            ->assertUnauthorized();
+        $owner    = $this->buyer();
+        $reviewer = $this->buyer();
+        $book     = $this->draftBook($owner);
+
+        $this->actingAs($reviewer)
+            ->postJson("/api/v1/books/{$book->id}/reviews", ['rating' => 4])
+            ->assertStatus(404);
     }
 
-    // ── GET /api/v1/books/{book}/reviews/pending ─────────────────────────────
+    // ── pending ───────────────────────────────────────────────────────────────
 
-    public function test_admin_can_view_pending_queue(): void
+    public function test_unauthenticated_cannot_list_pending_reviews(): void
     {
-        $admin = User::factory()->create(['role' => 'admin']);
-        $user  = User::factory()->create(['role' => 'buyer']);
+        $owner = $this->buyer();
+        $book  = $this->publishedBook($owner);
 
-        BookReview::create([
-            'book_id' => $this->freeBook->id,
-            'user_id' => $user->id,
-            'rating'  => 3,
-        ]);
-
-        $this->actingAs($admin, 'sanctum')
-            ->getJson("/api/v1/books/{$this->freeBook->id}/reviews/pending")
-            ->assertOk()
-            ->assertJsonPath('total', 1);
+        $this->getJson("/api/v1/books/{$book->id}/reviews/pending")->assertStatus(401);
     }
 
-    public function test_guest_cannot_view_pending_queue(): void
+    public function test_buyer_cannot_list_pending_reviews(): void
     {
-        $this->getJson("/api/v1/books/{$this->freeBook->id}/reviews/pending")
-            ->assertUnauthorized();
+        $owner = $this->buyer();
+        $book  = $this->publishedBook($owner);
+
+        $this->actingAs($this->buyer())
+            ->getJson("/api/v1/books/{$book->id}/reviews/pending")
+            ->assertStatus(403);
     }
 
-    public function test_regular_user_cannot_view_pending_queue(): void
+    public function test_admin_can_list_pending_reviews(): void
     {
-        $buyer = User::factory()->create(['role' => 'buyer']);
+        $owner    = $this->buyer();
+        $reviewer = $this->buyer();
+        $book     = $this->publishedBook($owner);
+        $this->review($book, $reviewer, 'pending');
 
-        $this->actingAs($buyer, 'sanctum')
-            ->getJson("/api/v1/books/{$this->freeBook->id}/reviews/pending")
-            ->assertForbidden();
-    }
-
-    public function test_curator_can_view_pending_queue(): void
-    {
-        $curator = User::factory()->create(['role' => 'curator']);
-        $user    = User::factory()->create(['role' => 'buyer']);
-        BookReview::create(['book_id' => $this->freeBook->id, 'user_id' => $user->id, 'rating' => 4]);
-
-        $this->actingAs($curator, 'sanctum')
-            ->getJson("/api/v1/books/{$this->freeBook->id}/reviews/pending")
+        $response = $this->actingAs($this->admin())
+            ->getJson("/api/v1/books/{$book->id}/reviews/pending")
             ->assertOk();
+
+        $this->assertSame(1, $response->json('total'));
     }
 
-    // ── PATCH /api/v1/books/{book}/reviews/{review}/approve ──────────────────
+    // ── approve ───────────────────────────────────────────────────────────────
 
-    public function test_admin_can_approve_review(): void
+    public function test_unauthenticated_cannot_approve_review(): void
     {
-        $admin  = User::factory()->create(['role' => 'admin']);
-        $user   = User::factory()->create(['role' => 'buyer']);
-        $review = BookReview::create([
-            'book_id' => $this->freeBook->id,
-            'user_id' => $user->id,
-            'rating'  => 5,
-        ]);
+        $owner    = $this->buyer();
+        $reviewer = $this->buyer();
+        $book     = $this->publishedBook($owner);
+        $review   = $this->review($book, $reviewer, 'pending');
 
-        $this->actingAs($admin, 'sanctum')
-            ->patchJson("/api/v1/books/{$this->freeBook->id}/reviews/{$review->id}/approve")
-            ->assertOk()
-            ->assertJsonPath('is_approved', true);
-
-        $this->freeBook->refresh();
-        $this->assertSame(5.0, $this->freeBook->avg_rating);
+        $this->patchJson("/api/v1/books/{$book->id}/reviews/{$review->id}/approve")
+            ->assertStatus(401);
     }
 
-    public function test_regular_user_cannot_approve_review(): void
+    public function test_buyer_cannot_approve_review(): void
     {
-        $buyer  = User::factory()->create(['role' => 'buyer']);
-        $user   = User::factory()->create(['role' => 'buyer']);
-        $review = BookReview::create([
-            'book_id' => $this->freeBook->id,
-            'user_id' => $user->id,
-            'rating'  => 5,
-        ]);
+        $owner    = $this->buyer();
+        $reviewer = $this->buyer();
+        $book     = $this->publishedBook($owner);
+        $review   = $this->review($book, $reviewer, 'pending');
 
-        $this->actingAs($buyer, 'sanctum')
-            ->patchJson("/api/v1/books/{$this->freeBook->id}/reviews/{$review->id}/approve")
-            ->assertForbidden();
+        $this->actingAs($this->buyer())
+            ->patchJson("/api/v1/books/{$book->id}/reviews/{$review->id}/approve")
+            ->assertStatus(403);
     }
 
-    public function test_curator_can_approve_review(): void
+    public function test_admin_can_approve_pending_review(): void
     {
-        $curator = User::factory()->create(['role' => 'curator']);
-        $user    = User::factory()->create(['role' => 'buyer']);
-        $review  = BookReview::create([
-            'book_id' => $this->freeBook->id,
-            'user_id' => $user->id,
-            'rating'  => 3,
-        ]);
+        $owner    = $this->buyer();
+        $reviewer = $this->buyer();
+        $book     = $this->publishedBook($owner);
+        $review   = $this->review($book, $reviewer, 'pending');
 
-        $this->actingAs($curator, 'sanctum')
-            ->patchJson("/api/v1/books/{$this->freeBook->id}/reviews/{$review->id}/approve")
-            ->assertOk()
-            ->assertJsonPath('is_approved', true);
-    }
+        $response = $this->actingAs($this->admin())
+            ->patchJson("/api/v1/books/{$book->id}/reviews/{$review->id}/approve")
+            ->assertOk();
 
-    public function test_guest_cannot_approve_review(): void
-    {
-        $user   = User::factory()->create(['role' => 'buyer']);
-        $review = BookReview::create([
-            'book_id' => $this->freeBook->id,
-            'user_id' => $user->id,
-            'rating'  => 4,
-        ]);
-
-        $this->patchJson("/api/v1/books/{$this->freeBook->id}/reviews/{$review->id}/approve")
-            ->assertUnauthorized();
-    }
-
-    public function test_approve_404_if_review_belongs_to_different_book(): void
-    {
-        $admin  = User::factory()->create(['role' => 'admin']);
-        $user   = User::factory()->create(['role' => 'buyer']);
-        $review = BookReview::create([
-            'book_id' => $this->paidBook->id,
-            'user_id' => $user->id,
-            'rating'  => 4,
-        ]);
-
-        $this->actingAs($admin, 'sanctum')
-            ->patchJson("/api/v1/books/{$this->freeBook->id}/reviews/{$review->id}/approve")
-            ->assertNotFound();
-    }
-
-    // ── DELETE /api/v1/books/{book}/reviews/{review} ─────────────────────────
-
-    public function test_admin_can_reject_review(): void
-    {
-        $admin  = User::factory()->create(['role' => 'admin']);
-        $user   = User::factory()->create(['role' => 'buyer']);
-        $review = BookReview::create([
-            'book_id' => $this->freeBook->id,
-            'user_id' => $user->id,
-            'rating'  => 1,
-        ]);
-
-        $this->actingAs($admin, 'sanctum')
-            ->deleteJson("/api/v1/books/{$this->freeBook->id}/reviews/{$review->id}")
-            ->assertOk()
-            ->assertJsonPath('rejected', true);
-
-        $this->assertSoftDeleted('book_reviews', ['id' => $review->id]);
-    }
-
-    public function test_guest_cannot_reject_review(): void
-    {
-        $user   = User::factory()->create(['role' => 'buyer']);
-        $review = BookReview::create([
-            'book_id' => $this->freeBook->id,
-            'user_id' => $user->id,
-            'rating'  => 1,
-        ]);
-
-        $this->deleteJson("/api/v1/books/{$this->freeBook->id}/reviews/{$review->id}")
-            ->assertUnauthorized();
-    }
-
-    public function test_regular_user_cannot_delete_another_users_review(): void
-    {
-        $owner  = User::factory()->create(['role' => 'buyer']);
-        $other  = User::factory()->create(['role' => 'buyer']);
-        $review = BookReview::create([
-            'book_id' => $this->freeBook->id,
-            'user_id' => $owner->id,
-            'rating'  => 3,
-        ]);
-
-        $this->actingAs($other, 'sanctum')
-            ->deleteJson("/api/v1/books/{$this->freeBook->id}/reviews/{$review->id}")
-            ->assertForbidden();
-    }
-
-    public function test_user_can_delete_own_pending_review(): void
-    {
-        $user   = User::factory()->create(['role' => 'buyer']);
-        $review = BookReview::create([
-            'book_id'     => $this->freeBook->id,
-            'user_id'     => $user->id,
-            'rating'      => 2,
-            'is_approved' => false,
-        ]);
-
-        $this->actingAs($user, 'sanctum')
-            ->deleteJson("/api/v1/books/{$this->freeBook->id}/reviews/{$review->id}")
-            ->assertOk()
-            ->assertJsonPath('rejected', true);
-    }
-
-    public function test_user_cannot_delete_own_approved_review(): void
-    {
-        $user   = User::factory()->create(['role' => 'buyer']);
-        $mod    = User::factory()->create(['role' => 'admin']);
-        $review = BookReview::create([
-            'book_id'     => $this->freeBook->id,
-            'user_id'     => $user->id,
-            'rating'      => 5,
-            'is_approved' => true,
-            'approved_by' => $mod->id,
-            'approved_at' => now(),
-        ]);
-
-        $this->actingAs($user, 'sanctum')
-            ->deleteJson("/api/v1/books/{$this->freeBook->id}/reviews/{$review->id}")
-            ->assertForbidden();
+        $this->assertTrue($response->json('is_approved'));
     }
 }

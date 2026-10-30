@@ -33,7 +33,7 @@ final class ArtmetroAdminController extends Controller
         $data = $request->validate([
             'title'               => ['required', 'string', 'max:200'],
             'description'         => ['nullable', 'string', 'max:5000'],
-            'difficulty'          => ['nullable', 'in:easy,moderate,hard'],
+            'difficulty'          => ['nullable', 'in:easy,moderate,challenging'],
             'walking_distance_km' => ['nullable', 'numeric', 'min:0', 'max:999'],
             'accessible'          => ['nullable', 'boolean'],
         ]);
@@ -57,7 +57,7 @@ final class ArtmetroAdminController extends Controller
         $data = $request->validate([
             'title'               => ['sometimes', 'string', 'max:200'],
             'description'         => ['nullable', 'string', 'max:5000'],
-            'difficulty'          => ['sometimes', 'in:easy,moderate,hard'],
+            'difficulty'          => ['sometimes', 'in:easy,moderate,challenging'],
             'walking_distance_km' => ['nullable', 'numeric', 'min:0', 'max:999'],
             'accessible'          => ['sometimes', 'boolean'],
         ]);

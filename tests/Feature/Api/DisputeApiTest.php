@@ -4,104 +4,252 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Api;
 
-use App\Models\ArtLot;
-use App\Models\Artwork;
 use App\Models\Dispute;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
+/**
+ * Tests for dispute endpoints:
+ *   GET  /api/v1/disputes
+ *   POST /api/v1/disputes
+ *   GET  /api/v1/disputes/{dispute}
+ *   POST /api/v1/disputes/{dispute}/resolve
+ *   POST /api/v1/disputes/{dispute}/evidence
+ */
 final class DisputeApiTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function artLot(): ArtLot
+    private function admin(): User
     {
-        $user = User::factory()->create(['role' => 'artist']);
-        $artwork = Artwork::create(['user_id' => $user->id, 'title' => 'T', 'slug' => 'd-' . uniqid(), 'status' => 'listed']);
-        return ArtLot::create([
-            'artwork_id'   => $artwork->id,
-            'consignor_id' => $user->id,
-            'sale_mode'    => 'sell_now',
-            'status'       => 'active',
-            'currency'     => 'EUR',
-        ]);
+        return User::factory()->create(['role' => 'admin']);
     }
 
-    public function test_user_can_open_dispute(): void
+    private function buyer(): User
     {
-        $user   = User::factory()->create(['role' => 'artist']);
-        $artLot = $this->artLot();
-
-        $res = $this->actingAs($user)
-            ->postJson('/api/v1/disputes', [
-                'type'        => 'condition_mismatch',
-                'description' => 'The artwork arrived damaged.',
-                'art_lot_id'  => $artLot->id,
-            ]);
-
-        $res->assertCreated()
-            ->assertJsonPath('type', 'condition_mismatch')
-            ->assertJsonPath('status', 'open');
+        return User::factory()->create(['role' => 'buyer']);
     }
 
-    public function test_duplicate_open_dispute_rejected(): void
+    private function dispute(User $opener, string $status = 'open'): Dispute
     {
-        $user   = User::factory()->create(['role' => 'artist']);
-        $artLot = $this->artLot();
-
-        Dispute::create([
-            'type'        => 'condition_mismatch',
-            'description' => 'First',
-            'opened_by'   => $user->id,
-            'art_lot_id'  => $artLot->id,
-            'status'      => 'open',
-        ]);
-
-        $this->actingAs($user)
-            ->postJson('/api/v1/disputes', [
-                'type'        => 'condition_mismatch',
-                'description' => 'Second',
-                'art_lot_id'  => $artLot->id,
-            ])
-            ->assertUnprocessable();
-    }
-
-    public function test_admin_can_resolve_dispute(): void
-    {
-        $admin   = User::factory()->create(['role' => 'admin']);
-        $opener  = User::factory()->create(['role' => 'artist']);
-        $artLot  = $this->artLot();
-
-        $dispute = Dispute::create([
-            'type'        => 'other',
-            'description' => 'Issue',
+        return Dispute::create([
             'opened_by'   => $opener->id,
-            'art_lot_id'  => $artLot->id,
+            'type'        => 'condition_mismatch',
+            'description' => 'Test dispute description.',
+            'status'      => $status,
+        ]);
+    }
+
+    // ── index ─────────────────────────────────────────────────────────────────
+
+    public function test_unauthenticated_cannot_list_disputes(): void
+    {
+        $this->getJson('/api/v1/disputes')->assertStatus(401);
+    }
+
+    public function test_buyer_sees_only_own_disputes(): void
+    {
+        $buyer1 = $this->buyer();
+        $buyer2 = $this->buyer();
+
+        $this->dispute($buyer1);
+        $this->dispute($buyer2);
+
+        $response = $this->actingAs($buyer1)
+            ->getJson('/api/v1/disputes')
+            ->assertOk();
+
+        $this->assertSame(1, $response->json('total'));
+    }
+
+    public function test_admin_sees_all_disputes(): void
+    {
+        $buyer1 = $this->buyer();
+        $buyer2 = $this->buyer();
+
+        $this->dispute($buyer1);
+        $this->dispute($buyer2);
+
+        $response = $this->actingAs($this->admin())
+            ->getJson('/api/v1/disputes')
+            ->assertOk();
+
+        $this->assertSame(2, $response->json('total'));
+    }
+
+    public function test_index_can_filter_by_status(): void
+    {
+        $buyer = $this->buyer();
+        $this->dispute($buyer, 'open');
+        $this->dispute($buyer, 'resolved');
+
+        $response = $this->actingAs($this->admin())
+            ->getJson('/api/v1/disputes?status=open')
+            ->assertOk();
+
+        $this->assertSame(1, $response->json('total'));
+        $this->assertSame('open', $response->json('data.0.status'));
+    }
+
+    public function test_index_can_filter_by_type(): void
+    {
+        $buyer = $this->buyer();
+        Dispute::create([
+            'opened_by'   => $buyer->id,
+            'type'        => 'condition_mismatch',
+            'description' => 'A.',
+            'status'      => 'open',
+        ]);
+        Dispute::create([
+            'opened_by'   => $buyer->id,
+            'type'        => 'payment_dispute',
+            'description' => 'B.',
             'status'      => 'open',
         ]);
 
-        $this->actingAs($admin)
+        $response = $this->actingAs($this->admin())
+            ->getJson('/api/v1/disputes?type=payment_dispute')
+            ->assertOk();
+
+        $this->assertSame(1, $response->json('total'));
+    }
+
+    // ── store ─────────────────────────────────────────────────────────────────
+
+    public function test_unauthenticated_cannot_open_dispute(): void
+    {
+        $this->postJson('/api/v1/disputes', [
+            'type'        => 'condition_mismatch',
+            'description' => 'Something went wrong.',
+        ])->assertStatus(401);
+    }
+
+    public function test_buyer_can_open_dispute(): void
+    {
+        $buyer = $this->buyer();
+
+        Schema::disableForeignKeyConstraints();
+        $lotId = DB::table('art_lots')->insertGetId([
+            'artwork_id'   => 1,
+            'consignor_id' => $buyer->id,
+            'sale_mode'    => 'auction',
+            'status'       => 'active',
+            'created_at'   => now(),
+            'updated_at'   => now(),
+        ]);
+        Schema::enableForeignKeyConstraints();
+
+        $response = $this->actingAs($buyer)
+            ->postJson('/api/v1/disputes', [
+                'type'        => 'condition_mismatch',
+                'description' => 'Item was damaged on arrival.',
+                'art_lot_id'  => $lotId,
+            ])
+            ->assertStatus(201);
+
+        $this->assertSame('condition_mismatch', $response->json('type'));
+        $this->assertSame('open', $response->json('status'));
+        $this->assertSame($buyer->id, $response->json('opened_by'));
+    }
+
+    public function test_store_validates_required_type(): void
+    {
+        $this->actingAs($this->buyer())
+            ->postJson('/api/v1/disputes', ['description' => 'Missing type.'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['type']);
+    }
+
+    public function test_store_validates_type_enum(): void
+    {
+        $this->actingAs($this->buyer())
+            ->postJson('/api/v1/disputes', [
+                'type'        => 'invalid_type',
+                'description' => 'Bad type.',
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['type']);
+    }
+
+    public function test_store_validates_required_description(): void
+    {
+        $this->actingAs($this->buyer())
+            ->postJson('/api/v1/disputes', ['type' => 'other'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['description']);
+    }
+
+    // ── resolve ───────────────────────────────────────────────────────────────
+
+    public function test_unauthenticated_cannot_resolve_dispute(): void
+    {
+        $buyer   = $this->buyer();
+        $dispute = $this->dispute($buyer);
+
+        $this->postJson("/api/v1/disputes/{$dispute->id}/resolve", [
+            'outcome'    => 'resolved',
+            'resolution' => 'Refund issued.',
+        ])->assertStatus(401);
+    }
+
+    public function test_buyer_cannot_resolve_dispute(): void
+    {
+        $buyer   = $this->buyer();
+        $dispute = $this->dispute($buyer);
+
+        $this->actingAs($buyer)
             ->postJson("/api/v1/disputes/{$dispute->id}/resolve", [
                 'outcome'    => 'resolved',
-                'resolution' => 'Refund issued to buyer.',
+                'resolution' => 'Refund issued.',
             ])
-            ->assertOk()
-            ->assertJsonPath('status', 'resolved');
+            ->assertStatus(403);
     }
 
-    public function test_user_can_only_see_own_disputes(): void
+    public function test_admin_can_resolve_open_dispute(): void
     {
-        $userA  = User::factory()->create(['role' => 'artist']);
-        $userB  = User::factory()->create(['role' => 'artist']);
-        $artLot = $this->artLot();
+        $buyer   = $this->buyer();
+        $dispute = $this->dispute($buyer);
 
-        Dispute::create(['type' => 'other', 'description' => 'A', 'opened_by' => $userA->id, 'art_lot_id' => $artLot->id, 'status' => 'open']);
-        Dispute::create(['type' => 'other', 'description' => 'B', 'opened_by' => $userB->id, 'art_lot_id' => $artLot->id, 'status' => 'open']);
+        $response = $this->actingAs($this->admin())
+            ->postJson("/api/v1/disputes/{$dispute->id}/resolve", [
+                'outcome'    => 'resolved',
+                'resolution' => 'Full refund issued.',
+            ])
+            ->assertOk();
 
-        $res = $this->actingAs($userA)->getJson('/api/v1/disputes');
+        $this->assertSame('resolved', $response->json('status'));
+        $this->assertNotNull($response->json('resolved_at'));
+    }
 
-        $res->assertOk();
-        $this->assertCount(1, $res->json('data'));
+    public function test_admin_can_dismiss_dispute(): void
+    {
+        $buyer   = $this->buyer();
+        $dispute = $this->dispute($buyer);
+
+        $response = $this->actingAs($this->admin())
+            ->postJson("/api/v1/disputes/{$dispute->id}/resolve", [
+                'outcome'    => 'dismissed',
+                'resolution' => 'No evidence of damage found.',
+            ])
+            ->assertOk();
+
+        $this->assertSame('dismissed', $response->json('status'));
+    }
+
+    public function test_resolve_validates_outcome_enum(): void
+    {
+        $buyer   = $this->buyer();
+        $dispute = $this->dispute($buyer);
+
+        $this->actingAs($this->admin())
+            ->postJson("/api/v1/disputes/{$dispute->id}/resolve", [
+                'outcome'    => 'cancelled',
+                'resolution' => 'Something.',
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['outcome']);
     }
 }

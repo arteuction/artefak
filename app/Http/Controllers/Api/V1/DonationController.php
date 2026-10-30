@@ -98,10 +98,10 @@ final class DonationController extends Controller
 
         $donations = Donation::where('donor_id', $user->id)
             ->where('status', 'confirmed')
-            ->whereYear('donated_at', $year)
+            ->whereYear('created_at', $year)
             ->with('recipient:id,name,eik')
-            ->orderBy('donated_at')
-            ->get(['id', 'donation_recipient_id', 'donated_cents', 'currency', 'impact_project_id', 'donated_at']);
+            ->orderBy('created_at')
+            ->get(['id', 'donation_recipient_id', 'donated_cents', 'currency', 'impact_project_id', 'created_at']);
 
         return response()->json([
             'fiscal_year'  => $year,
