@@ -68,9 +68,7 @@ final class SellNowOfferController extends Controller
         // Only the consignor (seller) of the lot may counter
         $lot = $offer->artLot;
         $userId = $request->user()->id;
-        if ($lot->consignor_id !== $userId && ! in_array($request->user()->role, ['admin', 'operator'], true)) {
-            abort(403);
-        }
+        $this->authorize('counter', $offer);
 
         $data = $request->validate([
             'counter_price_cents' => ['required', 'integer', 'min:1'],
@@ -92,10 +90,7 @@ final class SellNowOfferController extends Controller
         // Either party may call accept — but never a third party.
         $lot    = $offer->artLot;
         $userId = $request->user()->id;
-        $isParty = $offer->buyer_id === $userId || $lot->consignor_id === $userId;
-        if (! $isParty && ! in_array($request->user()->role, ['admin', 'operator'], true)) {
-            abort(403);
-        }
+        $this->authorize('actOnOffer', $offer);
 
         try {
             $offer = (new AcceptOffer())->execute($offer);
@@ -154,10 +149,7 @@ final class SellNowOfferController extends Controller
         // Either party (buyer or consignor) may reject; third parties cannot.
         $lot    = $offer->artLot;
         $userId = $request->user()->id;
-        $isParty = $offer->buyer_id === $userId || $lot->consignor_id === $userId;
-        if (! $isParty && ! in_array($request->user()->role, ['admin', 'operator'], true)) {
-            abort(403);
-        }
+        $this->authorize('actOnOffer', $offer);
 
         try {
             $offer = (new RejectOffer())->execute($offer);

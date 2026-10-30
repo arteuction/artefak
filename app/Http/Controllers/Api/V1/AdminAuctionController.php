@@ -12,6 +12,7 @@ use App\Models\AuctionItem;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 
 /**
@@ -22,11 +23,9 @@ use Illuminate\Support\Str;
  */
 final class AdminAuctionController extends Controller
 {
-    private function requireAdmin(Request $request): void
+    private function requireAdmin(): void
     {
-        if (! in_array($request->user()->role, ['admin', 'operator'], true)) {
-            abort(403);
-        }
+        Gate::authorize('admin-area');
     }
 
     /**

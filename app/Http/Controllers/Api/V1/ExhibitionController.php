@@ -10,6 +10,7 @@ use App\Models\Exhibition;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Gate;
 
 final class ExhibitionController extends Controller
 {
@@ -37,7 +38,7 @@ final class ExhibitionController extends Controller
                 ->where('status', 'active')
                 ->exists();
 
-        if (! $isGalleryStaff && ! in_array($user->role, ['admin', 'operator'], true)) {
+        if (! $isGalleryStaff && ! Gate::check('admin-area')) {
             abort(403, 'Gallery staff or admin required.');
         }
 
@@ -65,7 +66,7 @@ final class ExhibitionController extends Controller
                 ->where('status', 'active')
                 ->exists();
 
-        if (! $isGalleryStaff && ! in_array($user->role, ['admin', 'operator'], true)) {
+        if (! $isGalleryStaff && ! Gate::check('admin-area')) {
             abort(403, 'Gallery staff or admin required.');
         }
 
@@ -127,7 +128,7 @@ final class ExhibitionController extends Controller
                 ->where('status', 'active')
                 ->exists();
 
-        if (! $isGalleryStaff && ! in_array($user->role, ['admin', 'operator'], true)) {
+        if (! $isGalleryStaff && ! Gate::check('admin-area')) {
             abort(403, 'Gallery staff or admin required.');
         }
 

@@ -11,6 +11,7 @@ use App\Models\ArtistApplication;
 use App\Models\ArtistProfile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use InvalidArgumentException;
 
 /**
@@ -28,7 +29,7 @@ final class ArtistApplicationController extends Controller
     {
         $user = $request->user();
 
-        if (in_array($user->role, ['admin', 'operator'], true)) {
+        if (Gate::check('admin-area')) {
             $query = ArtistApplication::with(['artistProfile:id,user_id,display_name,slug,status'])
                 ->orderByDesc('created_at');
 
@@ -94,7 +95,7 @@ final class ArtistApplicationController extends Controller
     {
         $user = $request->user();
 
-        if (! in_array($user->role, ['admin', 'operator'], true)) {
+        if (! Gate::check('admin-area')) {
             $profile = ArtistProfile::where('user_id', $user->id)->first();
             if (! $profile || $application->artist_profile_id !== $profile->id) {
                 abort(403);
@@ -113,9 +114,7 @@ final class ArtistApplicationController extends Controller
      */
     public function approve(Request $request, ArtistApplication $application): JsonResponse
     {
-        if (! in_array($request->user()->role, ['admin', 'operator'], true)) {
-            abort(403);
-        }
+        Gate::authorize('admin-area');
 
         $data = $request->validate([
             'note' => ['nullable', 'string', 'max:2000'],
@@ -137,9 +136,7 @@ final class ArtistApplicationController extends Controller
      */
     public function reject(Request $request, ArtistApplication $application): JsonResponse
     {
-        if (! in_array($request->user()->role, ['admin', 'operator'], true)) {
-            abort(403);
-        }
+        Gate::authorize('admin-area');
 
         $data = $request->validate([
             'note' => ['required', 'string', 'max:2000'],

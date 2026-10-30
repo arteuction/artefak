@@ -41,11 +41,7 @@ final class BookFileUploadController extends Controller
     public function uploadIntent(Request $request, Book $book): JsonResponse
     {
         $user = $request->user();
-        $isOwner = $book->owner_id === $user->id;
-        $isAdmin = in_array($user->role, ['admin', 'operator'], true);
-        if (! $isOwner && ! $isAdmin) {
-            abort(403);
-        }
+        $this->authorize('manageContent', $book);
 
         $data = $request->validate([
             'filename'   => ['required', 'string', 'max:255'],
@@ -94,11 +90,7 @@ final class BookFileUploadController extends Controller
     {
         $book = Book::findOrFail($bookFile->book_id);
         $user = $request->user();
-        $isOwner = $book->owner_id === $user->id;
-        $isAdmin = in_array($user->role, ['admin', 'operator'], true);
-        if (! $isOwner && ! $isAdmin) {
-            abort(403);
-        }
+        $this->authorize('manageContent', $book);
 
         if ($bookFile->status !== 'processing') {
             abort(422, 'Only files in processing status can be completed.');

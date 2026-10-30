@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -17,9 +18,7 @@ final class LedgerController extends Controller
 {
     private function requireAdmin(Request $request): void
     {
-        if (! in_array($request->user()->role, ['admin', 'operator'], true)) {
-            abort(403);
-        }
+        Gate::authorize('admin-area');
     }
 
     /**

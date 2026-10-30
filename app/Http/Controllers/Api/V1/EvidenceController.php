@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Evidence;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * Evidence management — verification and subject-scoped listing.
@@ -21,9 +22,7 @@ final class EvidenceController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        if (! in_array($request->user()->role, ['admin', 'operator'], true)) {
-            abort(403);
-        }
+        Gate::authorize('admin-area');
 
         $query = Evidence::query()->orderByDesc('created_at');
 
@@ -53,9 +52,7 @@ final class EvidenceController extends Controller
      */
     public function show(Request $request, Evidence $evidence): JsonResponse
     {
-        if (! in_array($request->user()->role, ['admin', 'operator'], true)) {
-            abort(403);
-        }
+        Gate::authorize('admin-area');
 
         return response()->json($evidence);
     }
@@ -69,9 +66,7 @@ final class EvidenceController extends Controller
      */
     public function verify(Request $request, Evidence $evidence): JsonResponse
     {
-        if (! in_array($request->user()->role, ['admin', 'operator'], true)) {
-            abort(403);
-        }
+        Gate::authorize('admin-area');
 
         $data = $request->validate([
             'status' => ['required', 'in:verified,rejected'],

@@ -10,6 +10,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Reserve;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * Reserve management — seller decisions after reserve is not met.
@@ -99,7 +100,7 @@ final class ReserveController extends Controller
 
     private function canManage(\App\Models\User $user, Reserve $reserve): bool
     {
-        if (in_array($user->role, ['admin', 'operator'], true)) {
+        if (Gate::check('admin-area')) {
             return true;
         }
 

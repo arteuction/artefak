@@ -17,14 +17,6 @@ use Illuminate\Http\Request;
  */
 final class BookAuthorController extends Controller
 {
-    private function gate(Request $request, Book $book): void
-    {
-        $user = $request->user();
-        if ($book->owner_id !== $user->id && ! in_array($user->role, ['admin', 'operator'], true)) {
-            abort(403);
-        }
-    }
-
     /**
      * GET /api/v1/books/{book}/authors
      */
@@ -42,7 +34,7 @@ final class BookAuthorController extends Controller
      */
     public function store(Request $request, Book $book): JsonResponse
     {
-        $this->gate($request, $book);
+        $this->authorize('manageContent', $book);
 
         $data = $request->validate([
             'author_id'  => ['required', 'integer', 'exists:users,id'],
@@ -78,7 +70,7 @@ final class BookAuthorController extends Controller
      */
     public function update(Request $request, Book $book, BookAuthor $bookAuthor): JsonResponse
     {
-        $this->gate($request, $book);
+        $this->authorize('manageContent', $book);
         abort_if($bookAuthor->book_id !== $book->id, 404);
 
         $data = $request->validate([
@@ -103,7 +95,7 @@ final class BookAuthorController extends Controller
      */
     public function destroy(Request $request, Book $book, BookAuthor $bookAuthor): JsonResponse
     {
-        $this->gate($request, $book);
+        $this->authorize('manageContent', $book);
         abort_if($bookAuthor->book_id !== $book->id, 404);
 
         $bookAuthor->delete();

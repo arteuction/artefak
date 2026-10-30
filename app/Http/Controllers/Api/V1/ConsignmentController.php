@@ -18,6 +18,7 @@ use App\Models\Gallery;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use InvalidArgumentException;
 
 final class ConsignmentController extends Controller
@@ -173,9 +174,8 @@ final class ConsignmentController extends Controller
     {
         $user = $request->user();
         $isOwner = $consignment->owner_id === $user->id || $consignment->consignor_id === $user->id;
-        $isAdmin = in_array($user->role, ['admin', 'operator'], true);
 
-        if (! $isOwner && ! $isAdmin) {
+        if (! $isOwner && ! Gate::check('admin-area')) {
             abort(403);
         }
 
