@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\BookCategory;
+use App\Models\BookReview;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 final class Book extends Model
@@ -20,19 +22,22 @@ final class Book extends Model
         'isbn', 'publisher', 'language', 'edition', 'page_count',
         'publication_year', 'country_origin',
         'price_cents', 'currency', 'is_free', 'preview_pages',
+        'external_url', 'embed_code', 'access_password',
         'status', 'reviewed_by', 'reviewed_at', 'review_note',
-        'is_featured', 'current_file_version',
+        'is_featured', 'avg_rating', 'review_count', 'current_file_version',
     ];
 
     protected function casts(): array
     {
         return [
-            'is_free'      => 'boolean',
-            'is_featured'  => 'boolean',
-            'reviewed_at'  => 'datetime',
-            'price_cents'  => 'integer',
-            'page_count'   => 'integer',
+            'is_free'       => 'boolean',
+            'is_featured'   => 'boolean',
+            'reviewed_at'   => 'datetime',
+            'price_cents'   => 'integer',
+            'page_count'    => 'integer',
             'preview_pages' => 'integer',
+            'avg_rating'    => 'float',
+            'review_count'  => 'integer',
         ];
     }
 
@@ -71,6 +76,22 @@ final class Book extends Model
     public function entitlements(): HasMany
     {
         return $this->hasMany(BookEntitlement::class);
+    }
+
+    public function categories(): BelongsToMany
+    {
+        return $this->belongsToMany(BookCategory::class, 'book_category_book')
+                    ->orderBy('sort_order');
+    }
+
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(BookReview::class);
+    }
+
+    public function approvedReviews(): HasMany
+    {
+        return $this->hasMany(BookReview::class)->where('is_approved', true);
     }
 
     public function scopePublished(Builder $query): Builder

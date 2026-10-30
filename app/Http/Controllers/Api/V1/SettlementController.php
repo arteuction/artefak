@@ -8,6 +8,7 @@ use App\Domain\Settlement\GenerateSettlementStatement;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 
@@ -19,9 +20,7 @@ final class SettlementController extends Controller
 {
     private function requireAdmin(Request $request): void
     {
-        if (! in_array($request->user()->role, ['admin', 'operator'], true)) {
-            abort(403);
-        }
+        Gate::authorize('admin-area');
     }
 
     /**

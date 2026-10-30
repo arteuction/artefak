@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\DonationRecipient;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * Donation recipients — public list, admin management.
@@ -25,7 +26,7 @@ final class DonationRecipientController extends Controller
         $query = DonationRecipient::query();
 
         $user = $request->user();
-        if (! $user || ! in_array($user->role, ['admin', 'operator'], true)) {
+        if (! $user || ! Gate::check('admin-area')) {
             $query->where('status', 'active');
         } elseif ($request->filled('status')) {
             $query->where('status', $request->input('status'));
@@ -49,9 +50,7 @@ final class DonationRecipientController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
-        if (! in_array($request->user()->role, ['admin', 'operator'], true)) {
-            abort(403);
-        }
+        Gate::authorize('admin-area');
 
         $data = $request->validate([
             'name'              => ['required', 'string', 'max:200'],
@@ -78,9 +77,7 @@ final class DonationRecipientController extends Controller
      */
     public function update(Request $request, DonationRecipient $donationRecipient): JsonResponse
     {
-        if (! in_array($request->user()->role, ['admin', 'operator'], true)) {
-            abort(403);
-        }
+        Gate::authorize('admin-area');
 
         $data = $request->validate([
             'name'              => ['sometimes', 'string', 'max:200'],

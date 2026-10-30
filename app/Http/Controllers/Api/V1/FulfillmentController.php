@@ -14,6 +14,7 @@ use App\Models\AuctionItem;
 use App\Models\SellNowOffer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use InvalidArgumentException;
 
 /**
@@ -80,9 +81,7 @@ final class FulfillmentController extends Controller
     public function confirmSellNowPayment(Request $request, SellNowOffer $offer): JsonResponse
     {
         $user = $request->user();
-        if (! in_array($user->role, ['admin', 'operator'], true)) {
-            abort(403);
-        }
+        Gate::authorize('admin-area');
 
         try {
             $offer = (new ConfirmSellNowPayment())->execute($offer);

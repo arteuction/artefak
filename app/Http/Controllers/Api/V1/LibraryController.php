@@ -13,6 +13,7 @@ use App\Models\BookPurchase;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Gate;
 use Stripe\StripeClient;
 
 /**
@@ -189,9 +190,7 @@ final class LibraryController extends Controller
      */
     public function revokeEntitlement(Request $request, BookEntitlement $bookEntitlement): JsonResponse
     {
-        if (! in_array($request->user()->role, ['admin', 'operator'], true)) {
-            abort(403);
-        }
+        Gate::authorize('admin-area');
 
         (new RevokeBookEntitlement())->forAdmin($bookEntitlement);
 
@@ -205,9 +204,7 @@ final class LibraryController extends Controller
      */
     public function publish(Request $request, Book $book): JsonResponse
     {
-        if (! in_array($request->user()->role, ['admin', 'operator'], true)) {
-            abort(403);
-        }
+        Gate::authorize('admin-area');
 
         if ($book->status === 'published') {
             return response()->json(['message' => 'Book is already published.', 'book' => $book]);
@@ -234,9 +231,7 @@ final class LibraryController extends Controller
      */
     public function unpublish(Request $request, Book $book): JsonResponse
     {
-        if (! in_array($request->user()->role, ['admin', 'operator'], true)) {
-            abort(403);
-        }
+        Gate::authorize('admin-area');
 
         if ($book->status !== 'published') {
             abort(422, 'Only published books can be unpublished.');

@@ -16,6 +16,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Artwork;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use InvalidArgumentException;
 
 final class ArtworkController extends Controller
@@ -57,9 +58,7 @@ final class ArtworkController extends Controller
         // Draft and archived artworks are only visible to their owner and admins
         if (in_array($artwork->status, ['draft', 'archived'], true)) {
             $user = $request->user();
-            if ($user === null || ($artwork->user_id !== $user->id && ! in_array($user->role, ['admin', 'operator'], true))) {
-                abort(403);
-            }
+            $this->authorize('view', $artwork);
         }
 
         $artwork->load(['artist:id,name', 'artist.artistProfile:user_id,slug']);
@@ -70,9 +69,7 @@ final class ArtworkController extends Controller
     /** PATCH /api/v1/artworks/{artwork} */
     public function update(Request $request, Artwork $artwork): JsonResponse
     {
-        if ($artwork->user_id !== $request->user()->id && ! in_array($request->user()->role, ['admin', 'operator'], true)) {
-            abort(403);
-        }
+        $this->authorize('update', $artwork);
 
         $data = $request->validate([
             'title'          => ['sometimes', 'string', 'max:255'],
@@ -93,9 +90,7 @@ final class ArtworkController extends Controller
     /** POST /api/v1/artworks */
     public function store(Request $request): JsonResponse
     {
-        if (! in_array($request->user()->role, ['artist', 'admin', 'operator'], true)) {
-            abort(403);
-        }
+        $this->authorize('create', Artwork::class);
 
         $data = $request->validate([
             'title'          => ['required', 'string', 'max:255'],
@@ -121,9 +116,7 @@ final class ArtworkController extends Controller
     /** POST /api/v1/artworks/{artwork}/revisions */
     public function storeRevision(Request $request, Artwork $artwork): JsonResponse
     {
-        if ($artwork->user_id !== $request->user()->id) {
-            abort(403);
-        }
+        $this->authorize('manageRevision', $artwork);
 
         $data = $request->validate([
             'title'             => ['required', 'string', 'max:255'],
@@ -157,9 +150,7 @@ final class ArtworkController extends Controller
     /** POST /api/v1/artworks/{artwork}/revisions/{revision}/activate */
     public function activateRevision(Request $request, Artwork $artwork, ArtworkRevision $revision): JsonResponse
     {
-        if ($artwork->user_id !== $request->user()->id) {
-            abort(403);
-        }
+        $this->authorize('manageRevision', $artwork);
 
         if ($revision->artwork_id !== $artwork->id) {
             abort(404);
@@ -185,7 +176,7 @@ final class ArtworkController extends Controller
         $query = ArtworkEvidence::where('artwork_id', $artwork->id);
 
         $user = $request->user();
-        if (! $user || ! in_array($user->role, ['admin', 'operator'], true)) {
+        if (! $user || ! Gate::check('admin-area')) {
             $query->where('verification_status', 'verified')
                   ->where('visibility', 'public');
         }
@@ -201,9 +192,7 @@ final class ArtworkController extends Controller
      */
     public function presignImage(Request $request, Artwork $artwork): JsonResponse
     {
-        if ($artwork->user_id !== $request->user()->id) {
-            abort(403);
-        }
+        $this->authorize('uploadImage', $artwork);
 
         $data = $request->validate([
             'extension' => ['nullable', 'in:jpg,jpeg,png,webp'],
@@ -230,9 +219,7 @@ final class ArtworkController extends Controller
      */
     public function confirmImage(Request $request, Artwork $artwork): JsonResponse
     {
-        if ($artwork->user_id !== $request->user()->id) {
-            abort(403);
-        }
+        $this->authorize('confirmUpload', $artwork);
 
         try {
             $artwork = (new ConfirmArtworkImageUpload())->execute($artwork);
@@ -256,10 +243,7 @@ final class ArtworkController extends Controller
      */
     public function generateDerivatives(Request $request, Artwork $artwork): JsonResponse
     {
-        $user = $request->user();
-        if ($artwork->user_id !== $user->id && ! in_array($user->role, ['admin', 'operator'], true)) {
-            abort(403);
-        }
+        $this->authorize('manageRevision', $artwork);
 
         if ($artwork->primary_image_key === null || $artwork->primary_image_status !== 'confirmed') {
             abort(422, "Artwork {$artwork->id} has no confirmed primary image.");
@@ -279,12 +263,7 @@ final class ArtworkController extends Controller
     public function storeEvidence(Request $request, Artwork $artwork): JsonResponse
     {
         $user = $request->user();
-        $isOwner = $artwork->user_id === $user->id;
-        $isAdmin = in_array($user->role, ['admin', 'operator'], true);
-
-        if (! $isOwner && ! $isAdmin) {
-            abort(403);
-        }
+        $this->authorize('update', $artwork);
 
         $data = $request->validate([
             'type'          => ['required', 'in:authenticity,provenance,condition,ownership,certificate,exhibition_history,restoration'],
@@ -317,9 +296,7 @@ final class ArtworkController extends Controller
     /** POST /api/v1/artworks/{artwork}/submit — artist submits draft for review (sets status to listed) */
     public function submit(Request $request, Artwork $artwork): JsonResponse
     {
-        if ($artwork->user_id !== $request->user()->id) {
-            abort(403);
-        }
+        $this->authorize('publish', $artwork);
 
         if ($artwork->status !== 'draft') {
             return response()->json(['message' => 'Only draft artworks can be submitted.'], 422);

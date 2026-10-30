@@ -9,8 +9,10 @@ use App\Models\User;
 
 final class ArtistApplicationPolicy
 {
+    private const STAFF = ['admin', 'operator'];
+
     public function review(User $user, ArtistApplication $application): bool
     {
-        return $user->role === 'admin';
+        return in_array($user->role, self::STAFF, true);
     }
 }

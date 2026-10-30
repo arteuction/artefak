@@ -19,16 +19,6 @@ use Illuminate\Http\Request;
  */
 final class BookFileController extends Controller
 {
-    private function gate(Request $request, Book $book): void
-    {
-        $user = $request->user();
-        $isOwner = $book->owner_id === $user->id;
-        $isAdmin = in_array($user->role, ['admin', 'operator'], true);
-        if (! $isOwner && ! $isAdmin) {
-            abort(403);
-        }
-    }
-
     /**
      * GET /api/v1/books/{book}/files
      *
@@ -36,7 +26,7 @@ final class BookFileController extends Controller
      */
     public function index(Request $request, Book $book): JsonResponse
     {
-        $this->gate($request, $book);
+        $this->authorize('manageContent', $book);
         return response()->json(['data' => $book->files()->orderByDesc('version')->get()]);
     }
 
@@ -47,7 +37,7 @@ final class BookFileController extends Controller
      */
     public function store(Request $request, Book $book): JsonResponse
     {
-        $this->gate($request, $book);
+        $this->authorize('manageContent', $book);
 
         $data = $request->validate([
             'disk'       => ['required', 'string', 'max:50'],
@@ -80,7 +70,7 @@ final class BookFileController extends Controller
     public function update(Request $request, Book $book, BookFile $bookFile): JsonResponse
     {
         abort_if($bookFile->book_id !== $book->id, 404);
-        $this->gate($request, $book);
+        $this->authorize('manageContent', $book);
 
         $data = $request->validate([
             'status' => ['required', 'in:processing,published,rejected'],
@@ -99,7 +89,7 @@ final class BookFileController extends Controller
     public function destroy(Request $request, Book $book, BookFile $bookFile): JsonResponse
     {
         abort_if($bookFile->book_id !== $book->id, 404);
-        $this->gate($request, $book);
+        $this->authorize('manageContent', $book);
 
         if ($bookFile->status === 'published') {
             abort(422, 'Published files cannot be deleted; mark them rejected instead.');

@@ -12,6 +12,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Dispute;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
 final class DisputeController extends Controller
@@ -25,7 +26,7 @@ final class DisputeController extends Controller
         $user  = $request->user();
         $query = Dispute::query();
 
-        if (! in_array($user->role, ['admin', 'operator'], true)) {
+        if (! Gate::check('admin-area')) {
             $query->where('opened_by', $user->id);
         }
 
@@ -45,9 +46,7 @@ final class DisputeController extends Controller
     {
         $user = $request->user();
 
-        if (! in_array($user->role, ['admin', 'operator'], true) && $dispute->opened_by !== $user->id) {
-            abort(403);
-        }
+        $this->authorize('view', $dispute);
 
         $dispute->load(['opener:id,name', 'assignee:id,name', 'evidence']);
 
@@ -92,9 +91,7 @@ final class DisputeController extends Controller
     public function assign(Request $request, Dispute $dispute): JsonResponse
     {
         $user = $request->user();
-        if (! in_array($user->role, ['admin', 'operator'], true)) {
-            abort(403);
-        }
+        $this->authorize('assign', $dispute);
 
         $data = $request->validate([
             'user_id' => ['required', 'integer', 'exists:users,id'],
@@ -118,9 +115,7 @@ final class DisputeController extends Controller
     public function resolve(Request $request, Dispute $dispute): JsonResponse
     {
         $user = $request->user();
-        if (! in_array($user->role, ['admin', 'operator'], true)) {
-            abort(403);
-        }
+        $this->authorize('resolve', $dispute);
 
         $data = $request->validate([
             'outcome'    => ['required', Rule::in(['resolved', 'dismissed'])],
@@ -149,9 +144,7 @@ final class DisputeController extends Controller
     {
         $user = $request->user();
 
-        if (! in_array($user->role, ['admin', 'operator'], true) && $dispute->opened_by !== $user->id) {
-            abort(403);
-        }
+        $this->authorize('attachEvidence', $dispute);
 
         $data = $request->validate([
             'type'          => ['required', 'in:document,photo,message_log,condition_report,other'],

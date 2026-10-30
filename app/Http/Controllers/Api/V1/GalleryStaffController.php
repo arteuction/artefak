@@ -11,6 +11,7 @@ use App\Models\Gallery;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 final class GalleryStaffController extends Controller
 {
@@ -54,10 +55,9 @@ final class GalleryStaffController extends Controller
         abort_if($staffMember->gallery_id !== $gallery->id, 404);
 
         $actingUser = $request->user();
-        $isAdmin    = in_array($actingUser->role, ['admin', 'operator'], true);
         $isManager  = $gallery->hasRole($actingUser, 'manager') || $gallery->hasRole($actingUser, 'owner');
 
-        if (! $isAdmin && ! $isManager) {
+        if (! Gate::check('admin-area') && ! $isManager) {
             abort(403);
         }
 

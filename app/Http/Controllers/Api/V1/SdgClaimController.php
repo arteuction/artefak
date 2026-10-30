@@ -10,6 +10,7 @@ use App\Models\ArtworkSdgClaim;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Gate;
 
 final class SdgClaimController extends Controller
 {
@@ -22,7 +23,7 @@ final class SdgClaimController extends Controller
         $query = $artwork->sdgClaims()->with('reviewer:id,name');
 
         $user = $request->user();
-        $isOwnerOrAdmin = $user && ($artwork->user_id === $user->id || in_array($user->role, ['admin', 'operator'], true));
+        $isOwnerOrAdmin = $user && ($artwork->user_id === $user->id || Gate::check('admin-area'));
 
         if (! $isOwnerOrAdmin) {
             $query->where('status', 'approved');
@@ -38,9 +39,7 @@ final class SdgClaimController extends Controller
      */
     public function store(Request $request, Artwork $artwork): JsonResponse
     {
-        if ($artwork->user_id !== $request->user()->id) {
-            abort(403);
-        }
+        $this->authorize('update', $artwork);
 
         $data = $request->validate([
             'sdg_number' => ['required', 'integer', 'min:1', 'max:17'],
@@ -70,9 +69,7 @@ final class SdgClaimController extends Controller
     public function review(Request $request, Artwork $artwork, ArtworkSdgClaim $claim): JsonResponse
     {
         $user = $request->user();
-        if (! in_array($user->role, ['admin', 'operator'], true)) {
-            abort(403);
-        }
+        Gate::authorize('admin-area');
 
         if ($claim->artwork_id !== $artwork->id) {
             abort(404);

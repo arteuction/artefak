@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AdminAuditLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 final class AdminAuditLogController extends Controller
 {
@@ -19,9 +20,7 @@ final class AdminAuditLogController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        if (! in_array($request->user()->role, ['admin', 'operator'], true)) {
-            abort(403);
-        }
+        Gate::authorize('admin-area');
 
         $query = AdminAuditLog::with('actor:id,name,email')->orderByDesc('created_at');
 
@@ -51,9 +50,7 @@ final class AdminAuditLogController extends Controller
      */
     public function show(Request $request, AdminAuditLog $adminAuditLog): JsonResponse
     {
-        if (! in_array($request->user()->role, ['admin', 'operator'], true)) {
-            abort(403);
-        }
+        Gate::authorize('admin-area');
 
         $adminAuditLog->load('actor:id,name,email');
 

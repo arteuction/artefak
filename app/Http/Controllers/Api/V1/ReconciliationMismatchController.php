@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Models\ReconciliationMismatch;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
 /**
@@ -16,9 +17,7 @@ final class ReconciliationMismatchController
 {
     private function requireAdmin(Request $request): void
     {
-        if (! in_array($request->user()->role, ['admin', 'operator'], true)) {
-            abort(403);
-        }
+        Gate::authorize('admin-area');
     }
 
     /**

@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Gallery;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 
 final class GalleryController extends Controller
@@ -19,9 +20,7 @@ final class GalleryController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
-        if (! in_array($request->user()->role, ['admin', 'operator'], true)) {
-            abort(403);
-        }
+        Gate::authorize('admin-area');
 
         $data = $request->validate([
             'name'          => ['required', 'string', 'max:200'],
@@ -70,10 +69,9 @@ final class GalleryController extends Controller
     public function update(Request $request, Gallery $gallery): JsonResponse
     {
         $user = $request->user();
-        $isAdmin = in_array($user->role, ['admin', 'operator'], true);
         $isManager = $gallery->hasRole($user, 'manager');
 
-        if (! $isAdmin && ! $isManager) {
+        if (! Gate::check('admin-area') && ! $isManager) {
             abort(403);
         }
 
@@ -85,7 +83,7 @@ final class GalleryController extends Controller
             'contact_email' => ['nullable', 'email', 'max:200'],
             'legal_name'    => ['nullable', 'string', 'max:200'],
             'eik'           => ['nullable', 'string', 'max:20'],
-            'status'        => $isAdmin ? ['sometimes', 'in:active,inactive'] : ['prohibited'],
+            'status'        => Gate::check('admin-area') ? ['sometimes', 'in:active,inactive'] : ['prohibited'],
         ]);
 
         $gallery->update($data);

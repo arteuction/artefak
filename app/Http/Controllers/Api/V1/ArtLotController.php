@@ -11,6 +11,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ArtLot;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use InvalidArgumentException;
 
 final class ArtLotController extends Controller
@@ -77,13 +78,8 @@ final class ArtLotController extends Controller
     /** PATCH /api/v1/art-lots/{artLot} */
     public function update(Request $request, ArtLot $artLot): JsonResponse
     {
-        $user    = $request->user();
-        $isOwner = $artLot->consignor_id === $user->id;
-        $isAdmin = in_array($user->role, ['admin', 'operator'], true);
-
-        if (! $isOwner && ! $isAdmin) {
-            abort(403);
-        }
+        $user = $request->user();
+        $this->authorize('update', $artLot);
 
         if ($artLot->status !== 'draft') {
             abort(422, 'Only draft lots can be updated.');
@@ -171,7 +167,7 @@ final class ArtLotController extends Controller
                     ->where('status', 'active')
                     ->exists();
 
-            if (! $isGalleryStaff && ! in_array($user->role, ['admin', 'operator'], true)) {
+            if (! $isGalleryStaff && ! Gate::check('admin-area')) {
                 abort(403, 'Gallery staff or admin required.');
             }
         } else {
