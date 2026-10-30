@@ -15,7 +15,7 @@ use Tests\TestCase;
  *   GET  /api/v1/consignments
  *   POST /api/v1/consignments
  *   GET  /api/v1/consignments/{consignment}
- *   POST /api/v1/consignments/{consignment}/cancel
+ *   POST /api/v1/consignments/{consignment}/terminate
  */
 final class ConsignmentApiTest extends TestCase
 {
@@ -216,7 +216,7 @@ final class ConsignmentApiTest extends TestCase
         $artwork = $this->artwork($artist);
         $con     = $this->consignment($artist, $buyer, $artwork);
 
-        $this->postJson("/api/v1/consignments/{$con->id}/cancel")
+        $this->postJson("/api/v1/consignments/{$con->id}/terminate")
             ->assertStatus(401);
     }
 
@@ -228,7 +228,7 @@ final class ConsignmentApiTest extends TestCase
         $con     = $this->consignment($artist, $buyer, $artwork, 'draft');
 
         $response = $this->actingAs($artist)
-            ->postJson("/api/v1/consignments/{$con->id}/cancel")
+            ->postJson("/api/v1/consignments/{$con->id}/terminate")
             ->assertOk();
 
         $this->assertSame('terminated', $response->json('data.status'));
@@ -242,7 +242,7 @@ final class ConsignmentApiTest extends TestCase
         $con     = $this->consignment($artist, $buyer, $artwork, 'completed');
 
         $this->actingAs($artist)
-            ->postJson("/api/v1/consignments/{$con->id}/cancel")
+            ->postJson("/api/v1/consignments/{$con->id}/terminate")
             ->assertStatus(422);
     }
 
@@ -254,7 +254,7 @@ final class ConsignmentApiTest extends TestCase
         $con     = $this->consignment($artist, $buyer, $artwork, 'terminated');
 
         $this->actingAs($artist)
-            ->postJson("/api/v1/consignments/{$con->id}/cancel")
+            ->postJson("/api/v1/consignments/{$con->id}/terminate")
             ->assertOk();
     }
 
@@ -267,7 +267,7 @@ final class ConsignmentApiTest extends TestCase
         $con      = $this->consignment($artist, $buyer, $artwork, 'draft');
 
         $this->actingAs($intruder)
-            ->postJson("/api/v1/consignments/{$con->id}/cancel")
+            ->postJson("/api/v1/consignments/{$con->id}/terminate")
             ->assertStatus(403);
     }
 }

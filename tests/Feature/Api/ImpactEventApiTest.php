@@ -40,7 +40,7 @@ final class ImpactEventApiTest extends TestCase
             'artwork_sdg_claim_id' => $claimId,
             'sdg_number'           => $sdg,
             'metric'               => $metric,
-            'value'                => 10,
+            'magnitude'            => 10,
             'description'          => 'Test event.',
         ]);
         Schema::enableForeignKeyConstraints();

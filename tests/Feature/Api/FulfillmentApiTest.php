@@ -79,8 +79,10 @@ final class FulfillmentApiTest extends TestCase
 
     public function test_ship_validates_carrier_required(): void
     {
+        $itemId = $this->auctionItem();
+
         $this->actingAs($this->admin())
-            ->postJson('/api/v1/auction-items/1/ship', [])
+            ->postJson("/api/v1/auction-items/{$itemId}/ship", [])
             ->assertStatus(422)
             ->assertJsonValidationErrors(['carrier', 'tracking_number']);
     }

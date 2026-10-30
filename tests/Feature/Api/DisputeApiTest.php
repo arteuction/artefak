@@ -7,6 +7,8 @@ namespace Tests\Feature\Api;
 use App\Models\Dispute;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 /**
@@ -129,10 +131,22 @@ final class DisputeApiTest extends TestCase
     {
         $buyer = $this->buyer();
 
+        Schema::disableForeignKeyConstraints();
+        $lotId = DB::table('art_lots')->insertGetId([
+            'artwork_id'   => 1,
+            'consignor_id' => $buyer->id,
+            'sale_mode'    => 'auction',
+            'status'       => 'active',
+            'created_at'   => now(),
+            'updated_at'   => now(),
+        ]);
+        Schema::enableForeignKeyConstraints();
+
         $response = $this->actingAs($buyer)
             ->postJson('/api/v1/disputes', [
                 'type'        => 'condition_mismatch',
                 'description' => 'Item was damaged on arrival.',
+                'art_lot_id'  => $lotId,
             ])
             ->assertStatus(201);
 

@@ -24,6 +24,11 @@ final class ArtworkController extends Controller
     /** GET /api/v1/artworks */
     public function index(Request $request): JsonResponse
     {
+        $request->validate([
+            'medium' => ['nullable', 'in:painting,sculpture,photography,digital,nft,mixed,other'],
+            'sdg'    => ['nullable', 'integer', 'min:1', 'max:17'],
+        ]);
+
         $query = Artwork::with(['artist:id,name', 'artist.artistProfile:user_id,slug'])
             ->whereNotIn('status', ['draft', 'archived']);
 
@@ -33,6 +38,14 @@ final class ArtworkController extends Controller
 
         if ($request->filled('artist_id')) {
             $query->where('user_id', (int) $request->input('artist_id'));
+        }
+
+        if ($request->filled('medium')) {
+            $query->where('medium', $request->input('medium'));
+        }
+
+        if ($request->filled('q')) {
+            $query->where('title', 'like', '%' . $request->input('q') . '%');
         }
 
         $artworks = $query->orderByDesc('created_at')->paginate(20);

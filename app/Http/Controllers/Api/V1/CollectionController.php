@@ -46,9 +46,12 @@ final class CollectionController extends Controller
             'visibility' => ['nullable', 'in:private,unlisted,public'],
         ]);
 
+        $slug = \Illuminate\Support\Str::slug($data['title']) . '-' . uniqid();
+
         $collection = (new CreateCollection())->execute(
             owner:      $request->user(),
             title:      $data['title'],
+            slug:       $slug,
             visibility: $data['visibility'] ?? 'private',
         );
 

@@ -145,7 +145,7 @@ final class GalleryApiTest extends TestCase
     {
         $gallery = $this->gallery();
 
-        $response = $this->getJson("/api/v1/galleries/{$gallery->slug}/profile")
+        $response = $this->getJson("/api/v1/galleries/{$gallery->id}/profile")
             ->assertOk();
 
         $this->assertArrayHasKey('gallery', $response->json());

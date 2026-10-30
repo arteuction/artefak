@@ -48,7 +48,7 @@ final class ProvenanceApiTest extends TestCase
         $artist = $this->artist();
         $lot    = $this->artLot($artist);
 
-        $this->getJson("/api/v1/art-lots/{$lot->slug}/provenance")
+        $this->getJson("/api/v1/art-lots/{$lot->id}/provenance")
             ->assertOk();
     }
 
@@ -57,7 +57,7 @@ final class ProvenanceApiTest extends TestCase
         $artist = $this->artist();
         $lot    = $this->artLot($artist);
 
-        $response = $this->getJson("/api/v1/art-lots/{$lot->slug}/provenance")
+        $response = $this->getJson("/api/v1/art-lots/{$lot->id}/provenance")
             ->assertOk();
 
         $this->assertStringContainsString(
@@ -71,7 +71,7 @@ final class ProvenanceApiTest extends TestCase
         $artist = $this->artist();
         $lot    = $this->artLot($artist);
 
-        $response = $this->getJson("/api/v1/art-lots/{$lot->slug}/provenance")
+        $response = $this->getJson("/api/v1/art-lots/{$lot->id}/provenance")
             ->assertOk();
 
         $this->assertArrayHasKey('@context', $response->json());

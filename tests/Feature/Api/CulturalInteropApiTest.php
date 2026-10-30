@@ -77,7 +77,7 @@ final class CulturalInteropApiTest extends TestCase
             'artwork_sdg_claim_id' => $claimId,
             'sdg_number'           => 13,
             'metric'               => 'audience_reach',
-            'value'                => 5,
+            'magnitude'            => 5,
             'description'          => 'Test event.',
         ]);
         Schema::enableForeignKeyConstraints();

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1;
 
 use App\Models\ApiClient;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -14,6 +15,7 @@ use Illuminate\Routing\Controller;
  */
 final class ApiClientController extends Controller
 {
+    use AuthorizesRequests;
     /**
      * List API clients (admin only).
      *

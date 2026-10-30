@@ -50,6 +50,10 @@ final class DonationApiTest extends TestCase
             'donated_cents'         => 5000,
             'currency'              => 'EUR',
             'status'                => $status,
+            'eligibility_basis'     => 'ZKPO_ART31_1',
+            'deduction_bps'         => 1000,
+            'max_deductible_cents'  => 500,
+            'idempotency_key'       => uniqid('don_', true),
         ]);
     }
 
