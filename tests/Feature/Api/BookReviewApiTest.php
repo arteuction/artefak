@@ -66,7 +66,7 @@ final class BookReviewApiTest extends TestCase
             'rating'      => 4,
             'headline'    => 'Good book.',
             'body'        => 'Very helpful.',
-            'status'      => $status,
+            'is_approved' => $status === 'approved',
         ]);
     }
 
@@ -128,7 +128,7 @@ final class BookReviewApiTest extends TestCase
             ->assertStatus(201);
 
         $this->assertSame(5, $response->json('rating'));
-        $this->assertSame('pending', $response->json('status'));
+        $this->assertFalse($response->json('is_approved'));
     }
 
     public function test_store_validates_rating_range(): void
@@ -224,6 +224,6 @@ final class BookReviewApiTest extends TestCase
             ->patchJson("/api/v1/books/{$book->id}/reviews/{$review->id}/approve")
             ->assertOk();
 
-        $this->assertSame('approved', $response->json('status'));
+        $this->assertTrue($response->json('is_approved'));
     }
 }

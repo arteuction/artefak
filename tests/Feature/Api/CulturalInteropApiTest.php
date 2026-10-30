@@ -9,6 +9,8 @@ use App\Models\ImpactEvent;
 use App\Models\ImpactEvidence;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 /**
@@ -62,12 +64,23 @@ final class CulturalInteropApiTest extends TestCase
 
     private function impactEvent(): ImpactEvent
     {
-        return ImpactEvent::create([
+        Schema::disableForeignKeyConstraints();
+        $claimId = DB::table('artwork_sdg_claims')->insertGetId([
+            'artwork_id'  => 1,
             'sdg_number'  => 13,
-            'metric'      => 'trees_planted',
-            'value'       => 5,
-            'description' => 'Test event.',
+            'status'      => 'approved',
+            'created_at'  => now(),
+            'updated_at'  => now(),
         ]);
+        $event = ImpactEvent::create([
+            'artwork_sdg_claim_id' => $claimId,
+            'sdg_number'           => 13,
+            'metric'               => 'audience_reach',
+            'value'                => 5,
+            'description'          => 'Test event.',
+        ]);
+        Schema::enableForeignKeyConstraints();
+        return $event;
     }
 
     // ── Europeana EDM ─────────────────────────────────────────────────────────

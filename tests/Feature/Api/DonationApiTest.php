@@ -35,6 +35,7 @@ final class DonationApiTest extends TestCase
     {
         return DonationRecipient::create([
             'name'   => 'NGO ' . uniqid(),
+            'eik'    => (string) rand(100000000, 999999999),
             'status' => 'active',
         ]);
     }

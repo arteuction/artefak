@@ -137,10 +137,11 @@ final class AllPoliciesTest extends TestCase
     {
         $artist  = $this->user('artist');
         $profile = \App\Models\ArtistProfile::create([
-            'user_id' => $artist->id,
-            'bio'     => 'bio',
-            'slug'    => 'profile-' . uniqid(),
-            'status'  => 'pending',
+            'user_id'      => $artist->id,
+            'display_name' => 'Test Artist',
+            'bio'          => 'bio',
+            'slug'         => 'profile-' . uniqid(),
+            'status'       => 'pending',
         ]);
 
         return ArtistApplication::create([

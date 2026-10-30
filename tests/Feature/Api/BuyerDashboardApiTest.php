@@ -49,7 +49,7 @@ final class BuyerDashboardApiTest extends TestCase
     /**
      * Insert a bid row for the given auction item and user.
      */
-    private function bid(int $auctionItemId, int $userId, int $amountCents = 50000, string $status = 'active'): void
+    private function bid(int $auctionItemId, int $userId, int $amountCents = 50000, string $status = 'pending'): void
     {
         Schema::disableForeignKeyConstraints();
         DB::table('bids')->insert([
@@ -57,7 +57,7 @@ final class BuyerDashboardApiTest extends TestCase
             'user_id'         => $userId,
             'amount_cents'    => $amountCents,
             'status'          => $status,
-            'bid_type'        => 'manual',
+            'bid_type'        => 'live',
             'created_at'      => now(),
             'updated_at'      => now(),
         ]);
