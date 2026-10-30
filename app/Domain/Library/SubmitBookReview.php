@@ -49,11 +49,12 @@ final class SubmitBookReview
         }
 
         return BookReview::create([
-            'book_id'  => $book->id,
-            'user_id'  => $reviewer->id,
-            'rating'   => $rating,
-            'headline' => $headline,
-            'body'     => $body,
+            'book_id'     => $book->id,
+            'user_id'     => $reviewer->id,
+            'rating'      => $rating,
+            'headline'    => $headline,
+            'body'        => $body,
+            'is_approved' => false,
         ]);
     }
 }

@@ -200,8 +200,8 @@ class SubmitBookReviewTest extends TestCase
         BookEntitlement::create([
             'book_id'    => $this->paidBook->id,
             'user_id'    => $this->buyer->id,
-            'status'     => 'expired',
             'granted_at' => now()->subYear(),
+            'revoked_at' => now()->subMonth(),
         ]);
 
         $this->expectException(ValidationException::class);
