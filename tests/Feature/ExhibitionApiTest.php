@@ -37,12 +37,22 @@ final class ExhibitionApiTest extends TestCase
 
     private function venue(): Venue
     {
-        return Venue::create([
-            'name'      => 'Venue ' . uniqid(),
-            'slug'      => 'venue-' . uniqid(),
-            'type'      => 'gallery',
-            'is_active' => true,
+        \Illuminate\Support\Facades\Schema::disableForeignKeyConstraints();
+        \Illuminate\Support\Facades\DB::table('geo_localities')->insertOrIgnore([
+            'id'         => 1,
+            'name'       => 'Test Locality',
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
+        $venue = Venue::create([
+            'name'           => 'Venue ' . uniqid(),
+            'slug'           => 'venue-' . uniqid(),
+            'type'           => 'gallery',
+            'is_active'      => true,
+            'geo_locality_id' => 1,
+        ]);
+        \Illuminate\Support\Facades\Schema::enableForeignKeyConstraints();
+        return $venue;
     }
 
     private function gallery(Venue $venue): Gallery

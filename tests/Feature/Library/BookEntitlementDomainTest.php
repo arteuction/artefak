@@ -47,6 +47,7 @@ final class BookEntitlementDomainTest extends TestCase
             'book_id'          => $book->id,
             'status'           => 'paid',
             'price_cents'      => 1999,
+            'gross_cents'      => 1999,
             'currency'         => 'EUR',
             'idempotency_key'  => 'test-' . uniqid(),
         ]);

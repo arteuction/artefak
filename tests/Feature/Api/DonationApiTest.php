@@ -34,9 +34,11 @@ final class DonationApiTest extends TestCase
     private function recipient(): DonationRecipient
     {
         return DonationRecipient::create([
-            'name'   => 'NGO ' . uniqid(),
-            'eik'    => (string) rand(100000000, 999999999),
-            'status' => 'active',
+            'name'              => 'NGO ' . uniqid(),
+            'eik'               => (string) rand(100000000, 999999999),
+            'status'            => 'active',
+            'eligibility_basis' => 'ZKPO_ART31_1',
+            'deduction_bps'     => 1000,
         ]);
     }
 
@@ -48,7 +50,6 @@ final class DonationApiTest extends TestCase
             'donated_cents'         => 5000,
             'currency'              => 'EUR',
             'status'                => $status,
-            'donated_at'            => now(),
         ]);
     }
 

@@ -130,14 +130,12 @@ final class BuyerDashboardApiTest extends TestCase
 
     // ── GET /auction-items/{item}/bid-history ─────────────────────────────────
 
-    public function test_unauthenticated_bid_history_on_open_item_returns_empty(): void
+    public function test_unauthenticated_bid_history_returns_401(): void
     {
         $itemId = $this->auctionItem('open');
 
-        $response = $this->getJson("/api/v1/auction-items/{$itemId}/bid-history")
-            ->assertOk();
-
-        $this->assertSame(0, $response->json('meta.total'));
+        $this->getJson("/api/v1/auction-items/{$itemId}/bid-history")
+            ->assertStatus(401);
     }
 
     public function test_bid_history_on_closed_item_shows_all_bids(): void
@@ -147,7 +145,8 @@ final class BuyerDashboardApiTest extends TestCase
 
         $this->bid($itemId, $buyer->id, 50000, 'outbid');
 
-        $response = $this->getJson("/api/v1/auction-items/{$itemId}/bid-history")
+        $response = $this->actingAs($buyer)
+            ->getJson("/api/v1/auction-items/{$itemId}/bid-history")
             ->assertOk();
 
         $this->assertSame(1, $response->json('meta.total'));
@@ -160,7 +159,8 @@ final class BuyerDashboardApiTest extends TestCase
 
         $this->bid($itemId, $buyer->id, 50000, 'outbid');
 
-        $response = $this->getJson("/api/v1/auction-items/{$itemId}/bid-history")
+        $response = $this->actingAs($buyer)
+            ->getJson("/api/v1/auction-items/{$itemId}/bid-history")
             ->assertOk();
 
         $this->assertArrayNotHasKey('user_id', $response->json('data.0'));

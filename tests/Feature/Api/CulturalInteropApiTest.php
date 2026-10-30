@@ -69,6 +69,7 @@ final class CulturalInteropApiTest extends TestCase
             'artwork_id'  => 1,
             'sdg_number'  => 13,
             'status'      => 'approved',
+            'rationale'   => 'Test rationale.',
             'created_at'  => now(),
             'updated_at'  => now(),
         ]);

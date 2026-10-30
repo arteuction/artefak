@@ -170,7 +170,7 @@ final class RecordVisitTest extends TestCase
 
     public function test_link_throws_for_closed_lot(): void
     {
-        $lot = $this->artLot('closed');
+        $lot = $this->artLot('sold');
 
         $this->expectException(DomainException::class);
 
@@ -179,7 +179,7 @@ final class RecordVisitTest extends TestCase
 
     public function test_link_allows_open_status(): void
     {
-        $lot     = $this->artLot('open');
+        $lot     = $this->artLot('active');
         $updated = (new LinkArtLotToArtifact())->execute($this->artifact, $lot);
 
         $this->assertSame($lot->id, $updated->art_lot_id);

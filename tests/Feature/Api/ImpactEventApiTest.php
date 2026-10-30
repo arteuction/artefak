@@ -7,6 +7,8 @@ namespace Tests\Feature\Api;
 use App\Models\ImpactEvent;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 /**
@@ -23,14 +25,26 @@ final class ImpactEventApiTest extends TestCase
         return User::factory()->create(['role' => 'buyer']);
     }
 
-    private function impactEvent(int $sdg = 13, string $metric = 'trees_planted'): ImpactEvent
+    private function impactEvent(int $sdg = 13, string $metric = 'audience_reach'): ImpactEvent
     {
-        return ImpactEvent::create([
-            'sdg_number'    => $sdg,
-            'metric'        => $metric,
-            'value'         => 10,
-            'description'   => 'Test event.',
+        Schema::disableForeignKeyConstraints();
+        $claimId = DB::table('artwork_sdg_claims')->insertGetId([
+            'artwork_id'  => 1,
+            'sdg_number'  => $sdg,
+            'status'      => 'approved',
+            'rationale'   => 'Test rationale.',
+            'created_at'  => now(),
+            'updated_at'  => now(),
         ]);
+        $event = ImpactEvent::create([
+            'artwork_sdg_claim_id' => $claimId,
+            'sdg_number'           => $sdg,
+            'metric'               => $metric,
+            'value'                => 10,
+            'description'          => 'Test event.',
+        ]);
+        Schema::enableForeignKeyConstraints();
+        return $event;
     }
 
     // ── index ─────────────────────────────────────────────────────────────────
@@ -43,7 +57,7 @@ final class ImpactEventApiTest extends TestCase
     public function test_buyer_can_list_impact_events(): void
     {
         $this->impactEvent();
-        $this->impactEvent(7, 'kwh_saved');
+        $this->impactEvent(7, 'books_sold');
 
         $response = $this->actingAs($this->buyer())
             ->getJson('/api/v1/impact-events')
@@ -67,11 +81,11 @@ final class ImpactEventApiTest extends TestCase
 
     public function test_index_can_filter_by_metric(): void
     {
-        $this->impactEvent(13, 'trees_planted');
-        $this->impactEvent(7, 'kwh_saved');
+        $this->impactEvent(13, 'audience_reach');
+        $this->impactEvent(7, 'books_sold');
 
         $response = $this->actingAs($this->buyer())
-            ->getJson('/api/v1/impact-events?metric=trees_planted')
+            ->getJson('/api/v1/impact-events?metric=audience_reach')
             ->assertOk();
 
         $this->assertSame(1, $response->json('data.total'));
@@ -87,7 +101,7 @@ final class ImpactEventApiTest extends TestCase
 
     public function test_buyer_can_show_impact_event(): void
     {
-        $event = $this->impactEvent(7, 'kwh_saved');
+        $event = $this->impactEvent(7, 'books_sold');
 
         $response = $this->actingAs($this->buyer())
             ->getJson("/api/v1/impact-events/{$event->id}")

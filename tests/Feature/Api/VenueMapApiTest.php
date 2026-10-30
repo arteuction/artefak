@@ -6,6 +6,8 @@ namespace Tests\Feature\Api;
 
 use App\Models\Venue;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 /**
@@ -15,6 +17,19 @@ use Tests\TestCase;
 final class VenueMapApiTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Schema::disableForeignKeyConstraints();
+        DB::table('geo_localities')->insertOrIgnore([
+            'id'         => 1,
+            'name'       => 'Test Locality',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        Schema::enableForeignKeyConstraints();
+    }
 
     private function activeVenueWithCoords(float $lat = 48.8566, float $lng = 2.3522): Venue
     {

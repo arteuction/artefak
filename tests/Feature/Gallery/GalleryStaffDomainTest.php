@@ -91,7 +91,7 @@ final class GalleryStaffDomainTest extends TestCase
         // notAnOwner has no owner role at this gallery
         $this->expectException(DomainException::class);
 
-        (new AddGalleryStaff())->execute($gallery, $member, 'staff', $notAnOwner);
+        (new AddGalleryStaff())->execute($gallery, $member, 'finance', $notAnOwner);
     }
 
     public function test_add_gallery_staff_is_idempotent_for_active_staff(): void
