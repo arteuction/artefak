@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+/* Self-hosted fonts via Fontsource */
+@import '@fontsource/cormorant-garamond/latin-300.css';
+@import '@fontsource/cormorant-garamond/latin-300-italic.css';
+@import '@fontsource/cormorant-garamond/latin-400.css';
+@import '@fontsource/cormorant-garamond/latin-400-italic.css';
+@import '@fontsource/cormorant-garamond/latin-600.css';
+@import '@fontsource/cormorant-garamond/latin-600-italic.css';
+@import '@fontsource/cormorant-garamond/cyrillic-300.css';
+@import '@fontsource/cormorant-garamond/cyrillic-300-italic.css';
+@import '@fontsource/cormorant-garamond/cyrillic-400.css';
+@import '@fontsource/cormorant-garamond/cyrillic-400-italic.css';
+@import '@fontsource/cormorant-garamond/cyrillic-600.css';
+@import '@fontsource/cormorant-garamond/cyrillic-600-italic.css';
+
+/* ── Design tokens ───────────────────────────────────────────────────────── */
+:root {
+    --font-editorial: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+    --font-ui:        'Inter', ui-sans-serif, system-ui, sans-serif;
+
+    --color-bg:            #F8F6F1;
+    --color-bg-subtle:     #F0EDE6;
+    --color-bg-muted:      #E8E4DC;
+    --color-border:        #D9D4CB;
+    --color-border-strong: #BFB8AD;
+
+    --color-text:          #1A1A1A;
+    --color-text-muted:    #6B6560;
+    --color-text-faint:    #716A63;
+
+    --color-accent:        #C4622D;
+    --color-action:        #A8511F;
+    --color-action-hover:  #8B401A;
+    --color-action-fg:     #FFFFFF;
+
+    --color-live:          #B91C1C;
+    --color-live-bg:       #FEF2F2;
+    --color-sold-bg:       #F0FDF4;
+    --color-sold-text:     #166534;
+    --color-draft-bg:      #FAFAF9;
+    --color-draft-text:    #6B6560;
+
+    --color-urgent:        #B91C1C;
+    --color-urgent-bg:     #FEF2F2;
+
+    --radius-sm:   0.25rem;
+    --radius-md:   0.375rem;
+    --radius-lg:   0.5rem;
+    --radius-xl:   0.75rem;
+    --radius-full: 9999px;
+
+    --duration-fast:   120ms;
+    --duration-normal: 220ms;
+    --duration-slow:   360ms;
+    --ease-out:        cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+body {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    -webkit-font-smoothing: antialiased;
+}
+
+.aspect-square  { aspect-ratio: 1 / 1; }
+.aspect-artwork { aspect-ratio: 4 / 5; }
+
+.artwork-image-upload .uppy-Dashboard-inner {
+    border-color: var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg-subtle);
+}
