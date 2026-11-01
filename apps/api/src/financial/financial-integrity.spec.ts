@@ -20,6 +20,7 @@
  */
 
 import { PrismaClient } from '@prisma/client';
+import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 
 const HAS_DB = Boolean(process.env.DATABASE_URL);
 const describeWithDb = HAS_DB ? describe : describe.skip;
@@ -68,7 +69,9 @@ async function seedSettlement(overrides: {
 
 describeWithDb('Financial Integrity — Phase 0.2', () => {
   beforeAll(async () => {
-    prisma = new PrismaClient({ datasources: { db: { url: process.env.DATABASE_URL } } });
+    // Prisma 7: must pass a driver adapter to PrismaClient constructor
+    const adapter = new PrismaMariaDb(process.env.DATABASE_URL!);
+    prisma = new PrismaClient({ adapter } as any);
     await prisma.$connect();
   });
 
@@ -149,78 +152,72 @@ describeWithDb('Financial Integrity — Phase 0.2', () => {
 
   it('I4: duplicate donation idempotency_key is rejected', async () => {
     const key = 'fi_test_donation_idem_001';
-    await prisma.$executeRaw`SET FOREIGN_KEY_CHECKS = 0`;
-    try {
-      await prisma.$executeRaw`
-        INSERT INTO donations
-          (donation_recipient_id, donor_id, donated_cents, currency,
-           eligibility_basis, deduction_bps, max_deductible_cents,
-           type, status, idempotency_key, created_at, updated_at)
-        VALUES (1, 1, 500, 'EUR', 'other', 1000, 5000, 'donation', 'pending', ${key}, NOW(), NOW())
-      `;
-
-      await expect(
-        prisma.$executeRaw`
+    await expect(
+      prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SET FOREIGN_KEY_CHECKS = 0`;
+        await tx.$executeRaw`
           INSERT INTO donations
             (donation_recipient_id, donor_id, donated_cents, currency,
              eligibility_basis, deduction_bps, max_deductible_cents,
              type, status, idempotency_key, created_at, updated_at)
           VALUES (1, 1, 500, 'EUR', 'other', 1000, 5000, 'donation', 'pending', ${key}, NOW(), NOW())
-        `,
-      ).rejects.toThrow();
-    } finally {
-      await prisma.$executeRaw`SET FOREIGN_KEY_CHECKS = 1`;
-    }
+        `;
+        await tx.$executeRaw`
+          INSERT INTO donations
+            (donation_recipient_id, donor_id, donated_cents, currency,
+             eligibility_basis, deduction_bps, max_deductible_cents,
+             type, status, idempotency_key, created_at, updated_at)
+          VALUES (1, 1, 500, 'EUR', 'other', 1000, 5000, 'donation', 'pending', ${key}, NOW(), NOW())
+        `;
+        await tx.$executeRaw`SET FOREIGN_KEY_CHECKS = 1`;
+      }),
+    ).rejects.toThrow(); // Duplicate UNIQUE key rolls back the transaction
   });
 
   // ── I5. Impact event idempotency ─────────────────────────────────────────
 
   it('I5: duplicate impact_event idempotency_key is rejected', async () => {
     const key = 'fi_test_impact_idem_001';
-    await prisma.$executeRaw`SET FOREIGN_KEY_CHECKS = 0`;
-    try {
-      await prisma.$executeRaw`
-        INSERT INTO impact_events
-          (artwork_sdg_claim_id, sdg_number, metric, magnitude, currency,
-           type, idempotency_key, created_at, updated_at)
-        VALUES (1, 4, 'artworks_sold', 1, 'EUR', 'event', ${key}, NOW(), NOW())
-      `;
-
-      await expect(
-        prisma.$executeRaw`
+    await expect(
+      prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SET FOREIGN_KEY_CHECKS = 0`;
+        await tx.$executeRaw`
           INSERT INTO impact_events
             (artwork_sdg_claim_id, sdg_number, metric, magnitude, currency,
              type, idempotency_key, created_at, updated_at)
           VALUES (1, 4, 'artworks_sold', 1, 'EUR', 'event', ${key}, NOW(), NOW())
-        `,
-      ).rejects.toThrow();
-    } finally {
-      await prisma.$executeRaw`SET FOREIGN_KEY_CHECKS = 1`;
-    }
+        `;
+        await tx.$executeRaw`
+          INSERT INTO impact_events
+            (artwork_sdg_claim_id, sdg_number, metric, magnitude, currency,
+             type, idempotency_key, created_at, updated_at)
+          VALUES (1, 4, 'artworks_sold', 1, 'EUR', 'event', ${key}, NOW(), NOW())
+        `;
+        await tx.$executeRaw`SET FOREIGN_KEY_CHECKS = 1`;
+      }),
+    ).rejects.toThrow();
   });
 
   // ── I6. Ledger entry idempotency ─────────────────────────────────────────
 
   it('I6: duplicate ledger_entry idempotency_key is rejected', async () => {
     const key = 'fi_test_ledger_idem_001';
-    await prisma.$executeRaw`SET FOREIGN_KEY_CHECKS = 0`;
-    try {
-      await prisma.$executeRaw`
-        INSERT INTO ledger_entries
-          (settlement_id, type, amount_cents, currency, idempotency_key, created_at, updated_at)
-        VALUES (1, 'credit', 1000, 'EUR', ${key}, NOW(), NOW())
-      `;
-
-      await expect(
-        prisma.$executeRaw`
+    await expect(
+      prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SET FOREIGN_KEY_CHECKS = 0`;
+        await tx.$executeRaw`
           INSERT INTO ledger_entries
             (settlement_id, type, amount_cents, currency, idempotency_key, created_at, updated_at)
           VALUES (1, 'credit', 1000, 'EUR', ${key}, NOW(), NOW())
-        `,
-      ).rejects.toThrow();
-    } finally {
-      await prisma.$executeRaw`SET FOREIGN_KEY_CHECKS = 1`;
-    }
+        `;
+        await tx.$executeRaw`
+          INSERT INTO ledger_entries
+            (settlement_id, type, amount_cents, currency, idempotency_key, created_at, updated_at)
+          VALUES (1, 'credit', 1000, 'EUR', ${key}, NOW(), NOW())
+        `;
+        await tx.$executeRaw`SET FOREIGN_KEY_CHECKS = 1`;
+      }),
+    ).rejects.toThrow();
   });
 
   // ── I7. Settlement cents sum vs gross ────────────────────────────────────
@@ -262,25 +259,26 @@ describeWithDb('Financial Integrity — Phase 0.2', () => {
   // ── I9. Donation reversal ────────────────────────────────────────────────
 
   it('I9: donation reversal creates a reversal row; original row status unchanged', async () => {
-    await prisma.$executeRaw`SET FOREIGN_KEY_CHECKS = 0`;
-    try {
-      const origKey = 'fi_test_donation_orig_001';
-      const revKey  = 'fi_test_donation_rev_001';
+    const origKey = 'fi_test_donation_orig_001';
+    const revKey  = 'fi_test_donation_rev_001';
+    let origId: number;
 
-      // Insert original donation
-      await prisma.$executeRaw`
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SET FOREIGN_KEY_CHECKS = 0`;
+
+      await tx.$executeRaw`
         INSERT INTO donations
           (donation_recipient_id, donor_id, donated_cents, currency,
            eligibility_basis, deduction_bps, max_deductible_cents,
            type, status, idempotency_key, created_at, updated_at)
         VALUES (1, 1, 1000, 'EUR', 'other', 1000, 5000, 'donation', 'confirmed', ${origKey}, NOW(), NOW())
       `;
-      const [orig] = await prisma.$queryRaw<[{ id: number }]>`
+      const [orig] = await tx.$queryRaw<[{ id: number }]>`
         SELECT id FROM donations WHERE idempotency_key = ${origKey} LIMIT 1
       `;
+      origId = orig.id;
 
-      // Insert reversal referencing the original
-      await prisma.$executeRaw`
+      await tx.$executeRaw`
         INSERT INTO donations
           (donation_recipient_id, donor_id, donated_cents, currency,
            eligibility_basis, deduction_bps, max_deductible_cents,
@@ -288,22 +286,20 @@ describeWithDb('Financial Integrity — Phase 0.2', () => {
         VALUES (1, 1, 1000, 'EUR', 'other', 1000, 5000, 'reversal', 'reversed', ${orig.id}, ${revKey}, NOW(), NOW())
       `;
 
-      const [originalRow] = await prisma.$queryRaw<[{ type: string; status: string }]>`
-        SELECT type, status FROM donations WHERE idempotency_key = ${origKey}
-      `;
-      const [reversalRow] = await prisma.$queryRaw<[{ type: string; reverses_donation_id: number }]>`
-        SELECT type, reverses_donation_id FROM donations WHERE idempotency_key = ${revKey}
-      `;
+      await tx.$executeRaw`SET FOREIGN_KEY_CHECKS = 1`;
+    });
 
-      // Original must still be 'confirmed' — reversal does not mutate it
-      expect(originalRow.status).toBe('confirmed');
-      expect(originalRow.type).toBe('donation');
-      // Reversal must reference the original
-      expect(reversalRow.type).toBe('reversal');
-      expect(Number(reversalRow.reverses_donation_id)).toBe(Number(orig.id));
-    } finally {
-      await prisma.$executeRaw`SET FOREIGN_KEY_CHECKS = 1`;
-    }
+    const [originalRow] = await prisma.$queryRaw<[{ type: string; status: string }]>`
+      SELECT type, status FROM donations WHERE idempotency_key = ${origKey}
+    `;
+    const [reversalRow] = await prisma.$queryRaw<[{ type: string; reverses_donation_id: number }]>`
+      SELECT type, reverses_donation_id FROM donations WHERE idempotency_key = ${revKey}
+    `;
+
+    expect(originalRow.status).toBe('confirmed');
+    expect(originalRow.type).toBe('donation');
+    expect(reversalRow.type).toBe('reversal');
+    expect(Number(reversalRow.reverses_donation_id)).toBe(Number(origId!));
   });
 
   // ── I10. No partial ledger on rollback ───────────────────────────────────

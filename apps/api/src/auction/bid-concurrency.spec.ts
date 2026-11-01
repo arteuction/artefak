@@ -350,7 +350,7 @@ describeWithDb('BidConcurrencyService — Phase 0.2 expanded', () => {
   it('10: bid on auction with ends_at in the past is rejected', async () => {
     // Move auction A's end time to the past
     await sharedPrisma.$executeRaw`
-      UPDATE auctions SET ends_at = DATE_SUB(NOW(), INTERVAL 1 SECOND) WHERE id = ${auctionAId}
+      UPDATE auctions SET ends_at = DATE_SUB(UTC_TIMESTAMP(), INTERVAL 1 SECOND) WHERE id = ${auctionAId}
     `;
 
     await expect(
@@ -359,7 +359,7 @@ describeWithDb('BidConcurrencyService — Phase 0.2 expanded', () => {
 
     // Restore for subsequent tests
     await sharedPrisma.$executeRaw`
-      UPDATE auctions SET ends_at = DATE_ADD(NOW(), INTERVAL 1 DAY) WHERE id = ${auctionAId}
+      UPDATE auctions SET ends_at = DATE_ADD(UTC_TIMESTAMP(), INTERVAL 1 DAY) WHERE id = ${auctionAId}
     `;
   });
 });
