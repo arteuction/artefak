@@ -72,6 +72,37 @@ export class ProfileService {
     };
   }
 
+  async getUserConsignments(userId: number, page = 1, perPage = 20) {
+    const skip = (page - 1) * perPage;
+    const where = { consignor_id: BigInt(userId) };
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.consignments.findMany({
+        where,
+        select: {
+          id: true, commission_bps: true, status: true,
+          starts_at: true, ends_at: true, created_at: true,
+          artworks: { select: { id: true, title: true, slug: true, medium: true } },
+          galleries: { select: { id: true, name: true, slug: true } },
+        },
+        orderBy: [{ created_at: 'desc' }],
+        skip,
+        take: perPage,
+      }),
+      this.prisma.consignments.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: {
+        current_page: page,
+        last_page: Math.max(1, Math.ceil(total / perPage)),
+        per_page: perPage,
+        total,
+      },
+    };
+  }
+
   async getUserBids(userId: number, page = 1, perPage = 20) {
     const skip = (page - 1) * perPage;
 

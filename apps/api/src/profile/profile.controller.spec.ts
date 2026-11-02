@@ -71,12 +71,24 @@ const STUB_COLLECTIONS_RESPONSE = {
   meta: { current_page: 1, last_page: 1, per_page: 20, total: 1 },
 };
 
+const STUB_CONSIGNMENTS = {
+  data: [{
+    id: 1, commission_bps: 1500, status: 'active',
+    starts_at: new Date('2026-01-01').toISOString(), ends_at: null,
+    created_at: new Date('2026-01-01').toISOString(),
+    artworks: { id: 3, title: 'Blue Horizon', slug: 'blue-horizon', medium: 'painting' },
+    galleries: { id: 2, name: 'Sophia Fine Art', slug: 'sophia-fine-art' },
+  }],
+  meta: { current_page: 1, last_page: 1, per_page: 20, total: 1 },
+};
+
 const mockProfileService = {
   getUserBids: async () => STUB_BIDS_RESPONSE,
   getWatchlist: async () => [STUB_WATCHLIST_ENTRY],
   addToWatchlist: async () => STUB_WATCHLIST_ENTRY,
   removeFromWatchlist: async () => ({ deleted: true }),
   getUserCollections: async () => STUB_COLLECTIONS_RESPONSE,
+  getUserConsignments: async () => STUB_CONSIGNMENTS,
 };
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -199,5 +211,19 @@ describe('Phase 0.3F — Profile controller', () => {
     expect(body).toHaveProperty('data');
     expect(body).toHaveProperty('meta');
     expect(body.data[0]).toHaveProperty('visibility', 'public');
+  });
+
+  it('PF9: GET /me/consignments returns 200 with paginated consignments', async () => {
+    const token = makeToken('user');
+    const res = await app.inject({
+      method: 'GET', url: '/api/v1/me/consignments',
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body).toHaveProperty('data');
+    expect(body).toHaveProperty('meta');
+    expect(body.data[0]).toHaveProperty('artworks');
+    expect(body.data[0]).toHaveProperty('galleries');
   });
 });

@@ -72,4 +72,14 @@ export class ProfileController {
   ) {
     return this.profileService.getUserCollections(user.id, page, perPage);
   }
+
+  @Get('consignments')
+  @ApiOperation({ summary: "List authenticated user's consignments (as consignor)" })
+  getConsignments(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page = 1,
+    @Query('per_page', new DefaultValuePipe(20), ParseIntPipe) perPage = 20,
+  ) {
+    return this.profileService.getUserConsignments(user.id, page, perPage);
+  }
 }
