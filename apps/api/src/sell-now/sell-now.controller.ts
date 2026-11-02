@@ -47,4 +47,35 @@ export class SellNowController {
   ) {
     return this.sellNowService.getOffer(offerId, user.id);
   }
+
+  @Post('sell-now-offers/:id/counter')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Counter a sell-now offer' })
+  counter(
+    @Param('id', ParseIntPipe) offerId: number,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { counter_price_cents: number },
+  ) {
+    return this.sellNowService.counterOffer(offerId, user.id, body.counter_price_cents);
+  }
+
+  @Post('sell-now-offers/:id/accept')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Accept a sell-now offer' })
+  accept(
+    @Param('id', ParseIntPipe) offerId: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.sellNowService.acceptOffer(offerId, user.id);
+  }
+
+  @Post('sell-now-offers/:id/reject')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Reject a sell-now offer' })
+  reject(
+    @Param('id', ParseIntPipe) offerId: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.sellNowService.rejectOffer(offerId, user.id);
+  }
 }

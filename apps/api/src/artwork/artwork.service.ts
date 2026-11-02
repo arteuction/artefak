@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 
 export interface ArtworksQuery {
@@ -56,6 +56,91 @@ export class ArtworkService {
 
     if (!artwork) throw new NotFoundException(`Artwork "${idOrSlug}" not found`);
     return artwork;
+  }
+
+  async createArtwork(userId: number, dto: { title: string; slug: string; medium?: string; description?: string; year_created?: number; dimensions?: string }) {
+    return this.prisma.artworks.create({
+      data: {
+        user_id: BigInt(userId),
+        title: dto.title,
+        slug: dto.slug,
+        medium: (dto.medium as any) ?? 'painting',
+        description: dto.description ?? null,
+        year_created: dto.year_created ?? null,
+        dimensions: dto.dimensions ?? null,
+        status: 'draft',
+      },
+      select: { id: true, title: true, slug: true, medium: true, status: true, created_at: true },
+    });
+  }
+
+  async updateArtwork(idOrSlug: string, userId: number, role: string, dto: { title?: string; description?: string; dimensions?: string; year_created?: number }) {
+    const artwork = await this.getArtwork(idOrSlug);
+    if (role !== 'admin' && Number(artwork.user_id) !== userId) throw new ForbiddenException();
+    return this.prisma.artworks.update({
+      where: { id: artwork.id },
+      data: {
+        ...(dto.title !== undefined ? { title: dto.title } : {}),
+        ...(dto.description !== undefined ? { description: dto.description } : {}),
+        ...(dto.dimensions !== undefined ? { dimensions: dto.dimensions } : {}),
+        ...(dto.year_created !== undefined ? { year_created: dto.year_created } : {}),
+      },
+      select: { id: true, title: true, slug: true, status: true, updated_at: true },
+    });
+  }
+
+  async submitArtwork(idOrSlug: string, userId: number, role: string) {
+    const artwork = await this.getArtwork(idOrSlug);
+    if (role !== 'admin' && Number(artwork.user_id) !== userId) throw new ForbiddenException();
+    return this.prisma.artworks.update({
+      where: { id: artwork.id },
+      data: { status: 'review' as any },
+      select: { id: true, status: true, updated_at: true },
+    });
+  }
+
+  async listEvidence(idOrSlug: string) {
+    const artwork = await this.getArtwork(idOrSlug);
+    return this.prisma.artwork_evidence.findMany({
+      where: { artwork_id: artwork.id },
+      select: { id: true, type: true, issuer: true, verification_status: true, visibility: true, created_at: true },
+      orderBy: [{ created_at: 'desc' }],
+    });
+  }
+
+  async createEvidence(idOrSlug: string, _userId: number, dto: { type: string; issuer?: string; notes?: string }) {
+    const artwork = await this.getArtwork(idOrSlug);
+    return this.prisma.artwork_evidence.create({
+      data: {
+        artwork_id: artwork.id,
+        type: dto.type as any,
+        issuer: dto.issuer ?? null,
+        notes: dto.notes ?? null,
+      },
+      select: { id: true, type: true, issuer: true, verification_status: true, created_at: true },
+    });
+  }
+
+  async listSdgClaims(idOrSlug: string) {
+    const artwork = await this.getArtwork(idOrSlug);
+    return this.prisma.artwork_sdg_claims.findMany({
+      where: { artwork_id: artwork.id },
+      select: { id: true, sdg_number: true, status: true, created_at: true },
+      orderBy: [{ created_at: 'desc' }],
+    });
+  }
+
+  async createSdgClaim(idOrSlug: string, _userId: number, dto: { sdg_number: number; rationale: string }) {
+    const artwork = await this.getArtwork(idOrSlug);
+    return this.prisma.artwork_sdg_claims.create({
+      data: {
+        artwork_id: artwork.id,
+        sdg_number: dto.sdg_number,
+        rationale: dto.rationale,
+        status: 'pending' as any,
+      },
+      select: { id: true, sdg_number: true, status: true, created_at: true },
+    });
   }
 
   async listArtLots(artworkIdOrSlug: string) {

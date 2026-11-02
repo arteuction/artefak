@@ -3,10 +3,11 @@ import { BidConcurrencyService } from './bid-concurrency.service';
 import { AuctionService } from './auction.service';
 import { AuctionController } from './auction.controller';
 import { BidController } from './bid.controller';
+import { AuctionItemsController } from './auction-items.controller';
 import { PrismaService } from '../prisma.service';
 
 @Module({
-  controllers: [AuctionController, BidController],
+  controllers: [AuctionController, BidController, AuctionItemsController],
   providers: [AuctionService, BidConcurrencyService, PrismaService],
   exports: [AuctionService, BidConcurrencyService],
 })

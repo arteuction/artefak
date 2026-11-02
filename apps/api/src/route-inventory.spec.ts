@@ -47,25 +47,29 @@ const prismaMock = {
   // $transaction receives an array of Promises when called with array style
   $transaction: async (ops: Promise<unknown>[]) => Promise.all(ops),
   auction: { findMany: emptyFindMany, count: emptyCount, findUnique: notFound, findFirst: notFound },
-  auctionItem: { findFirst: notFound, findMany: emptyFindMany, count: emptyCount },
+  auctionItem: { findFirst: async () => ({ id: BigInt(1), auction_id: BigInt(1), status: 'sold', fulfillment_status: null }), findMany: emptyFindMany, count: emptyCount, update: async () => ({ id: BigInt(1), fulfillment_status: 'shipped', updated_at: null }) },
   bid: { findMany: emptyFindMany, count: emptyCount },
   artworks: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound },
   art_lots: { findMany: emptyFindMany },
-  galleries: { findMany: emptyFindMany, count: emptyCount, findUnique: notFound },
+  galleries: { findMany: emptyFindMany, count: emptyCount, findUnique: async () => ({ id: BigInt(1), name: 'Test Gallery', slug: '1', type: 'private', status: 'active', gallery_staff: [] }), create: async () => ({ id: BigInt(1) }), update: async () => ({ id: BigInt(1) }) },
+  gallery_staff: { findMany: emptyFindMany, findFirst: notFound, create: async () => ({ id: BigInt(1) }), update: async () => ({ id: BigInt(1) }), delete: async () => ({}) },
   artist_profiles: { findMany: emptyFindMany, count: emptyCount, findUnique: notFound, findFirst: notFound },
   collections: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound },
-  collection_artworks: { findMany: emptyFindMany },
+  collection_artworks: { findMany: emptyFindMany, aggregate: async () => ({ _max: { position: 0 } }), create: async () => ({ id: 1 }), findFirst: notFound, delete: async () => ({}) },
   watchlist: { findMany: emptyFindMany },
   sell_now_offers: { findMany: emptyFindMany, count: emptyCount },
   consignments: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound },
   // Library
   book: { findMany: async () => [], count: emptyCount, findUnique: notFound },
+  book_entitlements: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound },
   // Venues
   venues: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound },
   // Exhibitions
-  exhibitions: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound },
+  exhibitions: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound, create: async () => ({ id: BigInt(1) }), update: async () => ({ id: BigInt(1) }) },
+  artmetro_exhibition_sdg: { deleteMany: async () => ({ count: 0 }), createMany: async () => ({ count: 0 }) },
   // Disputes
-  disputes: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound },
+  disputes: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound, create: async () => ({ id: BigInt(1) }), update: async () => ({ id: BigInt(1) }) },
+  dispute_escalations: { create: async () => ({ id: BigInt(1) }) },
   // Donations
   donations: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound },
   // Impact
@@ -78,6 +82,17 @@ const prismaMock = {
   ownership_transfers: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound },
   // Reserves
   reserves: { findFirst: notFound },
+  // Institutions
+  institutions: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound },
+  institution_artworks: { create: async () => ({ id: 1 }) },
+  // Artist applications
+  artist_applications: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound },
+  // Artwork sub-resources
+  artwork_evidence: { findMany: emptyFindMany, create: async () => ({ id: 1 }) },
+  artwork_sdg_claims: { findMany: emptyFindMany, create: async () => ({ id: 1 }) },
+  // Governance
+  governance_policies: { findMany: emptyFindMany, findFirst: notFound },
+  user_consents: { findMany: emptyFindMany, findFirst: notFound, upsert: async () => ({ id: 1 }), update: async () => ({ id: 1 }) },
 };
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -107,6 +122,19 @@ const PUBLIC_ROUTES = [
   'GET /api/v1/impact-projects',
   'GET /api/v1/impact-projects/stats',
   'GET /api/v1/search/artworks',
+  // Gallery sub-routes (public)
+  'GET /api/v1/galleries/1/profile',
+  'GET /api/v1/galleries/1/staff',
+  // Institutions
+  'GET /api/v1/institutions',
+  // Governance (public policy list)
+  'GET /api/v1/governance/policies',
+  // Active consignments (public)
+  'GET /api/v1/active-consignments',
+  // Book categories (public)
+  'GET /api/v1/book-categories',
+  // Auction items bid-history (public)
+  'GET /api/v1/auction-items/1/bid-history',
 ];
 
 const AUTH_ROUTES = [
@@ -117,13 +145,23 @@ const AUTH_ROUTES = [
   'GET /api/v1/me/consignments',
   'GET /api/v1/me/sell-now-offers',
   'GET /api/v1/me/won-items',
+  'GET /api/v1/me/artworks',
+  'GET /api/v1/me/gallery-offers',
+  'GET /api/v1/me/consents',
+  'GET /api/v1/me/export',
   'GET /api/v1/disputes',
   'GET /api/v1/donations',
   'GET /api/v1/consignments',
   'GET /api/v1/ownership-transfers',
+  // Artist applications (authenticated)
+  'GET /api/v1/artist-applications',
+  // My books
+  'GET /api/v1/my-books',
+  // Payouts
+  'GET /api/v1/payouts/artist',
 ];
 
-describe('Phase 0.3Q — Route inventory', () => {
+describe('Phase 0.3S — Route inventory', () => {
   let app: NestFastifyApplication;
 
   beforeAll(async () => {

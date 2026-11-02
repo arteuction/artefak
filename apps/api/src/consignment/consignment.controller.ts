@@ -43,4 +43,43 @@ export class ConsignmentController {
   ) {
     return this.consignmentService.createConsignment(user.id, body);
   }
+
+  @Post(':consignment/activate')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Activate consignment' })
+  activate(@Param('consignment', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+    return this.consignmentService.transition(id, user.id, user.role, 'active');
+  }
+
+  @Post(':consignment/approve')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Approve consignment' })
+  approve(@Param('consignment', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+    return this.consignmentService.transition(id, user.id, user.role, 'approved');
+  }
+
+  @Post(':consignment/request-changes')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Request changes on consignment' })
+  requestChanges(@Param('consignment', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+    return this.consignmentService.transition(id, user.id, user.role, 'pending_changes');
+  }
+
+  @Post(':consignment/create-lot')
+  @HttpCode(201)
+  @ApiOperation({ summary: 'Create art lot from consignment' })
+  createLot(
+    @Param('consignment', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { sale_mode?: string; starting_bid_cents?: number; reserve_price_cents?: number },
+  ) {
+    return this.consignmentService.createLot(id, user.id, user.role, body);
+  }
+
+  @Post(':consignment/terminate')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Terminate consignment' })
+  terminate(@Param('consignment', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+    return this.consignmentService.transition(id, user.id, user.role, 'terminated');
+  }
 }

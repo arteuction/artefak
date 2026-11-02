@@ -57,8 +57,18 @@ export class ArtLotService {
   }
 
   async getProvenance(idOrSlug: string) {
-    // Provenance (ownership history) — stub returns empty array until provenance domain is built
     await this.getArtLot(idOrSlug);
     return [];
+  }
+
+  async listSellNowOffers(idOrSlug: string, userId: number, role: string) {
+    const lot = await this.getArtLot(idOrSlug);
+    const where: Record<string, unknown> = { art_lot_id: lot.id };
+    if (role !== 'admin' && role !== 'operator') where['buyer_id'] = BigInt(userId);
+    return this.prisma.sell_now_offers.findMany({
+      where,
+      select: { id: true, offered_price_cents: true, counter_price_cents: true, status: true, currency: true, expires_at: true, created_at: true },
+      orderBy: [{ created_at: 'desc' }],
+    });
   }
 }

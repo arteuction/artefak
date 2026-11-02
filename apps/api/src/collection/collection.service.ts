@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 
 export interface CollectionsQuery {
@@ -72,5 +72,71 @@ export class CollectionService {
     });
 
     return items.map((item) => ({ ...item.artworks, position: item.position }));
+  }
+
+  async createCollection(userId: number, dto: { title: string; slug: string; description?: string; visibility?: string }) {
+    return this.prisma.collections.create({
+      data: {
+        owner_id: BigInt(userId),
+        title: dto.title,
+        slug: dto.slug,
+        description: dto.description ?? null,
+        visibility: (dto.visibility as any) ?? 'public',
+      },
+      select: { id: true, title: true, slug: true, visibility: true, created_at: true },
+    });
+  }
+
+  async updateCollection(idOrSlug: string, userId: number, role: string, dto: { title?: string; description?: string; visibility?: string }) {
+    const coll = await this.prisma.collections.findFirst({
+      where: /^\d+$/.test(idOrSlug) ? { id: BigInt(idOrSlug) } : { slug: idOrSlug },
+    });
+    if (!coll) throw new NotFoundException(`Collection "${idOrSlug}" not found`);
+    if (role !== 'admin' && Number(coll.owner_id) !== userId) throw new ForbiddenException();
+    return this.prisma.collections.update({
+      where: { id: coll.id },
+      data: {
+        ...(dto.title !== undefined ? { title: dto.title } : {}),
+        ...(dto.description !== undefined ? { description: dto.description } : {}),
+        ...(dto.visibility !== undefined ? { visibility: dto.visibility as any } : {}),
+      },
+      select: { id: true, title: true, slug: true, visibility: true, updated_at: true },
+    });
+  }
+
+  async deleteCollection(idOrSlug: string, userId: number, role: string) {
+    const coll = await this.prisma.collections.findFirst({
+      where: /^\d+$/.test(idOrSlug) ? { id: BigInt(idOrSlug) } : { slug: idOrSlug },
+    });
+    if (!coll) throw new NotFoundException(`Collection "${idOrSlug}" not found`);
+    if (role !== 'admin' && Number(coll.owner_id) !== userId) throw new ForbiddenException();
+    await this.prisma.collections.delete({ where: { id: coll.id } });
+    return { deleted: true };
+  }
+
+  async addArtwork(idOrSlug: string, userId: number, role: string, artworkId: number) {
+    const coll = await this.prisma.collections.findFirst({
+      where: /^\d+$/.test(idOrSlug) ? { id: BigInt(idOrSlug) } : { slug: idOrSlug },
+    });
+    if (!coll) throw new NotFoundException(`Collection "${idOrSlug}" not found`);
+    if (role !== 'admin' && Number(coll.owner_id) !== userId) throw new ForbiddenException();
+    const maxPos = await this.prisma.collection_artworks.aggregate({ where: { collection_id: coll.id }, _max: { position: true } });
+    const position = (maxPos._max.position ?? 0) + 1;
+    return this.prisma.collection_artworks.create({
+      data: { collection_id: coll.id, artwork_id: BigInt(artworkId), position },
+      select: { id: true, collection_id: true, artwork_id: true, position: true },
+    });
+  }
+
+  async removeArtwork(idOrSlug: string, userId: number, role: string, artworkId: number) {
+    const coll = await this.prisma.collections.findFirst({
+      where: /^\d+$/.test(idOrSlug) ? { id: BigInt(idOrSlug) } : { slug: idOrSlug },
+    });
+    if (!coll) throw new NotFoundException(`Collection "${idOrSlug}" not found`);
+    if (role !== 'admin' && Number(coll.owner_id) !== userId) throw new ForbiddenException();
+    const item = await this.prisma.collection_artworks.findFirst({ where: { collection_id: coll.id, artwork_id: BigInt(artworkId) } });
+    if (!item) throw new NotFoundException(`Artwork ${artworkId} not in collection`);
+    await this.prisma.collection_artworks.delete({ where: { id: item.id } });
+    return { deleted: true };
   }
 }

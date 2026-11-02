@@ -103,6 +103,27 @@ export class ProfileService {
     };
   }
 
+  async getMyArtworks(userId: number, page = 1, perPage = 20) {
+    const skip = (page - 1) * perPage;
+    const where = { user_id: BigInt(userId), deleted_at: null };
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.artworks.findMany({
+        where,
+        select: { id: true, title: true, slug: true, medium: true, status: true, created_at: true },
+        orderBy: [{ created_at: 'desc' }],
+        skip,
+        take: perPage,
+      }),
+      this.prisma.artworks.count({ where }),
+    ]);
+    return { data, meta: { current_page: page, last_page: Math.max(1, Math.ceil(total / perPage)), per_page: perPage, total } };
+  }
+
+  async getGalleryOffers(_userId: number, _page = 1, _perPage = 20) {
+    // gallery_offers table not yet in schema — stub
+    return { data: [], meta: { current_page: 1, last_page: 1, per_page: 20, total: 0 } };
+  }
+
   async getWonItems(userId: number, page = 1, perPage = 20) {
     const skip = (page - 1) * perPage;
     const where = { winner_user_id: BigInt(userId), status: 'sold' as const };

@@ -8,13 +8,17 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { ProfileService } from './profile.service';
+import { GovernanceService } from '../governance/governance.service';
 
 @ApiTags('profile')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('me')
 export class ProfileController {
-  constructor(private readonly profileService: ProfileService) {}
+  constructor(
+    private readonly profileService: ProfileService,
+    private readonly governanceService: GovernanceService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Get authenticated user profile' })
@@ -83,6 +87,26 @@ export class ProfileController {
     return this.profileService.getUserConsignments(user.id, page, perPage);
   }
 
+  @Get('artworks')
+  @ApiOperation({ summary: "List authenticated user's artworks" })
+  getMyArtworks(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page = 1,
+    @Query('per_page', new DefaultValuePipe(20), ParseIntPipe) perPage = 20,
+  ) {
+    return this.profileService.getMyArtworks(user.id, page, perPage);
+  }
+
+  @Get('gallery-offers')
+  @ApiOperation({ summary: "List authenticated user's gallery offers" })
+  getGalleryOffers(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page = 1,
+    @Query('per_page', new DefaultValuePipe(20), ParseIntPipe) perPage = 20,
+  ) {
+    return this.profileService.getGalleryOffers(user.id, page, perPage);
+  }
+
   @Get('won-items')
   @ApiOperation({ summary: "List authenticated user's won auction items" })
   getWonItems(
@@ -119,5 +143,27 @@ export class ProfileController {
     @Body() body: { display_name?: string; bio?: string; website?: string; instagram_handle?: string },
   ) {
     return this.profileService.updateArtistProfile(user.id, body);
+  }
+
+  @Get('consents')
+  @ApiOperation({ summary: "List authenticated user's governance consents" })
+  getConsents(@CurrentUser() user: AuthenticatedUser) {
+    return this.governanceService.myConsents(user.id);
+  }
+
+  @Post('erasure-request')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Request account data erasure (GDPR Art. 17)' })
+  requestErasure(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { reason?: string },
+  ) {
+    return this.governanceService.requestErasure(user.id, body.reason);
+  }
+
+  @Get('export')
+  @ApiOperation({ summary: 'Request personal data export (GDPR Art. 20)' })
+  exportData(@CurrentUser() user: AuthenticatedUser) {
+    return this.governanceService.exportData(user.id);
   }
 }

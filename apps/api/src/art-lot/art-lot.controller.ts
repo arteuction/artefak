@@ -1,8 +1,11 @@
 import {
   Controller, Get, Param, Query,
-  DefaultValuePipe, ParseIntPipe,
+  DefaultValuePipe, ParseIntPipe, UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { AuthenticatedUser } from '../auth/auth.types';
 import { ArtLotService } from './art-lot.service';
 
 @ApiTags('art-lots')
@@ -36,5 +39,13 @@ export class ArtLotController {
   @ApiOperation({ summary: 'Get provenance chain for art lot' })
   getProvenance(@Param('artLot') artLot: string) {
     return this.artLotService.getProvenance(artLot);
+  }
+
+  @Get(':artLot/sell-now-offers')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List sell-now offers for art lot' })
+  getSellNowOffers(@Param('artLot') artLot: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.artLotService.listSellNowOffers(artLot, user.id, user.role);
   }
 }

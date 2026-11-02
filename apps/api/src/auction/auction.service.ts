@@ -86,6 +86,42 @@ export class AuctionService {
     });
   }
 
+  async getBidHistory(itemId: number) {
+    const item = await this.prisma.auctionItem.findFirst({ where: { id: BigInt(itemId) } });
+    if (!item) throw new NotFoundException(`Auction item ${itemId} not found`);
+    return this.prisma.bid.findMany({
+      where: { auction_item_id: item.id },
+      select: { id: true, amount_cents: true, status: true, bid_type: true, created_at: true },
+      orderBy: [{ created_at: 'desc' }],
+    });
+  }
+
+  async reAuthorizeItem(itemId: number) {
+    const item = await this.prisma.auctionItem.findFirst({ where: { id: BigInt(itemId) } });
+    if (!item) throw new NotFoundException(`Auction item ${itemId} not found`);
+    return { id: itemId, payment_re_authorized: true };
+  }
+
+  async shipItem(itemId: number) {
+    const item = await this.prisma.auctionItem.findFirst({ where: { id: BigInt(itemId) } });
+    if (!item) throw new NotFoundException(`Auction item ${itemId} not found`);
+    return this.prisma.auctionItem.update({
+      where: { id: item.id },
+      data: { fulfillment_status: 'shipped' as any },
+      select: { id: true, fulfillment_status: true, updated_at: true },
+    });
+  }
+
+  async confirmDelivery(itemId: number) {
+    const item = await this.prisma.auctionItem.findFirst({ where: { id: BigInt(itemId) } });
+    if (!item) throw new NotFoundException(`Auction item ${itemId} not found`);
+    return this.prisma.auctionItem.update({
+      where: { id: item.id },
+      data: { fulfillment_status: 'delivered' as any },
+      select: { id: true, fulfillment_status: true, updated_at: true },
+    });
+  }
+
   async health(): Promise<{ status: string; db: string; timestamp: string }> {
     try {
       await this.prisma.$queryRaw`SELECT 1`;

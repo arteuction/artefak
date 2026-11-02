@@ -65,4 +65,30 @@ export class ConsignmentService {
       },
     });
   }
+
+  async transition(consignmentId: number, userId: number, role: string, newStatus: string) {
+    const c = await this.getConsignment(consignmentId, userId, role);
+    return this.prisma.consignments.update({
+      where: { id: (c as any).id },
+      data: { status: newStatus as any },
+      select: { id: true, status: true, updated_at: true },
+    });
+  }
+
+  async createLot(consignmentId: number, userId: number, role: string, dto: { sale_mode?: string; starting_bid_cents?: number; reserve_price_cents?: number }) {
+    const c = await this.getConsignment(consignmentId, userId, role);
+    return this.prisma.art_lots.create({
+      data: {
+        artwork_id: (c as any).artwork_id,
+        consignment_id: (c as any).id,
+        consignor_id: BigInt(userId),
+        gallery_id: (c as any).gallery_id ?? null,
+        sale_mode: (dto.sale_mode as any) ?? 'auction',
+        status: 'draft',
+        starting_bid_cents: dto.starting_bid_cents ? BigInt(dto.starting_bid_cents) : null,
+        reserve_price_cents: dto.reserve_price_cents ? BigInt(dto.reserve_price_cents) : null,
+      },
+      select: { id: true, status: true, sale_mode: true, created_at: true },
+    });
+  }
 }

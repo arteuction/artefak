@@ -74,6 +74,39 @@ export class SellNowService {
     };
   }
 
+  async counterOffer(offerId: number, userId: number, counterPriceCents: number) {
+    if (!Number.isInteger(counterPriceCents) || counterPriceCents <= 0) {
+      throw new BadRequestException('counter_price_cents must be a positive integer');
+    }
+    const offer = await this.prisma.sell_now_offers.findFirst({ where: { id: BigInt(offerId) } });
+    if (!offer) throw new NotFoundException(`Offer ${offerId} not found`);
+    return this.prisma.sell_now_offers.update({
+      where: { id: BigInt(offerId) },
+      data: { counter_price_cents: BigInt(counterPriceCents), status: 'countered' as any },
+      select: { id: true, status: true, counter_price_cents: true, updated_at: true },
+    });
+  }
+
+  async acceptOffer(offerId: number, _userId: number) {
+    const offer = await this.prisma.sell_now_offers.findFirst({ where: { id: BigInt(offerId) } });
+    if (!offer) throw new NotFoundException(`Offer ${offerId} not found`);
+    return this.prisma.sell_now_offers.update({
+      where: { id: BigInt(offerId) },
+      data: { status: 'accepted' as any, agreed_price_cents: offer.offered_price_cents },
+      select: { id: true, status: true, agreed_price_cents: true, updated_at: true },
+    });
+  }
+
+  async rejectOffer(offerId: number, _userId: number) {
+    const offer = await this.prisma.sell_now_offers.findFirst({ where: { id: BigInt(offerId) } });
+    if (!offer) throw new NotFoundException(`Offer ${offerId} not found`);
+    return this.prisma.sell_now_offers.update({
+      where: { id: BigInt(offerId) },
+      data: { status: 'rejected' as any },
+      select: { id: true, status: true, updated_at: true },
+    });
+  }
+
   async getOffer(offerId: number, buyerId: number) {
     const offer = await this.prisma.sell_now_offers.findFirst({
       where: { id: BigInt(offerId), buyer_id: BigInt(buyerId) },

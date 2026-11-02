@@ -181,6 +181,87 @@ const NESTJS_ROUTES: string[] = [
   'PATCH /v1/me/artist-profile',
   // Search
   'GET /v1/search/artworks',
+  // Institutions
+  'GET /v1/institutions',
+  'GET /v1/institutions/:institution',
+  'POST /v1/institutions',
+  'PATCH /v1/institutions/:institution',
+  'POST /v1/institutions/:institution/artworks',
+  // Artist applications
+  'GET /v1/artist-applications',
+  'GET /v1/artist-applications/:application',
+  'POST /v1/artist-applications',
+  'POST /v1/artist-applications/:application/approve',
+  'POST /v1/artist-applications/:application/reject',
+  // Governance
+  'GET /v1/governance/policies',
+  'POST /v1/governance/policies/:governancePolicy/consent',
+  'DELETE /v1/governance/policies/:governancePolicy/consent',
+  // Active consignments
+  'GET /v1/active-consignments',
+  // Consignment transitions
+  'POST /v1/consignments/:consignment/activate',
+  'POST /v1/consignments/:consignment/approve',
+  'POST /v1/consignments/:consignment/request-changes',
+  'POST /v1/consignments/:consignment/create-lot',
+  'POST /v1/consignments/:consignment/terminate',
+  // Art-lot sell-now-offers list
+  'GET /v1/art-lots/:artLot/sell-now-offers',
+  // Book categories (public)
+  'GET /v1/book-categories',
+  'GET /v1/book-categories/:category',
+  'GET /v1/book-categories/:category/books',
+  // Artwork mutations
+  'POST /v1/artworks',
+  'PATCH /v1/artworks/:artwork',
+  'POST /v1/artworks/:artwork/submit',
+  'GET /v1/artworks/:artwork/evidence',
+  'POST /v1/artworks/:artwork/evidence',
+  'GET /v1/artworks/:artwork/sdg-claims',
+  'POST /v1/artworks/:artwork/sdg-claims',
+  // Collection mutations
+  'POST /v1/collections',
+  'PATCH /v1/collections/:collection',
+  'DELETE /v1/collections/:collection',
+  'POST /v1/collections/:collection/artworks',
+  'DELETE /v1/collections/:collection/artworks/:artwork',
+  // Dispute mutations
+  'POST /v1/disputes/:dispute/assign',
+  'POST /v1/disputes/:dispute/resolve',
+  'POST /v1/disputes/:dispute/evidence',
+  // Exhibition mutations
+  'POST /v1/exhibitions',
+  'PATCH /v1/exhibitions/:exhibition',
+  'PUT /v1/exhibitions/:exhibition/sdg-tags',
+  // Gallery mutations + staff
+  'GET /v1/galleries/:gallery/profile',
+  'GET /v1/galleries/:gallery/staff',
+  'POST /v1/galleries',
+  'PATCH /v1/galleries/:gallery',
+  'POST /v1/galleries/:gallery/staff',
+  'PATCH /v1/galleries/:gallery/staff/:staffMember',
+  'DELETE /v1/galleries/:gallery/staff/:user',
+  // Payouts
+  'GET /v1/payouts/artist',
+  'GET /v1/payouts/gallery/:gallery',
+  // My books (library)
+  'GET /v1/my-books',
+  'GET /v1/my-books/:book/download-url',
+  // My artworks + gallery offers + consents + erasure + export
+  'GET /v1/me/artworks',
+  'GET /v1/me/gallery-offers',
+  'GET /v1/me/consents',
+  'POST /v1/me/erasure-request',
+  'GET /v1/me/export',
+  // Sell-now offer mutations
+  'POST /v1/sell-now-offers/:id/counter',
+  'POST /v1/sell-now-offers/:id/accept',
+  'POST /v1/sell-now-offers/:id/reject',
+  // Auction items sub-routes
+  'GET /v1/auction-items/:item/bid-history',
+  'POST /v1/auction-items/:item/re-authorize',
+  'POST /v1/auction-items/:item/ship',
+  'POST /v1/auction-items/:item/confirm-delivery',
 ];
 
 const nestjsSet = new Set(
