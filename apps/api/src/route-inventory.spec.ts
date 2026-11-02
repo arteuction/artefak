@@ -57,7 +57,7 @@ const prismaMock = {
   collection_artworks: { findMany: emptyFindMany },
   watchlist: { findMany: emptyFindMany },
   sell_now_offers: { findMany: emptyFindMany, count: emptyCount },
-  consignments: { findMany: emptyFindMany, count: emptyCount },
+  consignments: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound },
   // Library
   book: { findMany: async () => [], count: emptyCount, findUnique: notFound },
   // Venues
@@ -68,6 +68,10 @@ const prismaMock = {
   disputes: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound },
   // Donations
   donations: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound },
+  // Impact
+  impact_events: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound },
+  // Donation recipients
+  donation_recipients: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound },
 };
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -92,6 +96,8 @@ const PUBLIC_ROUTES = [
   'GET /api/v1/venues',
   'GET /api/v1/venues/map',
   'GET /api/v1/exhibitions',
+  'GET /api/v1/impact-events',
+  'GET /api/v1/donation-recipients',
 ];
 
 const AUTH_ROUTES = [
@@ -103,9 +109,10 @@ const AUTH_ROUTES = [
   'GET /api/v1/me/sell-now-offers',
   'GET /api/v1/disputes',
   'GET /api/v1/donations',
+  'GET /api/v1/consignments',
 ];
 
-describe('Phase 0.3M — Route inventory', () => {
+describe('Phase 0.3N — Route inventory', () => {
   let app: NestFastifyApplication;
 
   beforeAll(async () => {
