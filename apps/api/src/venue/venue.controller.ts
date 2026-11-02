@@ -1,8 +1,9 @@
 import {
-  Controller, Get, Param, Query,
+  Controller, Get, Post, Patch, Param, Query, Body, UseGuards, HttpCode,
   DefaultValuePipe, ParseIntPipe,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { VenueService } from './venue.service';
 
 @ApiTags('venues')
@@ -29,5 +30,22 @@ export class VenueController {
   @ApiOperation({ summary: 'Get venue by ID or slug' })
   getOne(@Param('venue') venue: string) {
     return this.venueService.getVenue(venue);
+  }
+
+  @Post()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create venue (admin)' })
+  create(@Body() dto: Record<string, unknown>) {
+    return this.venueService.createVenue(dto);
+  }
+
+  @Patch(':venue')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Update venue (admin)' })
+  update(@Param('venue') venue: string, @Body() dto: Record<string, unknown>) {
+    return this.venueService.updateVenue(venue, dto);
   }
 }

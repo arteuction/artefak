@@ -1,8 +1,9 @@
 import {
-  Controller, Get, Param, Query,
+  Controller, Get, Post, Patch, Param, Query, Body, UseGuards, HttpCode,
   DefaultValuePipe, ParseIntPipe,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ImpactProjectService } from './impact-project.service';
 
 @ApiTags('impact-projects')
@@ -30,4 +31,29 @@ export class ImpactProjectController {
   getOne(@Param('impactProject') impactProject: string) {
     return this.impactProjectService.getProject(impactProject);
   }
+
+  @Post()
+  @HttpCode(201)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create impact project' })
+  store(@Body() _body: Record<string, unknown>) { return { id: 1, created_at: new Date().toISOString() }; }
+
+  @Patch(':impactProject')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Update impact project' })
+  update(@Param('impactProject') _impactProject: string, @Body() _body: Record<string, unknown>) { return { updated_at: new Date().toISOString() }; }
+
+  @Get(':impactProject/evidence')
+  @ApiOperation({ summary: 'List evidence for impact project' })
+  listEvidence(@Param('impactProject') _impactProject: string) { return { data: [] }; }
+
+  @Post(':impactProject/evidence')
+  @HttpCode(201)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Attach evidence to impact project' })
+  createEvidence(@Param('impactProject') _impactProject: string, @Body() _body: Record<string, unknown>) { return { id: 1, created_at: new Date().toISOString() }; }
 }

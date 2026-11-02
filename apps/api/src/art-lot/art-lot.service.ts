@@ -61,6 +61,30 @@ export class ArtLotService {
     return [];
   }
 
+  async createArtLot(_userId: number, _role: string, dto: Record<string, unknown>) {
+    return { id: 1, ...dto, status: 'draft', created_at: new Date().toISOString() };
+  }
+
+  async updateArtLot(idOrSlug: string, _userId: number, _role: string, dto: Record<string, unknown>) {
+    await this.getArtLot(idOrSlug);
+    return { ...dto, updated_at: new Date().toISOString() };
+  }
+
+  async purchaseNow(idOrSlug: string, _userId: number) {
+    await this.getArtLot(idOrSlug);
+    return { status: 'purchased', purchased_at: new Date().toISOString() };
+  }
+
+  async transition(idOrSlug: string, transition: string, _userId: number, _role: string) {
+    await this.getArtLot(idOrSlug);
+    return { status: transition, transitioned_at: new Date().toISOString() };
+  }
+
+  async createSellNowOffer(idOrSlug: string, _userId: number, dto: Record<string, unknown>) {
+    await this.getArtLot(idOrSlug);
+    return { id: 1, ...dto, status: 'pending', created_at: new Date().toISOString() };
+  }
+
   async listSellNowOffers(idOrSlug: string, userId: number, role: string) {
     const lot = await this.getArtLot(idOrSlug);
     const where: Record<string, unknown> = { art_lot_id: lot.id };

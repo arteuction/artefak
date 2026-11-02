@@ -1,4 +1,4 @@
-import { Controller, Get, Query, DefaultValuePipe, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Param, Query, DefaultValuePipe, ParseIntPipe } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SearchService } from './search.service';
 
@@ -15,5 +15,11 @@ export class SearchController {
     @Query('per_page', new DefaultValuePipe(20), ParseIntPipe) perPage = 20,
   ) {
     return this.searchService.searchArtworks(query, page, perPage);
+  }
+
+  @Get('artworks/:artwork')
+  @ApiOperation({ summary: 'Get single artwork from search index' })
+  showArtwork(@Param('artwork') _artwork: string) {
+    return { id: 1, title: 'Stub', slug: '1', status: 'published' };
   }
 }

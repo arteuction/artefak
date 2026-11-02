@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 
 export interface GalleriesQuery {
@@ -54,6 +54,76 @@ export class GalleryService {
 
     if (!gallery) throw new NotFoundException(`Gallery "${idOrSlug}" not found`);
     return gallery;
+  }
+
+  async getGalleryProfile(idOrSlug: string) {
+    const gallery = await this.getGallery(idOrSlug);
+    return this.prisma.galleries.findUnique({
+      where: { id: gallery.id },
+      include: { gallery_staff: { where: { status: 'active' }, select: { id: true, role: true, user_id: true } } },
+    });
+  }
+
+  async createGallery(dto: { name: string; slug: string; type?: string; website?: string; contact_email?: string; legal_name?: string }) {
+    return this.prisma.galleries.create({
+      data: {
+        name: dto.name,
+        slug: dto.slug,
+        type: (dto.type as any) ?? 'private',
+        website: dto.website,
+        contact_email: dto.contact_email,
+        legal_name: dto.legal_name,
+      },
+      select: { id: true, name: true, slug: true, type: true, status: true, created_at: true },
+    });
+  }
+
+  async updateGallery(idOrSlug: string, _userId: number, role: string, dto: { name?: string; website?: string; contact_email?: string; legal_name?: string }) {
+    if (role !== 'admin' && role !== 'operator') throw new ForbiddenException('Insufficient permissions');
+    const gallery = await this.getGallery(idOrSlug);
+    return this.prisma.galleries.update({
+      where: { id: gallery.id },
+      data: dto as any,
+      select: { id: true, name: true, slug: true, type: true, status: true, updated_at: true },
+    });
+  }
+
+  async listStaff(idOrSlug: string) {
+    const gallery = await this.getGallery(idOrSlug);
+    return this.prisma.gallery_staff.findMany({
+      where: { gallery_id: gallery.id },
+      select: { id: true, role: true, status: true, user_id: true, invited_at: true, accepted_at: true },
+    });
+  }
+
+  async addStaff(idOrSlug: string, _userId: number, role: string, dto: { user_id: number; role: string }) {
+    if (role !== 'admin' && role !== 'operator') throw new ForbiddenException('Insufficient permissions');
+    const gallery = await this.getGallery(idOrSlug);
+    return this.prisma.gallery_staff.create({
+      data: { gallery_id: gallery.id, user_id: BigInt(dto.user_id), role: dto.role, invited_at: new Date() },
+      select: { id: true, gallery_id: true, user_id: true, role: true, status: true, invited_at: true },
+    });
+  }
+
+  async updateStaff(idOrSlug: string, staffId: number, _userId: number, role: string, dto: { role?: string; status?: string }) {
+    if (role !== 'admin' && role !== 'operator') throw new ForbiddenException('Insufficient permissions');
+    const gallery = await this.getGallery(idOrSlug);
+    const staff = await this.prisma.gallery_staff.findFirst({ where: { id: BigInt(staffId), gallery_id: gallery.id } });
+    if (!staff) throw new NotFoundException(`Staff member ${staffId} not found`);
+    return this.prisma.gallery_staff.update({
+      where: { id: staff.id },
+      data: dto as any,
+      select: { id: true, role: true, status: true, updated_at: true },
+    });
+  }
+
+  async removeStaff(idOrSlug: string, staffUserId: number, _userId: number, role: string) {
+    if (role !== 'admin' && role !== 'operator') throw new ForbiddenException('Insufficient permissions');
+    const gallery = await this.getGallery(idOrSlug);
+    const staff = await this.prisma.gallery_staff.findFirst({ where: { gallery_id: gallery.id, user_id: BigInt(staffUserId) } });
+    if (!staff) throw new NotFoundException(`Staff member ${staffUserId} not found`);
+    await this.prisma.gallery_staff.delete({ where: { id: staff.id } });
+    return { deleted: true };
   }
 
   async listGalleryLots(idOrSlug: string) {

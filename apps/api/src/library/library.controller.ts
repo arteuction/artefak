@@ -1,9 +1,11 @@
 import {
   Controller,
   Get,
+  Post,
   Patch,
   Param,
   Query,
+  Body,
   NotFoundException,
   ParseIntPipe,
   DefaultValuePipe,
@@ -16,6 +18,8 @@ import { LibraryService } from './library.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { AuthenticatedUser } from '../auth/auth.types';
 
 @ApiTags('library')
 @Controller('books')
@@ -60,7 +64,6 @@ export class LibraryController {
 
   /**
    * PATCH /api/v1/books/:slug/publish — admin or operator only.
-   * Mirrors Laravel LibraryController#publish (policy: admin|operator).
    */
   @Patch(':slug/publish')
   @HttpCode(HttpStatus.OK)
@@ -70,5 +73,78 @@ export class LibraryController {
   @ApiOperation({ summary: 'Publish a book (admin/operator)' })
   async publish(@Param('slug') slug: string) {
     return this.library.publishBook(slug);
+  }
+
+  @Patch(':slug/unpublish')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin', 'operator')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Unpublish a book (admin/operator)' })
+  async unpublish(@Param('slug') slug: string) {
+    return this.library.unpublishBook(slug);
+  }
+
+  @Get(':slug/reviews')
+  @ApiOperation({ summary: 'List reviews for a book' })
+  async getReviews(
+    @Param('slug') slug: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page = 1,
+    @Query('per_page', new DefaultValuePipe(20), ParseIntPipe) perPage = 20,
+  ) {
+    return this.library.getBookReviews(slug, page, perPage);
+  }
+
+  @Post(':slug/reviews')
+  @HttpCode(201)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Submit a review for a book' })
+  async createReview(
+    @Param('slug') slug: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { rating: number; comment?: string },
+  ) {
+    return this.library.createReview(slug, user.id, body);
+  }
+
+  @Get(':slug/entitlement')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Check if user has access to a book' })
+  async entitlement(@Param('slug') slug: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.library.getEntitlement(slug, user.id);
+  }
+
+  @Post(':slug/purchase')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Purchase a book' })
+  async purchase(@Param('slug') slug: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.library.purchaseBook(slug, user.id);
+  }
+
+  @Post(':slug/checkout-session')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create Stripe checkout session for book purchase' })
+  async checkoutSession(@Param('slug') slug: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.library.checkoutSession(slug, user.id);
+  }
+
+  @Post(':slug/grant')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin', 'operator')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Grant book access to a user (admin/operator)' })
+  async grant(
+    @Param('slug') slug: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { user_id: number },
+  ) {
+    return this.library.grantAccess(slug, user.id, body.user_id);
   }
 }

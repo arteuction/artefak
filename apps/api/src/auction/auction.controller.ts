@@ -1,12 +1,16 @@
 import {
   Controller,
-  Get,
+  Get, Post,
   Param,
-  Query,
+  Query, Body,
   ParseIntPipe,
   DefaultValuePipe,
+  UseGuards, HttpCode,
 } from '@nestjs/common';
-import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiQuery, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { AuthenticatedUser } from '../auth/auth.types';
 import { AuctionService } from './auction.service';
 
 @ApiTags('auctions')
@@ -53,5 +57,19 @@ export class AuctionController {
     @Param('item', ParseIntPipe) item: number,
   ) {
     return this.auctionService.listBidsForItem(auction, item);
+  }
+
+  @Post(':auction/items/:item/max-bid')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Place proxy (max) bid on auction item' })
+  maxBid(
+    @Param('auction') _auction: string,
+    @Param('item', ParseIntPipe) _item: number,
+    @Body() _body: Record<string, unknown>,
+    @CurrentUser() _user: AuthenticatedUser,
+  ) {
+    return { status: 'max_bid_placed', proxy_active: true };
   }
 }

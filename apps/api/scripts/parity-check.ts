@@ -211,6 +211,78 @@ const NESTJS_ROUTES: string[] = [
   'GET /v1/book-categories',
   'GET /v1/book-categories/:category',
   'GET /v1/book-categories/:category/books',
+  // Ops routes
+  'GET /v1/ops/summary',
+  'GET /v1/ops/pending-events',
+  'GET /v1/ops/failed-outbox',
+  'GET /v1/ops/open-reserves',
+  'GET /v1/ops/active-consignments',
+  'GET /v1/ops/fiscal-year/:year',
+  'GET /v1/ops/zkpo-report/:year',
+  'GET /v1/ops/consumer-lag',
+  'POST /v1/ops/transfer-outbox/:id/retry',
+  // Admin routes
+  'GET /v1/admin/audit-log',
+  'GET /v1/admin/audit-log/:adminAuditLog',
+  'GET /v1/admin/settlements',
+  'GET /v1/admin/settlements/:id',
+  'GET /v1/admin/settlements/:id/statement',
+  'GET /v1/admin/reconciliation-runs',
+  'GET /v1/admin/reconciliation-runs/:reconciliationRun',
+  'POST /v1/admin/reconciliation-runs',
+  'GET /v1/admin/reconciliation-mismatches',
+  'GET /v1/admin/reconciliation-mismatches/:reconciliationMismatch',
+  'PATCH /v1/admin/reconciliation-mismatches/:reconciliationMismatch',
+  'POST /v1/admin/artmetro/routes',
+  'PATCH /v1/admin/artmetro/routes/:route',
+  'PATCH /v1/admin/artmetro/routes/:route/publish',
+  'POST /v1/admin/artmetro/routes/:route/stops',
+  'DELETE /v1/admin/artmetro/routes/:route/stops/:stop',
+  'GET /v1/admin/users',
+  'GET /v1/admin/users/:user',
+  'PATCH /v1/admin/users/:user',
+  'GET /v1/admin/ledger',
+  'GET /v1/admin/refunds',
+  'GET /v1/admin/split-profiles',
+  'POST /v1/admin/split-profiles',
+  'PATCH /v1/admin/split-profiles/:id/deprecate',
+  'GET /v1/admin/settlement-lines',
+  'POST /v1/admin/settlement-lines/:id/disburse',
+  'POST /v1/admin/books',
+  'PATCH /v1/admin/books/:book',
+  'POST /v1/admin/book-categories',
+  'PATCH /v1/admin/book-categories/:category',
+  'DELETE /v1/admin/book-categories/:category',
+  'GET /v1/admin/books/:book/reviews/pending',
+  'PATCH /v1/admin/books/:book/reviews/:review/approve',
+  'DELETE /v1/admin/books/:book/reviews/:review',
+  'GET /v1/admin/rulesets',
+  'GET /v1/admin/rulesets/:ruleset',
+  'POST /v1/admin/rulesets',
+  'PATCH /v1/admin/rulesets/:ruleset',
+  'GET /v1/admin/transfer-outbox',
+  'GET /v1/admin/transfer-outbox/:id',
+  'GET /v1/admin/connected-payouts',
+  'GET /v1/admin/connected-payouts/:id',
+  'POST /v1/admin/auctions',
+  'PATCH /v1/admin/auctions/:auction',
+  'POST /v1/admin/auctions/:auction/items',
+  'DELETE /v1/admin/auctions/:auction/items/:item',
+  'POST /v1/admin/auctions/:auction/publish',
+  'POST /v1/admin/auctions/:auction/open',
+  'POST /v1/admin/auctions/:auction/close',
+  // Artwork IIIF/metadata/rights/revisions
+  'GET /v1/artworks/:artwork/linked-art',
+  'GET /v1/artworks/:artwork/edm',
+  'GET /v1/artworks/:artwork/iiif/manifest',
+  'GET /v1/artworks/:artwork/iiif/manifest2',
+  'GET /v1/artworks/:artwork/iiif/info.json',
+  'GET /v1/artworks/:artwork/rights',
+  'PATCH /v1/artworks/:artwork/rights',
+  'GET /v1/artworks/:artwork/qr',
+  'GET /v1/artworks/:artwork/revisions',
+  'POST /v1/artworks/:artwork/revisions',
+  'POST /v1/artworks/:artwork/revisions/:revision/activate',
   // Artwork mutations
   'POST /v1/artworks',
   'PATCH /v1/artworks/:artwork',
@@ -244,6 +316,14 @@ const NESTJS_ROUTES: string[] = [
   // Payouts
   'GET /v1/payouts/artist',
   'GET /v1/payouts/gallery/:gallery',
+  // Books sub-routes
+  'GET /v1/books/:slug/reviews',
+  'POST /v1/books/:slug/reviews',
+  'GET /v1/books/:slug/entitlement',
+  'POST /v1/books/:slug/purchase',
+  'POST /v1/books/:slug/checkout-session',
+  'POST /v1/books/:slug/grant',
+  'PATCH /v1/books/:slug/unpublish',
   // My books (library)
   'GET /v1/my-books',
   'GET /v1/my-books/:book/download-url',
@@ -262,6 +342,110 @@ const NESTJS_ROUTES: string[] = [
   'POST /v1/auction-items/:item/re-authorize',
   'POST /v1/auction-items/:item/ship',
   'POST /v1/auction-items/:item/confirm-delivery',
+  // Auction max-bid
+  'POST /v1/auctions/:auction/items/:item/max-bid',
+  // Art-lot mutations
+  'POST /v1/art-lots',
+  'PATCH /v1/art-lots/:artLot',
+  'POST /v1/art-lots/:artLot/purchase-now',
+  'POST /v1/art-lots/:artLot/transitions/:transition',
+  // Lot QR
+  'GET /v1/lots/:artLot/qr',
+  // Artwork sdg-claims show + review
+  'GET /v1/artworks/:artwork/sdg-claims/:claim',
+  'POST /v1/artworks/:artwork/sdg-claims/:claim/review',
+  // Artwork sales-history
+  'GET /v1/artworks/:artwork/sales-history',
+  // Artwork image presign/confirm/derivatives
+  'POST /v1/artworks/:artwork/images/presign',
+  'POST /v1/artworks/:artwork/images/confirm',
+  'POST /v1/artworks/:artwork/images/derivatives',
+  // Search show
+  'GET /v1/search/artworks/:artwork',
+  // Venue mutations
+  'POST /v1/venues',
+  'PATCH /v1/venues/:venue',
+  // Evidence admin
+  'GET /v1/evidence',
+  'GET /v1/evidence/:evidence',
+  'POST /v1/evidence/:evidence/verify',
+  // API clients
+  'GET /v1/api-clients',
+  'POST /v1/api-clients',
+  'DELETE /v1/api-clients/:apiClient',
+  // Partner onboarding
+  'POST /v1/partners/onboard',
+  // Domain events
+  'GET /v1/domain-events',
+  // SDG claim impact events
+  'POST /v1/sdg-claims/:claim/impact-events',
+  // Reserve mutations
+  'POST /v1/reserves/:reserve/waive',
+  'POST /v1/reserves/:reserve/counter-offer',
+  // Donation mutations
+  'POST /v1/donations',
+  'GET /v1/donations/tax-receipt/:year',
+  // Donation recipient mutations
+  'POST /v1/donation-recipients',
+  'PATCH /v1/donation-recipients/:donationRecipient',
+  // Impact project mutations
+  'POST /v1/impact-projects',
+  'PATCH /v1/impact-projects/:impactProject',
+  'GET /v1/impact-projects/:impactProject/evidence',
+  'POST /v1/impact-projects/:impactProject/evidence',
+  // Impact event evidence
+  'GET /v1/impact-events/:impactEvent/evidence',
+  'POST /v1/impact-events/:impactEvent/evidence',
+  // Sell-now fulfillment
+  'POST /v1/sell-now-offers/:id/checkout-session',
+  'POST /v1/sell-now-offers/:id/confirm-payment',
+  'POST /v1/sell-now-offers/:id/confirm-delivery',
+  'POST /v1/sell-now-offers/:id/close',
+  // Book authors
+  'GET /v1/books/:book/authors',
+  'POST /v1/books/:book/authors',
+  'PATCH /v1/books/:book/authors/:bookAuthor',
+  'DELETE /v1/books/:book/authors/:bookAuthor',
+  // Book files
+  'GET /v1/books/:book/files',
+  'POST /v1/books/:book/files',
+  'PATCH /v1/books/:book/files/:bookFile',
+  'DELETE /v1/books/:book/files/:bookFile',
+  'POST /v1/books/:book/files/upload-intent',
+  'POST /v1/book-files/:bookFile/complete',
+  // Book entitlement revoke
+  'DELETE /v1/book-entitlements/:bookEntitlement',
+  // Books publish
+  'PATCH /v1/books/:book/publish',
+  // Watchlist direct routes
+  'GET /v1/watchlist',
+  'POST /v1/watchlist',
+  'DELETE /v1/watchlist/:type/:id',
+  // Artist portfolio artworks
+  'GET /v1/artists/:slug/artworks',
+  // My/* routes (Laravel uses /my/* instead of /me/*)
+  'GET /v1/my/export',
+  'GET /v1/my/consents',
+  'POST /v1/my/erasure-request',
+  'GET /v1/my/artworks',
+  'GET /v1/my/bids',
+  'GET /v1/my/won-items',
+  'GET /v1/my/sell-now-offers',
+  'GET /v1/my/gallery-offers',
+  // Artist profile (direct, without /me/ prefix)
+  'GET /v1/artist-profile',
+  'POST /v1/artist-profile',
+  'PATCH /v1/artist-profile',
+  // ArtMetro legacy routes (NestJS stub under /artmetro/* due to global v1 prefix)
+  'GET /v1/artmetro/artifacts/:qrToken',
+  'POST /v1/artmetro/artifacts/:qrToken/scans',
+  'PATCH /v1/artmetro/artifacts/:artifact/lot',
+  'POST /v1/artmetro/artifacts/:artifact/visit',
+  'GET /v1/artmetro/routes/:route',
+  // Book review admin moderation
+  'GET /v1/books/:book/reviews/pending',
+  'PATCH /v1/books/:book/reviews/:review/approve',
+  'DELETE /v1/books/:book/reviews/:review',
 ];
 
 const nestjsSet = new Set(

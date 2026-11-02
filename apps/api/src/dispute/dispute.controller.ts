@@ -43,4 +43,37 @@ export class DisputeController {
   ) {
     return this.disputeService.createDispute(user.id, body);
   }
+
+  @Post(':dispute/assign')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Assign dispute to a user (admin/operator)' })
+  assign(
+    @Param('dispute', ParseIntPipe) dispute: number,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { assignee_id: number },
+  ) {
+    return this.disputeService.assignDispute(dispute, user.id, user.role, body.assignee_id);
+  }
+
+  @Post(':dispute/resolve')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Resolve a dispute (admin/operator)' })
+  resolve(
+    @Param('dispute', ParseIntPipe) dispute: number,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { resolution: string },
+  ) {
+    return this.disputeService.resolveDispute(dispute, user.id, user.role, body);
+  }
+
+  @Post(':dispute/evidence')
+  @HttpCode(201)
+  @ApiOperation({ summary: 'Attach evidence/escalation to dispute (admin/operator)' })
+  attachEvidence(
+    @Param('dispute', ParseIntPipe) dispute: number,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { reason: string },
+  ) {
+    return this.disputeService.attachEvidence(dispute, user.id, user.role, body);
+  }
 }

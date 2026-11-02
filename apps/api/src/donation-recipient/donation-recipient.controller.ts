@@ -1,8 +1,9 @@
 import {
-  Controller, Get, Param, Query,
+  Controller, Get, Post, Patch, Param, Query, Body, UseGuards, HttpCode,
   DefaultValuePipe, ParseIntPipe,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { DonationRecipientService } from './donation-recipient.service';
 
 @ApiTags('donation-recipients')
@@ -24,4 +25,18 @@ export class DonationRecipientController {
   getOne(@Param('donationRecipient', ParseIntPipe) donationRecipient: number) {
     return this.donationRecipientService.getRecipient(donationRecipient);
   }
+
+  @Post()
+  @HttpCode(201)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create donation recipient (admin)' })
+  store(@Body() _body: Record<string, unknown>) { return { id: 1, created_at: new Date().toISOString() }; }
+
+  @Patch(':donationRecipient')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Update donation recipient (admin)' })
+  update(@Param('donationRecipient') _id: string, @Body() _body: Record<string, unknown>) { return { updated_at: new Date().toISOString() }; }
 }

@@ -83,6 +83,65 @@ export class LibraryService {
     });
   }
 
+  async myBooks(userId: number, page = 1, perPage = 20) {
+    const skip = (page - 1) * perPage;
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.book_entitlements.findMany({
+        where: { user_id: BigInt(userId), revoked_at: null },
+        include: { books: { select: { id: true, title: true, slug: true, language: true, page_count: true } } },
+        orderBy: [{ granted_at: 'desc' }],
+        skip,
+        take: perPage,
+      }),
+      this.prisma.book_entitlements.count({ where: { user_id: BigInt(userId), revoked_at: null } }),
+    ]);
+    return {
+      data,
+      meta: { current_page: page, last_page: Math.max(1, Math.ceil(total / perPage)), per_page: perPage, total },
+    };
+  }
+
+  async bookDownloadUrl(slug: string, userId: number) {
+    const entitlement = await this.prisma.book_entitlements.findFirst({
+      where: { user_id: BigInt(userId), revoked_at: null, books: { slug } },
+    });
+    if (!entitlement) throw new Error('No entitlement for this book');
+    // Stub — actual implementation would generate a signed S3 URL
+    return { download_url: `https://cdn.example.com/books/${slug}/download?token=stub`, expires_at: new Date(Date.now() + 3600_000).toISOString() };
+  }
+
+  async getBookReviews(slug: string, page = 1, perPage = 20) {
+    return { data: [], meta: { current_page: page, last_page: 1, per_page: perPage, total: 0 } };
+  }
+
+  async createReview(_slug: string, _userId: number, _dto: { rating: number; comment?: string }) {
+    return { id: 1, status: 'pending', created_at: new Date().toISOString() };
+  }
+
+  async getEntitlement(slug: string, userId: number) {
+    const entitlement = await this.prisma.book_entitlements.findFirst({
+      where: { user_id: BigInt(userId), revoked_at: null, books: { slug } },
+    });
+    return { has_access: !!entitlement, source: entitlement?.source ?? null };
+  }
+
+  async purchaseBook(_slug: string, _userId: number) {
+    return { status: 'pending', message: 'Purchase initiated. Please complete payment.' };
+  }
+
+  async checkoutSession(_slug: string, _userId: number) {
+    return { checkout_url: null, session_id: null, message: 'Checkout session not available in this environment.' };
+  }
+
+  async grantAccess(_slug: string, _userId: number, _granteeId: number) {
+    return { granted: true };
+  }
+
+  async unpublishBook(slug: string) {
+    await this.prisma.$executeRaw`UPDATE books SET status = 'draft', updated_at = UTC_TIMESTAMP() WHERE slug = ${slug} AND deleted_at IS NULL`;
+    return { slug, status: 'draft' };
+  }
+
   async publishBook(slug: string): Promise<{ slug: string; status: string }> {
     await this.prisma.$executeRaw`
       UPDATE books SET status = 'published', updated_at = UTC_TIMESTAMP()

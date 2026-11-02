@@ -60,4 +60,36 @@ export class DisputeService {
       },
     });
   }
+
+  async assignDispute(disputeId: number, _userId: number, role: string, assigneeId: number) {
+    if (role !== 'admin' && role !== 'operator') throw new ForbiddenException('Insufficient permissions');
+    const dispute = await this.prisma.disputes.findFirst({ where: { id: BigInt(disputeId) } });
+    if (!dispute) throw new NotFoundException(`Dispute ${disputeId} not found`);
+    return this.prisma.disputes.update({
+      where: { id: dispute.id },
+      data: { assigned_to: BigInt(assigneeId) },
+      select: { id: true, status: true, assigned_to: true, updated_at: true },
+    });
+  }
+
+  async resolveDispute(disputeId: number, userId: number, role: string, dto: { resolution: string }) {
+    if (role !== 'admin' && role !== 'operator') throw new ForbiddenException('Insufficient permissions');
+    const dispute = await this.prisma.disputes.findFirst({ where: { id: BigInt(disputeId) } });
+    if (!dispute) throw new NotFoundException(`Dispute ${disputeId} not found`);
+    return this.prisma.disputes.update({
+      where: { id: dispute.id },
+      data: { status: 'resolved', resolution: dto.resolution, resolved_at: new Date(), resolved_by: BigInt(userId) },
+      select: { id: true, status: true, resolution: true, resolved_at: true },
+    });
+  }
+
+  async attachEvidence(disputeId: number, userId: number, role: string, dto: { reason: string }) {
+    if (role !== 'admin' && role !== 'operator') throw new ForbiddenException('Insufficient permissions');
+    const dispute = await this.prisma.disputes.findFirst({ where: { id: BigInt(disputeId) } });
+    if (!dispute) throw new NotFoundException(`Dispute ${disputeId} not found`);
+    return this.prisma.dispute_escalations.create({
+      data: { dispute_id: dispute.id, reason: dto.reason, escalated_by: BigInt(userId) },
+      select: { id: true, dispute_id: true, reason: true, created_at: true },
+    });
+  }
 }

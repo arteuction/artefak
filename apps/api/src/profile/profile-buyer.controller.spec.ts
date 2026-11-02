@@ -19,6 +19,7 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { Injectable } from '@nestjs/common';
 import { ProfileController } from './profile.controller';
 import { ProfileService } from './profile.service';
+import { GovernanceService } from '../governance/governance.service';
 import type { AuthenticatedUser, JwtPayload } from '../auth/auth.types';
 
 const JWT_SECRET = 'test-profile-buyer-secret';
@@ -85,7 +86,11 @@ describe('Phase 0.3Q — Profile buyer & artist-profile controller', () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [PassportModule, JwtModule.register({ secret: JWT_SECRET })],
       controllers: [ProfileController],
-      providers: [{ provide: ProfileService, useValue: mockService }, TestJwtStrategy],
+      providers: [
+        { provide: ProfileService, useValue: mockService },
+        { provide: GovernanceService, useValue: { myConsents: async () => [], requestErasure: async () => ({ status: 'scheduled' }), exportData: async () => ({ status: 'queued' }) } },
+        TestJwtStrategy,
+      ],
     }).compile();
 
     app = module.createNestApplication<NestFastifyApplication>(new FastifyAdapter());

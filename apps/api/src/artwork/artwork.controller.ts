@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Param, Query, Body, UseGuards, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Query, Body, UseGuards, HttpCode, ParseIntPipe } from '@nestjs/common';
 import { ApiOperation, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -82,5 +82,111 @@ export class ArtworkController {
   @ApiOperation({ summary: 'Create SDG claim for artwork' })
   createSdgClaim(@Param('artwork') artwork: string, @CurrentUser() user: AuthenticatedUser, @Body() body: { sdg_number: number; rationale: string }) {
     return this.artworkService.createSdgClaim(artwork, user.id, body);
+  }
+
+  @Get(':artwork/linked-art')
+  @ApiOperation({ summary: 'Get Linked Art JSON-LD for artwork' })
+  linkedArt(@Param('artwork') artwork: string) { return this.artworkService.getLinkedArt(artwork); }
+
+  @Get(':artwork/edm')
+  @ApiOperation({ summary: 'Get Europeana EDM for artwork' })
+  edm(@Param('artwork') artwork: string) { return this.artworkService.getEdm(artwork); }
+
+  @Get(':artwork/iiif/manifest')
+  @ApiOperation({ summary: 'Get IIIF Presentation 3 manifest' })
+  iiifManifest(@Param('artwork') artwork: string) { return this.artworkService.getIiifManifest(artwork); }
+
+  @Get(':artwork/iiif/manifest2')
+  @ApiOperation({ summary: 'Get IIIF Presentation 2 manifest' })
+  iiifManifest2(@Param('artwork') artwork: string) { return this.artworkService.getIiifManifest(artwork); }
+
+  @Get(':artwork/iiif/info.json')
+  @ApiOperation({ summary: 'Get IIIF Image API info' })
+  iiifInfo(@Param('artwork') artwork: string) { return this.artworkService.getIiifInfo(artwork); }
+
+  @Get(':artwork/rights')
+  @ApiOperation({ summary: 'Get rights statement for artwork' })
+  getRights(@Param('artwork') artwork: string) { return this.artworkService.getRights(artwork); }
+
+  @Patch(':artwork/rights')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update rights statement for artwork' })
+  updateRights(@Param('artwork') artwork: string, @CurrentUser() user: AuthenticatedUser, @Body() body: { rights_statement?: string; license_url?: string }) {
+    return this.artworkService.updateRights(artwork, user.id, user.role, body);
+  }
+
+  @Get(':artwork/qr')
+  @ApiOperation({ summary: 'Get QR code for artwork' })
+  qr(@Param('artwork') artwork: string) { return this.artworkService.getQr(artwork); }
+
+  @Get(':artwork/revisions')
+  @ApiOperation({ summary: 'List revisions for artwork' })
+  listRevisions(@Param('artwork') artwork: string) { return this.artworkService.listRevisions(artwork); }
+
+  @Post(':artwork/revisions')
+  @HttpCode(201)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create revision for artwork' })
+  createRevision(@Param('artwork') artwork: string, @CurrentUser() user: AuthenticatedUser, @Body() body: { title: string; medium?: string; description?: string; reason?: string }) {
+    return this.artworkService.createRevision(artwork, user.id, body);
+  }
+
+  @Post(':artwork/revisions/:revision/activate')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Activate a revision' })
+  activateRevision(@Param('artwork') artwork: string, @Param('revision', ParseIntPipe) revision: number, @CurrentUser() user: AuthenticatedUser) {
+    return this.artworkService.activateRevision(artwork, revision, user.id, user.role);
+  }
+
+  @Get(':artwork/sdg-claims/:claim')
+  @ApiOperation({ summary: 'Get a single SDG claim' })
+  showSdgClaim(@Param('artwork') artwork: string, @Param('claim') claim: string) {
+    return this.artworkService.getSdgClaim(artwork, claim);
+  }
+
+  @Post(':artwork/sdg-claims/:claim/review')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Review (approve/reject) an SDG claim' })
+  reviewSdgClaim(@Param('artwork') artwork: string, @Param('claim') claim: string, @CurrentUser() user: AuthenticatedUser, @Body() body: { approved: boolean; notes?: string }) {
+    return this.artworkService.reviewSdgClaim(artwork, claim, user.id, user.role, body);
+  }
+
+  @Get(':artwork/sales-history')
+  @ApiOperation({ summary: 'Get sales history for artwork' })
+  salesHistory(@Param('artwork') artwork: string) {
+    return this.artworkService.getSalesHistory(artwork);
+  }
+
+  @Post(':artwork/images/presign')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get presigned URL for artwork image upload' })
+  presignImage(@Param('artwork') artwork: string, @CurrentUser() user: AuthenticatedUser, @Body() body: { filename: string; content_type: string }) {
+    return this.artworkService.presignImage(artwork, user.id, body);
+  }
+
+  @Post(':artwork/images/confirm')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Confirm artwork image upload' })
+  confirmImage(@Param('artwork') artwork: string, @CurrentUser() user: AuthenticatedUser, @Body() body: { key: string }) {
+    return this.artworkService.confirmImage(artwork, user.id, body);
+  }
+
+  @Post(':artwork/images/derivatives')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Generate image derivatives for artwork' })
+  generateDerivatives(@Param('artwork') artwork: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.artworkService.generateDerivatives(artwork, user.id, user.role);
   }
 }

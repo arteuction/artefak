@@ -40,6 +40,15 @@ export class VenueService {
     return venue;
   }
 
+  async createVenue(dto: Record<string, unknown>) {
+    return this.prisma.venues.create({ data: dto as Parameters<typeof this.prisma.venues.create>[0]['data'] });
+  }
+
+  async updateVenue(idOrSlug: string, dto: Record<string, unknown>) {
+    const venue = await this.getVenue(idOrSlug);
+    return this.prisma.venues.update({ where: { id: venue.id }, data: dto as Parameters<typeof this.prisma.venues.update>[0]['data'] });
+  }
+
   async getVenueMap() {
     return this.prisma.venues.findMany({
       select: { id: true, name: true, latitude: true, longitude: true, slug: true },

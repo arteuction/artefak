@@ -130,6 +130,81 @@ export class ArtworkService {
     });
   }
 
+  async getLinkedArt(idOrSlug: string) {
+    const artwork = await this.getArtwork(idOrSlug);
+    return { '@context': 'https://linked.art/ns/v1/linked-art.json', id: `/artworks/${artwork.id}`, type: 'HumanMadeObject' };
+  }
+
+  async getEdm(idOrSlug: string) {
+    const artwork = await this.getArtwork(idOrSlug);
+    return { type: 'ProvidedCHO', identifier: String(artwork.id) };
+  }
+
+  async getIiifManifest(idOrSlug: string) {
+    const artwork = await this.getArtwork(idOrSlug);
+    return { '@context': 'http://iiif.io/api/presentation/3/context.json', id: `/artworks/${artwork.id}/iiif/manifest`, type: 'Manifest' };
+  }
+
+  async getIiifInfo(idOrSlug: string) {
+    const artwork = await this.getArtwork(idOrSlug);
+    return { '@context': 'http://iiif.io/api/image/3/context.json', id: `/artworks/${artwork.id}/iiif/info.json`, type: 'ImageService3' };
+  }
+
+  async getRights(idOrSlug: string) {
+    const artwork = await this.getArtwork(idOrSlug);
+    return { artwork_id: artwork.id, rights_statement: null, license_url: null };
+  }
+
+  async updateRights(idOrSlug: string, _userId: number, role: string, dto: { rights_statement?: string; license_url?: string }) {
+    if (role !== 'admin' && role !== 'operator') throw new ForbiddenException('Insufficient permissions');
+    const artwork = await this.getArtwork(idOrSlug);
+    return { artwork_id: artwork.id, ...dto };
+  }
+
+  async getQr(idOrSlug: string) {
+    const artwork = await this.getArtwork(idOrSlug);
+    return { artwork_id: artwork.id, qr_url: `/artworks/${artwork.id}/qr.png` };
+  }
+
+  async listRevisions(idOrSlug: string) {
+    const artwork = await this.getArtwork(idOrSlug);
+    return this.prisma.artwork_revisions.findMany({
+      where: { artwork_id: artwork.id },
+      select: { id: true, artwork_id: true, version: true, status: true, reason: true, created_at: true },
+      orderBy: [{ created_at: 'desc' }],
+    });
+  }
+
+  async createRevision(idOrSlug: string, userId: number, dto: { title: string; version?: number; medium?: string; description?: string; reason?: string }) {
+    const artwork = await this.getArtwork(idOrSlug);
+    const lastRevision = await this.prisma.artwork_revisions.findFirst({ where: { artwork_id: artwork.id }, orderBy: [{ version: 'desc' }] });
+    const nextVersion = lastRevision ? Number(lastRevision.version) + 1 : 1;
+    return this.prisma.artwork_revisions.create({
+      data: {
+        artwork_id: artwork.id,
+        revised_by: BigInt(userId),
+        version: nextVersion,
+        title: dto.title,
+        medium: dto.medium,
+        description: dto.description,
+        reason: (dto.reason as any) ?? 'correction',
+      },
+      select: { id: true, artwork_id: true, version: true, status: true, created_at: true },
+    });
+  }
+
+  async activateRevision(idOrSlug: string, revisionId: number, _userId: number, role: string) {
+    if (role !== 'admin' && role !== 'operator') throw new ForbiddenException('Insufficient permissions');
+    const artwork = await this.getArtwork(idOrSlug);
+    const revision = await this.prisma.artwork_revisions.findFirst({ where: { id: BigInt(revisionId), artwork_id: artwork.id } });
+    if (!revision) throw new NotFoundException(`Revision ${revisionId} not found`);
+    return this.prisma.artwork_revisions.update({
+      where: { id: revision.id },
+      data: { status: 'active' as any },
+      select: { id: true, artwork_id: true, version: true, status: true, updated_at: true },
+    });
+  }
+
   async createSdgClaim(idOrSlug: string, _userId: number, dto: { sdg_number: number; rationale: string }) {
     const artwork = await this.getArtwork(idOrSlug);
     return this.prisma.artwork_sdg_claims.create({
@@ -141,6 +216,40 @@ export class ArtworkService {
       },
       select: { id: true, sdg_number: true, status: true, created_at: true },
     });
+  }
+
+  async getSdgClaim(_artworkIdOrSlug: string, claimId: string) {
+    const claim = await this.prisma.artwork_sdg_claims.findFirst({ where: { id: parseInt(claimId, 10) } });
+    if (!claim) throw new NotFoundException(`SDG claim ${claimId} not found`);
+    return claim;
+  }
+
+  async reviewSdgClaim(_artworkIdOrSlug: string, claimId: string, _userId: number, role: string, dto: { approved: boolean; notes?: string }) {
+    if (role !== 'admin' && role !== 'operator') throw new ForbiddenException();
+    const claim = await this.prisma.artwork_sdg_claims.findFirst({ where: { id: parseInt(claimId, 10) } });
+    if (!claim) throw new NotFoundException(`SDG claim ${claimId} not found`);
+    return this.prisma.artwork_sdg_claims.update({
+      where: { id: claim.id },
+      data: { status: (dto.approved ? 'approved' : 'rejected') as any },
+      select: { id: true, sdg_number: true, status: true, updated_at: true },
+    });
+  }
+
+  async getSalesHistory(_artworkIdOrSlug: string) {
+    return { data: [] };
+  }
+
+  async presignImage(_artworkIdOrSlug: string, _userId: number, dto: { filename: string; content_type: string }) {
+    return { upload_url: 'https://stub.example.com/presign', key: `stub/${dto.filename}`, expires_in: 3600 };
+  }
+
+  async confirmImage(_artworkIdOrSlug: string, _userId: number, _dto: { key: string }) {
+    return { confirmed: true, updated_at: new Date().toISOString() };
+  }
+
+  async generateDerivatives(_artworkIdOrSlug: string, _userId: number, role: string) {
+    if (role !== 'admin' && role !== 'operator') throw new ForbiddenException();
+    return { queued: true };
   }
 
   async listArtLots(artworkIdOrSlug: string) {

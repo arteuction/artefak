@@ -1,6 +1,6 @@
 import {
-  Controller, Get, Param, Query,
-  DefaultValuePipe, ParseIntPipe, UseGuards,
+  Controller, Get, Post, Patch, Param, Query, Body, UseGuards, HttpCode,
+  DefaultValuePipe, ParseIntPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -48,4 +48,40 @@ export class ArtLotController {
   getSellNowOffers(@Param('artLot') artLot: string, @CurrentUser() user: AuthenticatedUser) {
     return this.artLotService.listSellNowOffers(artLot, user.id, user.role);
   }
+
+  @Post()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create art lot' })
+  create(@Body() dto: Record<string, unknown>, @CurrentUser() user: AuthenticatedUser) {
+    return this.artLotService.createArtLot(user.id, user.role, dto);
+  }
+
+  @Patch(':artLot')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Update art lot' })
+  update(@Param('artLot') artLot: string, @Body() dto: Record<string, unknown>, @CurrentUser() user: AuthenticatedUser) {
+    return this.artLotService.updateArtLot(artLot, user.id, user.role, dto);
+  }
+
+  @Post(':artLot/purchase-now')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Purchase art lot at buy-now price' })
+  purchaseNow(@Param('artLot') artLot: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.artLotService.purchaseNow(artLot, user.id);
+  }
+
+  @Post(':artLot/transitions/:transition')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Trigger art lot state transition' })
+  transition(@Param('artLot') artLot: string, @Param('transition') transition: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.artLotService.transition(artLot, transition, user.id, user.role);
+  }
+
 }

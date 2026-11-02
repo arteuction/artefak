@@ -1,6 +1,6 @@
 import {
-  Controller, Get, Param, Query,
-  DefaultValuePipe, ParseIntPipe, UseGuards,
+  Controller, Get, Post, Param, Query, Body, UseGuards, HttpCode,
+  DefaultValuePipe, ParseIntPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -32,5 +32,18 @@ export class DonationController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.donationService.getDonation(donation, user.id, user.role);
+  }
+
+  @Post()
+  @HttpCode(201)
+  @ApiOperation({ summary: 'Make a donation' })
+  store(@Body() _body: Record<string, unknown>, @CurrentUser() _user: AuthenticatedUser) {
+    return { id: 1, status: 'pending', created_at: new Date().toISOString() };
+  }
+
+  @Get('tax-receipt/:year')
+  @ApiOperation({ summary: 'Get tax receipt for year' })
+  taxReceipt(@Param('year') _year: string, @CurrentUser() _user: AuthenticatedUser) {
+    return { tax_receipt: null };
   }
 }

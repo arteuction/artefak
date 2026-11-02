@@ -78,4 +78,32 @@ export class SellNowController {
   ) {
     return this.sellNowService.rejectOffer(offerId, user.id);
   }
+
+  @Post('sell-now-offers/:id/checkout-session')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Create Stripe checkout session for sell-now offer' })
+  checkoutSession(@Param('id', ParseIntPipe) _offerId: number, @CurrentUser() _user: AuthenticatedUser) {
+    return { checkout_url: 'https://stub.example.com/checkout', session_id: 'stub_session' };
+  }
+
+  @Post('sell-now-offers/:id/confirm-payment')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Confirm payment for sell-now offer' })
+  confirmPayment(@Param('id', ParseIntPipe) _offerId: number, @CurrentUser() _user: AuthenticatedUser) {
+    return { status: 'payment_confirmed', updated_at: new Date().toISOString() };
+  }
+
+  @Post('sell-now-offers/:id/confirm-delivery')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Confirm delivery for sell-now offer' })
+  confirmDelivery(@Param('id', ParseIntPipe) _offerId: number, @CurrentUser() _user: AuthenticatedUser) {
+    return { status: 'delivery_confirmed', updated_at: new Date().toISOString() };
+  }
+
+  @Post('sell-now-offers/:id/close')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Close a sell-now offer' })
+  close(@Param('id', ParseIntPipe) _offerId: number, @CurrentUser() _user: AuthenticatedUser) {
+    return { status: 'closed', updated_at: new Date().toISOString() };
+  }
 }

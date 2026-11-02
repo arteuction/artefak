@@ -16,6 +16,7 @@ import { Injectable } from '@nestjs/common';
 
 import { ProfileController } from './profile.controller';
 import { ProfileService } from './profile.service';
+import { GovernanceService } from '../governance/governance.service';
 import type { AuthenticatedUser, JwtPayload } from '../auth/auth.types';
 
 const JWT_SECRET = 'test-profile-secret';
@@ -114,6 +115,7 @@ describe('Phase 0.3F — Profile controller', () => {
       controllers: [ProfileController],
       providers: [
         { provide: ProfileService, useValue: mockProfileService },
+        { provide: GovernanceService, useValue: { myConsents: async () => [], requestErasure: async () => ({ status: 'scheduled' }), exportData: async () => ({ status: 'queued' }) } },
         TestJwtStrategy,
       ],
     }).compile();
