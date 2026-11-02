@@ -64,6 +64,10 @@ const prismaMock = {
   venues: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound },
   // Exhibitions
   exhibitions: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound },
+  // Disputes
+  disputes: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound },
+  // Donations
+  donations: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound },
 };
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -97,9 +101,11 @@ const AUTH_ROUTES = [
   'GET /api/v1/me/collections',
   'GET /api/v1/me/consignments',
   'GET /api/v1/me/sell-now-offers',
+  'GET /api/v1/disputes',
+  'GET /api/v1/donations',
 ];
 
-describe('Phase 0.3L — Route inventory', () => {
+describe('Phase 0.3M — Route inventory', () => {
   let app: NestFastifyApplication;
 
   beforeAll(async () => {

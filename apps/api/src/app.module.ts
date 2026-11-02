@@ -11,12 +11,14 @@ import { SellNowModule } from './sell-now/sell-now.module';
 import { ArtLotModule } from './art-lot/art-lot.module';
 import { VenueModule } from './venue/venue.module';
 import { ExhibitionModule } from './exhibition/exhibition.module';
+import { DisputeModule } from './dispute/dispute.module';
+import { DonationModule } from './donation/donation.module';
 import { HealthController } from './health.controller';
 import { AuctionService } from './auction/auction.service';
 import { PrismaService } from './prisma.service';
 
 @Module({
-  imports: [AuthModule, LibraryModule, AuctionModule, ProfileModule, ArtworkModule, GalleryModule, ArtistModule, CollectionModule, SellNowModule, ArtLotModule, VenueModule, ExhibitionModule],
+  imports: [AuthModule, LibraryModule, AuctionModule, ProfileModule, ArtworkModule, GalleryModule, ArtistModule, CollectionModule, SellNowModule, ArtLotModule, VenueModule, ExhibitionModule, DisputeModule, DonationModule],
   controllers: [HealthController],
   providers: [AuctionService, PrismaService],
 })
