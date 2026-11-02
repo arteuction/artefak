@@ -83,6 +83,14 @@ export class LibraryService {
     });
   }
 
+  async publishBook(slug: string): Promise<{ slug: string; status: string }> {
+    await this.prisma.$executeRaw`
+      UPDATE books SET status = 'published', updated_at = UTC_TIMESTAMP()
+      WHERE slug = ${slug} AND deleted_at IS NULL
+    `;
+    return { slug, status: 'published' };
+  }
+
   // Shape matches the Laravel LibraryController response so the React frontend
   // requires no changes when pointed at this endpoint.
   //

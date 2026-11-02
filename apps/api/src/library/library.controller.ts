@@ -1,14 +1,21 @@
 import {
   Controller,
   Get,
+  Patch,
   Param,
   Query,
   NotFoundException,
   ParseIntPipe,
   DefaultValuePipe,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
-import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { LibraryService } from './library.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
 
 @ApiTags('library')
 @Controller('books')
@@ -49,5 +56,19 @@ export class LibraryController {
     const book = await this.library.getBook(slug);
     if (!book) throw new NotFoundException(`Book "${slug}" not found`);
     return book;
+  }
+
+  /**
+   * PATCH /api/v1/books/:slug/publish — admin or operator only.
+   * Mirrors Laravel LibraryController#publish (policy: admin|operator).
+   */
+  @Patch(':slug/publish')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin', 'operator')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Publish a book (admin/operator)' })
+  async publish(@Param('slug') slug: string) {
+    return this.library.publishBook(slug);
   }
 }
