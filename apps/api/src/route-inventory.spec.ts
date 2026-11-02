@@ -74,6 +74,10 @@ const prismaMock = {
   donation_recipients: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound },
   // Impact projects
   impact_projects: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound },
+  // Ownership transfers
+  ownership_transfers: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound },
+  // Reserves
+  reserves: { findFirst: notFound },
 };
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -114,9 +118,10 @@ const AUTH_ROUTES = [
   'GET /api/v1/disputes',
   'GET /api/v1/donations',
   'GET /api/v1/consignments',
+  'GET /api/v1/ownership-transfers',
 ];
 
-describe('Phase 0.3O — Route inventory', () => {
+describe('Phase 0.3P — Route inventory', () => {
   let app: NestFastifyApplication;
 
   beforeAll(async () => {

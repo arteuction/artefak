@@ -16,12 +16,14 @@ import { DonationModule } from './donation/donation.module';
 import { ConsignmentModule } from './consignment/consignment.module';
 import { ImpactModule } from './impact/impact.module';
 import { DonationRecipientModule } from './donation-recipient/donation-recipient.module';
+import { OwnershipTransferModule } from './ownership-transfer/ownership-transfer.module';
+import { ReserveModule } from './reserve/reserve.module';
 import { HealthController } from './health.controller';
 import { AuctionService } from './auction/auction.service';
 import { PrismaService } from './prisma.service';
 
 @Module({
-  imports: [AuthModule, LibraryModule, AuctionModule, ProfileModule, ArtworkModule, GalleryModule, ArtistModule, CollectionModule, SellNowModule, ArtLotModule, VenueModule, ExhibitionModule, DisputeModule, DonationModule, ConsignmentModule, ImpactModule, DonationRecipientModule],
+  imports: [AuthModule, LibraryModule, AuctionModule, ProfileModule, ArtworkModule, GalleryModule, ArtistModule, CollectionModule, SellNowModule, ArtLotModule, VenueModule, ExhibitionModule, DisputeModule, DonationModule, ConsignmentModule, ImpactModule, DonationRecipientModule, OwnershipTransferModule, ReserveModule],
   controllers: [HealthController],
   providers: [AuctionService, PrismaService],
 })
