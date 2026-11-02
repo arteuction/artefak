@@ -59,8 +59,24 @@ const STUB_BIDS_RESPONSE = {
   meta: { current_page: 1, last_page: 1, per_page: 20, total: 1 },
 };
 
+const STUB_WATCHLIST_ENTRY = {
+  id: 1,
+  subject_type: 'artworks',
+  subject_id: 42,
+  created_at: new Date('2026-05-01').toISOString(),
+};
+
+const STUB_COLLECTIONS_RESPONSE = {
+  data: [{ id: 1, title: 'My Public Collection', slug: 'my-public', visibility: 'public', created_at: new Date('2026-01-01').toISOString() }],
+  meta: { current_page: 1, last_page: 1, per_page: 20, total: 1 },
+};
+
 const mockProfileService = {
   getUserBids: async () => STUB_BIDS_RESPONSE,
+  getWatchlist: async () => [STUB_WATCHLIST_ENTRY],
+  addToWatchlist: async () => STUB_WATCHLIST_ENTRY,
+  removeFromWatchlist: async () => ({ deleted: true }),
+  getUserCollections: async () => STUB_COLLECTIONS_RESPONSE,
 };
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -135,5 +151,53 @@ describe('Phase 0.3F — Profile controller', () => {
   it('PF4: GET /me/bids without token returns 401', async () => {
     const res = await app.inject({ method: 'GET', url: '/api/v1/me/bids' });
     expect(res.statusCode).toBe(401);
+  });
+
+  it('PF5: GET /me/watchlist returns 200 with array', async () => {
+    const token = makeToken('user');
+    const res = await app.inject({
+      method: 'GET', url: '/api/v1/me/watchlist',
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(Array.isArray(body)).toBe(true);
+    expect(body[0]).toHaveProperty('subject_type');
+  });
+
+  it('PF6: POST /me/watchlist returns 201 with new entry', async () => {
+    const token = makeToken('user');
+    const res = await app.inject({
+      method: 'POST', url: '/api/v1/me/watchlist',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      payload: JSON.stringify({ subject_type: 'artworks', subject_id: 42 }),
+    });
+    expect(res.statusCode).toBe(201);
+    const body = JSON.parse(res.payload);
+    expect(body).toHaveProperty('subject_type', 'artworks');
+  });
+
+  it('PF7: DELETE /me/watchlist/:id returns 200 with deleted flag', async () => {
+    const token = makeToken('user');
+    const res = await app.inject({
+      method: 'DELETE', url: '/api/v1/me/watchlist/1',
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body).toMatchObject({ deleted: true });
+  });
+
+  it('PF8: GET /me/collections returns 200 with paginated list', async () => {
+    const token = makeToken('user');
+    const res = await app.inject({
+      method: 'GET', url: '/api/v1/me/collections',
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body).toHaveProperty('data');
+    expect(body).toHaveProperty('meta');
+    expect(body.data[0]).toHaveProperty('visibility', 'public');
   });
 });
