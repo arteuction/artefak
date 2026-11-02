@@ -69,6 +69,23 @@ export class AuctionService {
     return item;
   }
 
+  async listBidsForItem(auctionIdOrSlug: string, itemId: number) {
+    const auction = await this.getAuction(auctionIdOrSlug);
+
+    const item = await this.prisma.auctionItem.findFirst({
+      where: { id: itemId, auction_id: Number(auction.id) },
+    });
+    if (!item) throw new NotFoundException(`Auction item ${itemId} not found`);
+
+    return this.prisma.bid.findMany({
+      where: { auction_item_id: item.id, status: 'accepted' },
+      select: {
+        id: true, amount_cents: true, status: true, bid_type: true, created_at: true,
+      },
+      orderBy: [{ created_at: 'desc' }],
+    });
+  }
+
   async health(): Promise<{ status: string; db: string; timestamp: string }> {
     try {
       await this.prisma.$queryRaw`SELECT 1`;

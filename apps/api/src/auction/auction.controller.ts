@@ -44,4 +44,14 @@ export class AuctionController {
   ) {
     return this.auctionService.getAuctionItem(auction, item);
   }
+
+  /** GET /api/v1/auctions/:auction/items/:item/bids — accepted bid history */
+  @Get(':auction/items/:item/bids')
+  @ApiOperation({ summary: 'List accepted bids for an auction item' })
+  async bids(
+    @Param('auction') auction: string,
+    @Param('item', ParseIntPipe) item: number,
+  ) {
+    return this.auctionService.listBidsForItem(auction, item);
+  }
 }

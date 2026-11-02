@@ -1,19 +1,18 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards, DefaultValuePipe, ParseIntPipe } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser } from '../auth/auth.types';
+import { ProfileService } from './profile.service';
 
 @ApiTags('profile')
 @ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('me')
 export class ProfileController {
-  /**
-   * GET /api/v1/me — mirrors Laravel UserController#me (auth:sanctum protected).
-   * Returns the authenticated user's profile fields.
-   */
+  constructor(private readonly profileService: ProfileService) {}
+
   @Get()
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Get authenticated user profile' })
   getProfile(@CurrentUser() user: AuthenticatedUser) {
     return {
@@ -22,5 +21,15 @@ export class ProfileController {
       role: user.role,
       email_verified_at: user.emailVerifiedAt,
     };
+  }
+
+  @Get('bids')
+  @ApiOperation({ summary: "List authenticated user's bids" })
+  async getBids(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page = 1,
+    @Query('per_page', new DefaultValuePipe(20), ParseIntPipe) perPage = 20,
+  ) {
+    return this.profileService.getUserBids(user.id, page, perPage);
   }
 }

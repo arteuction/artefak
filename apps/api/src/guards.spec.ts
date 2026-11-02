@@ -27,6 +27,7 @@ import { JwtModule, JwtService } from '@nestjs/jwt';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ProfileController } from './profile/profile.controller';
+import { ProfileService } from './profile/profile.service';
 import { BidController } from './auction/bid.controller';
 import { LibraryController } from './library/library.controller';
 import { LibraryService } from './library/library.service';
@@ -97,6 +98,12 @@ describe('Phase 0.3B — Controller guards', () => {
           provide: BidConcurrencyService,
           useValue: {
             placeBid: async () => ({ bidId: BigInt(1), amountCents: BigInt(10000), status: 'accepted' }),
+          },
+        },
+        {
+          provide: ProfileService,
+          useValue: {
+            getUserBids: async () => ({ data: [], meta: { current_page: 1, last_page: 1, per_page: 20, total: 0 } }),
           },
         },
       ],

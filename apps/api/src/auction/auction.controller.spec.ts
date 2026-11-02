@@ -47,6 +47,14 @@ const STUB_ITEM = {
   art_lots: { starting_bid_cents: 10000, currency: 'EUR', artworks: { title: 'Test Art' } },
 };
 
+const STUB_BID = {
+  id: 1,
+  amount_cents: 50000,
+  status: 'accepted',
+  bid_type: 'live',
+  created_at: new Date('2026-03-10').toISOString(),
+};
+
 const mockAuctionService = {
   listAuctions: async () => ({ data: [STUB_AUCTION], meta: { current_page: 1, last_page: 1, per_page: 20, total: 1 } }),
   getAuction: async (id: string) => {
@@ -54,6 +62,7 @@ const mockAuctionService = {
     return STUB_AUCTION;
   },
   getAuctionItem: async (_auction: string, _item: number) => STUB_ITEM,
+  listBidsForItem: async (_auction: string, _item: number) => [STUB_BID],
   health: async () => ({ status: 'ok', db: 'connected', timestamp: new Date().toISOString() }),
 };
 
@@ -121,6 +130,16 @@ describe('Phase 0.3C — Auction controller', () => {
     const body = JSON.parse(res.payload);
     expect(body).toHaveProperty('status', 'open');
     expect(body).toHaveProperty('art_lots');
+  });
+
+  // ── AC8: bid history ──────────────────────────────────────────────────────
+
+  it('AC8: GET /auctions/:a/items/:i/bids returns accepted bid list', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/v1/auctions/1/items/1/bids' });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(Array.isArray(body)).toBe(true);
+    expect(body[0]).toMatchObject({ status: 'accepted', bid_type: 'live' });
   });
 
   // ── AC7: health check ─────────────────────────────────────────────────────
