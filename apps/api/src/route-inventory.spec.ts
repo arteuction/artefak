@@ -47,12 +47,12 @@ const prismaMock = {
   // $transaction receives an array of Promises when called with array style
   $transaction: async (ops: Promise<unknown>[]) => Promise.all(ops),
   auction: { findMany: emptyFindMany, count: emptyCount, findUnique: notFound, findFirst: notFound },
-  auctionItem: { findFirst: notFound },
+  auctionItem: { findFirst: notFound, findMany: emptyFindMany, count: emptyCount },
   bid: { findMany: emptyFindMany, count: emptyCount },
   artworks: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound },
   art_lots: { findMany: emptyFindMany },
   galleries: { findMany: emptyFindMany, count: emptyCount, findUnique: notFound },
-  artist_profiles: { findMany: emptyFindMany, count: emptyCount, findUnique: notFound },
+  artist_profiles: { findMany: emptyFindMany, count: emptyCount, findUnique: notFound, findFirst: notFound },
   collections: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound },
   collection_artworks: { findMany: emptyFindMany },
   watchlist: { findMany: emptyFindMany },
@@ -106,6 +106,7 @@ const PUBLIC_ROUTES = [
   'GET /api/v1/donation-recipients',
   'GET /api/v1/impact-projects',
   'GET /api/v1/impact-projects/stats',
+  'GET /api/v1/search/artworks',
 ];
 
 const AUTH_ROUTES = [
@@ -115,13 +116,14 @@ const AUTH_ROUTES = [
   'GET /api/v1/me/collections',
   'GET /api/v1/me/consignments',
   'GET /api/v1/me/sell-now-offers',
+  'GET /api/v1/me/won-items',
   'GET /api/v1/disputes',
   'GET /api/v1/donations',
   'GET /api/v1/consignments',
   'GET /api/v1/ownership-transfers',
 ];
 
-describe('Phase 0.3P — Route inventory', () => {
+describe('Phase 0.3Q — Route inventory', () => {
   let app: NestFastifyApplication;
 
   beforeAll(async () => {

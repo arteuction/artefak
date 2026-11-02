@@ -173,6 +173,14 @@ const NESTJS_ROUTES: string[] = [
   'POST /v1/art-lots/:id/sell-now-offers',
   'GET /v1/me/sell-now-offers',
   'GET /v1/me/sell-now-offers/:id',
+  // Buyer dashboard
+  'GET /v1/me/won-items',
+  // Artist profile (self-managed)
+  'GET /v1/me/artist-profile',
+  'POST /v1/me/artist-profile',
+  'PATCH /v1/me/artist-profile',
+  // Search
+  'GET /v1/search/artworks',
 ];
 
 const nestjsSet = new Set(

@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Delete,
+  Controller, Get, Post, Patch, Delete,
   Query, Body, Param, ParseIntPipe, DefaultValuePipe,
   UseGuards, HttpCode,
 } from '@nestjs/common';
@@ -81,5 +81,43 @@ export class ProfileController {
     @Query('per_page', new DefaultValuePipe(20), ParseIntPipe) perPage = 20,
   ) {
     return this.profileService.getUserConsignments(user.id, page, perPage);
+  }
+
+  @Get('won-items')
+  @ApiOperation({ summary: "List authenticated user's won auction items" })
+  getWonItems(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page = 1,
+    @Query('per_page', new DefaultValuePipe(20), ParseIntPipe) perPage = 20,
+  ) {
+    return this.profileService.getWonItems(user.id, page, perPage);
+  }
+
+  @Get('artist-profile')
+  @ApiOperation({ summary: "Get authenticated user's artist profile" })
+  getArtistProfile(@CurrentUser() user: AuthenticatedUser) {
+    return this.profileService.getArtistProfile(user.id);
+  }
+
+  @Post('artist-profile')
+  @HttpCode(201)
+  @ApiOperation({ summary: "Create authenticated user's artist profile" })
+  createArtistProfile(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: {
+      display_name: string; slug: string; bio?: string;
+      website?: string; instagram_handle?: string; terms_accepted_at?: string;
+    },
+  ) {
+    return this.profileService.createArtistProfile(user.id, body);
+  }
+
+  @Patch('artist-profile')
+  @ApiOperation({ summary: "Update authenticated user's artist profile" })
+  updateArtistProfile(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { display_name?: string; bio?: string; website?: string; instagram_handle?: string },
+  ) {
+    return this.profileService.updateArtistProfile(user.id, body);
   }
 }
