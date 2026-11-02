@@ -60,6 +60,10 @@ const prismaMock = {
   consignments: { findMany: emptyFindMany, count: emptyCount },
   // Library
   book: { findMany: async () => [], count: emptyCount, findUnique: notFound },
+  // Venues
+  venues: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound },
+  // Exhibitions
+  exhibitions: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound },
 };
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -80,6 +84,10 @@ const PUBLIC_ROUTES = [
   'GET /api/v1/galleries',
   'GET /api/v1/artists',
   'GET /api/v1/collections',
+  'GET /api/v1/art-lots',
+  'GET /api/v1/venues',
+  'GET /api/v1/venues/map',
+  'GET /api/v1/exhibitions',
 ];
 
 const AUTH_ROUTES = [
@@ -91,7 +99,7 @@ const AUTH_ROUTES = [
   'GET /api/v1/me/sell-now-offers',
 ];
 
-describe('Phase 0.3K — Route inventory', () => {
+describe('Phase 0.3L — Route inventory', () => {
   let app: NestFastifyApplication;
 
   beforeAll(async () => {

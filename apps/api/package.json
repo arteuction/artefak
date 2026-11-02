@@ -11,7 +11,10 @@
     "test:watch": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --watch",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
-    "db:push": "prisma db push"
+    "db:push": "prisma db push",
+    "generate:domain": "cross-env NODE_OPTIONS=--experimental-vm-modules npx ts-node --esm scripts/generate-domain.ts",
+    "parity:check": "cross-env NODE_OPTIONS=--experimental-vm-modules npx ts-node --esm scripts/parity-check.ts",
+    "export:openapi": "cross-env NODE_OPTIONS=--experimental-vm-modules npx ts-node --esm scripts/export-openapi.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.5",
