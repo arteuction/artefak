@@ -1,0 +1,68 @@
+﻿/**
+ * Phase 0.3U â€” ImpactProjectService unit tests
+ *
+ * IP1  getStats â€” returns total and funded counts
+ * IP2  listProjects default pagination
+ * IP3  getProject by slug â€” found
+ * IP4  getProject by slug â€” not found: throws NotFoundException
+ * IP5  getProject by numeric id â€” found
+ */
+
+import { jest } from '@jest/globals';
+import { Test, TestingModule } from '@nestjs/testing';
+import { NotFoundException } from '@nestjs/common';
+import { ImpactProjectService } from './impact-project.service';
+import { PrismaService } from '../prisma.service';
+
+const STUB = {
+  id: BigInt(1), title: 'Reforestation BG', slug: 'reforestation-bg', sdg_number: 15,
+  funding_target_cents: BigInt(100000), funding_actual_cents: BigInt(50000),
+  currency: 'BGN', status: 'active', starts_on: new Date(), ends_on: new Date(), created_at: new Date(),
+};
+
+const fn = () => jest.fn() as any;
+const mockPrisma = { impact_projects: { findMany: fn(), findFirst: fn(), count: fn() }, $transaction: fn() };
+
+describe('Phase 0.3U â€” ImpactProjectService', () => {
+  let svc: ImpactProjectService;
+
+  beforeAll(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [ImpactProjectService, { provide: PrismaService, useValue: mockPrisma }],
+    }).compile();
+    svc = module.get(ImpactProjectService);
+  });
+
+  beforeEach(() => { jest.clearAllMocks(); });
+
+  it('IP1: getStats â€” returns total and funded counts', async () => {
+    mockPrisma.$transaction.mockResolvedValueOnce([10, 3]);
+    const result = await svc.getStats();
+    expect(result.total).toBe(10);
+    expect(result.funded).toBe(3);
+  });
+
+  it('IP2: listProjects default pagination', async () => {
+    mockPrisma.$transaction.mockResolvedValueOnce([[STUB], 1]);
+    const result = await svc.listProjects();
+    expect(result.data).toHaveLength(1);
+    expect(result.meta.current_page).toBe(1);
+  });
+
+  it('IP3: getProject by slug â€” found', async () => {
+    mockPrisma.impact_projects.findFirst.mockResolvedValueOnce(STUB);
+    const result = await svc.getProject('reforestation-bg');
+    expect(result.slug).toBe('reforestation-bg');
+  });
+
+  it('IP4: getProject by slug â€” not found: throws NotFoundException', async () => {
+    mockPrisma.impact_projects.findFirst.mockResolvedValueOnce(null);
+    await expect(svc.getProject('missing')).rejects.toThrow(NotFoundException);
+  });
+
+  it('IP5: getProject by numeric id â€” found', async () => {
+    mockPrisma.impact_projects.findFirst.mockResolvedValueOnce(STUB);
+    const result = await svc.getProject('1');
+    expect(result.title).toBe('Reforestation BG');
+  });
+});
