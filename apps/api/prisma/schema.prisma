@@ -4,7 +4,6 @@ generator client {
 
 datasource db {
   provider = "mysql"
-  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -1922,6 +1921,8 @@ enum users_role {
   buyer
   artist
   admin
+  operator
+  curator
 }
 
 enum venues_type {
@@ -2334,4 +2335,36 @@ enum artworks_status {
   in_auction
   sold
   archived
+}
+
+model book_reviews {
+  id          BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  book_id     BigInt    @db.UnsignedBigInt
+  user_id     BigInt    @db.UnsignedBigInt
+  rating      Int       @db.UnsignedTinyInt
+  headline    String?   @db.VarChar(200)
+  body        String?   @db.Text
+  is_approved Boolean   @default(false)
+  approved_by BigInt?   @db.UnsignedBigInt
+  approved_at DateTime? @db.Timestamp(0)
+  created_at  DateTime? @db.Timestamp(0)
+  updated_at  DateTime? @db.Timestamp(0)
+  deleted_at  DateTime? @db.Timestamp(0)
+
+  @@unique([book_id, user_id])
+  @@index([book_id, is_approved])
+  @@map("book_reviews")
+}
+
+model refresh_tokens {
+  id         BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  user_id    BigInt    @db.UnsignedBigInt
+  token_hash String    @unique @db.VarChar(255)
+  expires_at DateTime  @db.Timestamp(0)
+  revoked_at DateTime? @db.Timestamp(0)
+  created_at DateTime? @db.Timestamp(0)
+
+  @@index([user_id])
+  @@index([expires_at])
+  @@map("refresh_tokens")
 }

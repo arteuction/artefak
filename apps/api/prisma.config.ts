@@ -8,6 +8,7 @@ export default defineConfig({
   earlyAccess: true,
   datasources: {
     db: {
+      url: process.env.DATABASE_URL,
       adapter: new PrismaMariaDb(process.env.DATABASE_URL!),
     },
   },

@@ -70,7 +70,7 @@ export class BidConcurrencyService {
             ai.id,
             ai.status,
             ai.bid_increment_cents,
-            (NOW() >= a.ends_at) AS auction_ended,
+            (UTC_TIMESTAMP() >= a.ends_at) AS auction_ended,
             al.starting_bid_cents,
             ar.default_bid_increment_cents AS ruleset_increment
           FROM auction_items ai
