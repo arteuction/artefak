@@ -73,6 +73,7 @@
       ]
     },
     "testEnvironment": "node",
+    "maxWorkers": 1,
     "transformIgnorePatterns": [
       "node_modules/(?!(@nestjs|@prisma/adapter-mariadb|cookie|light-my-request)/)"
     ],
