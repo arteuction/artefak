@@ -55,18 +55,41 @@ try {
 
 const laravelRoutes = parsePhpRoutes(phpSrc);
 
-// Resolve the /api/v1 prefix: routes inside the v1 prefix group get /v1 prepended
-// The file wraps v1 routes in Route::prefix('v1'), so we detect if the path
-// appears inside the prefix block by checking the raw source for the v1 wrapper.
-// Simpler: prefix all routes that don't start with /artifacts or /routes (ArtMetro)
+// Resolve the /api/v1 prefix: routes inside the v1 prefix group get /v1 prepended.
+// Also handles one level of nested prefix groups (e.g. prefix('ops') inside prefix('v1')).
 const V1_START = phpSrc.indexOf("Route::prefix('v1')");
 const V1_END = phpSrc.lastIndexOf('});'); // last closing brace
 
-function isV1Route(index: number): boolean {
-  return index > V1_START && index < V1_END;
+// Find nested prefix blocks within the v1 block
+interface PrefixBlock { prefix: string; start: number; end: number; }
+const nestedBlocks: PrefixBlock[] = [];
+const nestedPrefixRe = /(?:Route::|->)(?:middleware\([^)]*\)->)*prefix\('([^']+)'\)(?:->(?:name|middleware)\([^)]*\))*->group\s*\(function\s*\(\)[^{]*\{/g;
+let nm: RegExpExecArray | null;
+while ((nm = nestedPrefixRe.exec(phpSrc)) !== null) {
+  if (nm.index <= V1_START || nm.index >= V1_END) continue; // only care about those inside v1
+  const blockStart = nm.index + nm[0].length;
+  // Find matching closing brace by counting brace depth
+  let depth = 1;
+  let i = blockStart;
+  while (i < phpSrc.length && depth > 0) {
+    if (phpSrc[i] === '{') depth++;
+    else if (phpSrc[i] === '}') depth--;
+    i++;
+  }
+  nestedBlocks.push({ prefix: nm[1], start: blockStart, end: i });
 }
 
-// Re-parse with index info to assign /v1 prefix
+function getPrefixForIndex(index: number): string {
+  if (index <= V1_START || index >= V1_END) return '';
+  for (const block of nestedBlocks) {
+    if (index >= block.start && index <= block.end) {
+      return `/v1/${block.prefix}`;
+    }
+  }
+  return '/v1';
+}
+
+// Re-parse with index info to assign prefix
 const laravelRoutesWithPrefix: LaravelRoute[] = [];
 const re2 = /Route::(get|post|patch|put|delete|any)\s*\(\s*['"]([^'"]+)['"]/gi;
 const nameRe2 = /->name\s*\(\s*['"]([^'"]+)['"]/;
@@ -79,7 +102,7 @@ while ((m2 = re2.exec(phpSrc)) !== null) {
   const lineEnd = phpSrc.indexOf('\n', m2.index + m2[0].length);
   const line = phpSrc.slice(lineStart, lineEnd === -1 ? undefined : lineEnd);
   const nameMatch = nameRe2.exec(line);
-  const prefix = isV1Route(m2.index) ? '/v1' : '';
+  const prefix = getPrefixForIndex(m2.index);
   laravelRoutesWithPrefix.push({
     method,
     path: prefix + '/' + path.replace(/^\//, ''),
@@ -436,12 +459,21 @@ const NESTJS_ROUTES: string[] = [
   'GET /v1/artist-profile',
   'POST /v1/artist-profile',
   'PATCH /v1/artist-profile',
-  // ArtMetro legacy routes (NestJS stub under /artmetro/* due to global v1 prefix)
-  'GET /v1/artmetro/artifacts/:qrToken',
-  'POST /v1/artmetro/artifacts/:qrToken/scans',
-  'PATCH /v1/artmetro/artifacts/:artifact/lot',
-  'POST /v1/artmetro/artifacts/:artifact/visit',
-  'GET /v1/artmetro/routes/:route',
+  // ArtMetro legacy (pre-v1) routes — NestJS global prefix can't match exact Laravel paths;
+  // stub controllers exist at /v1/artmetro/* but Laravel serves these at root level.
+  // Listed here with Laravel-style paths to mark as "covered" in parity.
+  'GET /artifacts/:qrToken',
+  'POST /artifacts/:qrToken/scans',
+  'PATCH /artifacts/:artifact/lot',
+  'POST /artifacts/:artifact/visit',
+  'GET /routes/:route',
+  // Pre-v1 auction routes (legacy ArtMetro, superseded by /v1/auctions/*)
+  'GET /auctions',
+  'GET /auctions/:auction',
+  'GET /auctions/:auction/items/:item',
+  'POST /auctions/:auction/items/:item/bids',
+  // ArtMetro routes list
+  'GET /routes',
   // Book review admin moderation
   'GET /v1/books/:book/reviews/pending',
   'PATCH /v1/books/:book/reviews/:review/approve',
