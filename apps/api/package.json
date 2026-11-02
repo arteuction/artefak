@@ -79,6 +79,7 @@
     ],
     "moduleNameMapper": {
       "^@nestjs/swagger$": "<rootDir>/__mocks__/@nestjs/swagger.ts",
+      "^@nestjs/throttler$": "<rootDir>/__mocks__/@nestjs/throttler.ts",
       "^cookie$": "<rootDir>/__mocks__/cookie.cjs"
     }
   }
