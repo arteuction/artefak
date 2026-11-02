@@ -1,0 +1,135 @@
+/**
+ * Phase 0.3C — Auction public routes + health check integration tests
+ *
+ * Tests controller routing and response shape without a real DB.
+ * All DB calls are stubbed on AuctionService.
+ *
+ * Routes covered:
+ *   GET /api/v1/auctions            — public list
+ *   GET /api/v1/auctions/:id        — show by ID or slug
+ *   GET /api/v1/auctions/:a/items/:i — show auction item
+ *   GET /api/v1/health              — liveness probe
+ */
+
+import { Test, TestingModule } from '@nestjs/testing';
+import { NestFastifyApplication } from '@nestjs/platform-fastify';
+import { FastifyAdapter } from '@nestjs/platform-fastify';
+import { NotFoundException } from '@nestjs/common';
+
+import { AuctionController } from './auction.controller';
+import { AuctionService } from './auction.service';
+import { HealthController } from '../health.controller';
+
+// ── stubs ─────────────────────────────────────────────────────────────────────
+
+const STUB_AUCTION = {
+  id: 1,
+  title: 'Spring Sale',
+  slug: 'spring-sale',
+  status: 'live',
+  starts_at: new Date('2026-03-01').toISOString(),
+  ends_at: new Date('2026-03-31').toISOString(),
+  currency: 'EUR',
+  description: null,
+  venue_id: null,
+  ruleset_id: null,
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+};
+
+const STUB_ITEM = {
+  id: 1,
+  auction_id: 1,
+  art_lot_id: 1,
+  lot_number: 1,
+  bid_increment_cents: 1000,
+  status: 'open',
+  art_lots: { starting_bid_cents: 10000, currency: 'EUR', artworks: { title: 'Test Art' } },
+};
+
+const mockAuctionService = {
+  listAuctions: async () => ({ data: [STUB_AUCTION], meta: { current_page: 1, last_page: 1, per_page: 20, total: 1 } }),
+  getAuction: async (id: string) => {
+    if (id === 'not-found') throw new NotFoundException('Auction "not-found" not found');
+    return STUB_AUCTION;
+  },
+  getAuctionItem: async (_auction: string, _item: number) => STUB_ITEM,
+  health: async () => ({ status: 'ok', db: 'connected', timestamp: new Date().toISOString() }),
+};
+
+// ── suite ─────────────────────────────────────────────────────────────────────
+
+describe('Phase 0.3C — Auction controller', () => {
+  let app: NestFastifyApplication;
+
+  beforeAll(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [AuctionController, HealthController],
+      providers: [{ provide: AuctionService, useValue: mockAuctionService }],
+    }).compile();
+
+    app = module.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
+    app.setGlobalPrefix('api/v1');
+    await app.init();
+    await app.getHttpAdapter().getInstance().ready();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  // ── AC1-AC2: list auctions ────────────────────────────────────────────────
+
+  it('AC1: GET /auctions returns 200 with data + meta', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/v1/auctions' });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body).toHaveProperty('data');
+    expect(body).toHaveProperty('meta');
+    expect(Array.isArray(body.data)).toBe(true);
+  });
+
+  it('AC2: GET /auctions?status=live forwards query param', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/v1/auctions?status=live' });
+    expect(res.statusCode).toBe(200);
+  });
+
+  // ── AC3-AC5: show auction ─────────────────────────────────────────────────
+
+  it('AC3: GET /auctions/1 returns 200', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/v1/auctions/1' });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body).toMatchObject({ slug: 'spring-sale', status: 'live' });
+  });
+
+  it('AC4: GET /auctions/:slug returns 200', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/v1/auctions/spring-sale' });
+    expect(res.statusCode).toBe(200);
+  });
+
+  it('AC5: GET /auctions/not-found returns 404', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/v1/auctions/not-found' });
+    expect(res.statusCode).toBe(404);
+  });
+
+  // ── AC6: show auction item ────────────────────────────────────────────────
+
+  it('AC6: GET /auctions/:a/items/:i returns 200 with nested lot', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/v1/auctions/1/items/1' });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body).toHaveProperty('status', 'open');
+    expect(body).toHaveProperty('art_lots');
+  });
+
+  // ── AC7: health check ─────────────────────────────────────────────────────
+
+  it('AC7: GET /health returns 200 with status ok', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/v1/health' });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body).toMatchObject({ status: 'ok', db: 'connected' });
+    expect(body).toHaveProperty('timestamp');
+  });
+});
