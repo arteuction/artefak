@@ -120,6 +120,44 @@ const NESTJS_ROUTES: string[] = [
   'GET /v1/collections',
   'GET /v1/collections/:collection',
   'GET /v1/collections/:collection/artworks',
+  // ArtLots
+  'GET /v1/art-lots',
+  'GET /v1/art-lots/:artLot',
+  'GET /v1/art-lots/:artLot/bids',
+  'GET /v1/art-lots/:artLot/provenance',
+  // Venues
+  'GET /v1/venues',
+  'GET /v1/venues/map',
+  'GET /v1/venues/:venue',
+  // Exhibitions
+  'GET /v1/exhibitions',
+  'GET /v1/exhibitions/:exhibition',
+  // Disputes
+  'GET /v1/disputes',
+  'GET /v1/disputes/:dispute',
+  'POST /v1/disputes',
+  // Donations
+  'GET /v1/donations',
+  'GET /v1/donations/:donation',
+  // Consignments
+  'GET /v1/consignments',
+  'GET /v1/consignments/:consignment',
+  'POST /v1/consignments',
+  // Impact events
+  'GET /v1/impact-events',
+  'GET /v1/impact-events/:impactEvent',
+  // Impact projects
+  'GET /v1/impact-projects',
+  'GET /v1/impact-projects/stats',
+  'GET /v1/impact-projects/:impactProject',
+  // Donation recipients
+  'GET /v1/donation-recipients',
+  'GET /v1/donation-recipients/:donationRecipient',
+  // Ownership transfers
+  'GET /v1/ownership-transfers',
+  'GET /v1/ownership-transfers/:ownershipTransfer',
+  // Reserves
+  'GET /v1/reserves/:reserve',
   // Library
   'GET /v1/books',
   'GET /v1/books/:book',
