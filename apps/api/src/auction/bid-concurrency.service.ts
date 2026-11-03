@@ -1,5 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { BidGateway } from '../realtime/bid.gateway';
 
 export class BidRejected extends Error {
   constructor(message: string) {
@@ -25,7 +26,10 @@ export class BidRejected extends Error {
 export class BidConcurrencyService {
   private readonly logger = new Logger(BidConcurrencyService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly gateway: BidGateway | null,
+  ) {}
 
   /**
    * Place a bid inside a serializable transaction with FOR UPDATE.
@@ -151,6 +155,15 @@ export class BidConcurrencyService {
         this.logger.log(
           `Bid accepted: id=${bid.id} item=${auctionItemId} bidder=${bidderId} amount=${amountCents}`,
         );
+
+        this.gateway?.emitBidPlaced({
+          lotId: auctionItemId,
+          bidId: Number(bid.id),
+          amount_cents: Number(amountCents),
+          currency: 'EUR',
+          bidder_id: bidderId,
+          placed_at: new Date().toISOString(),
+        });
 
         return {
           bidId: bid.id,
