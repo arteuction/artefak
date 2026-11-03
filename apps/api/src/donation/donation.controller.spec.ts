@@ -6,6 +6,7 @@
  * DN3  GET /donations/:id   — get one (200)
  * DN4  GET /donations/999   — 404 for missing
  * DN5  GET /donations/tax-receipt/2026 — 200 (route before :donation)
+ * DN6  POST /donations      — 201 creates donation
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
@@ -50,6 +51,7 @@ const mockDonationService = {
   taxReceipt: async (_userId: number, year: number) => ({
     year, currency: 'EUR', total_donated_cents: 5000, total_deductible_cents: 5000, rows: [],
   }),
+  createDonation: async () => ({ ...STUB_DONATION, id: 2 }),
 };
 
 import jwt from 'jsonwebtoken';
@@ -111,5 +113,17 @@ describe('Phase 0.3M — Donation controller', () => {
     const body = JSON.parse(res.payload);
     expect(body.year).toBe(2026);
     expect(body).toHaveProperty('total_donated_cents');
+  });
+
+  it('DN6: POST /donations creates donation and returns 201', async () => {
+    const res = await app.inject({
+      method: 'POST', url: '/api/v1/donations',
+      headers: { authorization: `Bearer ${makeToken()}`, 'content-type': 'application/json' },
+      payload: JSON.stringify({ recipient_id: 1, donated_cents: 10000, currency: 'BGN' }),
+    });
+    expect(res.statusCode).toBe(201);
+    const body = JSON.parse(res.payload);
+    expect(body).toHaveProperty('id', 2);
+    expect(body).toHaveProperty('donated_cents', 5000);
   });
 });

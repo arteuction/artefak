@@ -1,11 +1,14 @@
 /**
  * Phase 0.3M — Dispute route tests
  *
- * DS1  GET /disputes         — list (200, authenticated)
- * DS2  GET /disputes         — 401 without token
- * DS3  GET /disputes/:id     — get one (200)
- * DS4  POST /disputes        — create (201)
- * DS5  GET /disputes/:id     — 404 for missing
+ * DS1  GET /disputes             — list (200, authenticated)
+ * DS2  GET /disputes             — 401 without token
+ * DS3  GET /disputes/:id         — get one (200)
+ * DS4  POST /disputes            — create (201)
+ * DS5  GET /disputes/:id         — 404 for missing
+ * DS6  POST /disputes/:id/assign — 200 assign dispute
+ * DS7  POST /disputes/:id/resolve — 200 resolve dispute
+ * DS8  POST /disputes/:id/evidence — 201 attach evidence
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
@@ -50,6 +53,9 @@ const mockDisputeService = {
     return STUB_DISPUTE;
   },
   createDispute: async () => STUB_DISPUTE,
+  assignDispute: async (id: number) => ({ ...STUB_DISPUTE, id, assigned_to: 2, status: 'assigned' }),
+  resolveDispute: async (id: number) => ({ ...STUB_DISPUTE, id, status: 'resolved', resolved_at: new Date().toISOString() }),
+  attachEvidence: async (id: number) => ({ id: 10, dispute_id: id, reason: 'escalated', created_at: new Date().toISOString() }),
 };
 
 import jwt from 'jsonwebtoken';
@@ -112,5 +118,38 @@ describe('Phase 0.3M — Dispute controller', () => {
   it('DS5: GET /disputes/999 returns 404', async () => {
     const res = await app.inject({ method: 'GET', url: '/api/v1/disputes/999', headers: { authorization: `Bearer ${makeToken()}` } });
     expect(res.statusCode).toBe(404);
+  });
+
+  it('DS6: POST /disputes/:id/assign returns 200 with assigned status', async () => {
+    const res = await app.inject({
+      method: 'POST', url: '/api/v1/disputes/1/assign',
+      headers: { authorization: `Bearer ${makeToken('admin')}`, 'content-type': 'application/json' },
+      payload: JSON.stringify({ assignee_id: 2 }),
+    });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body.status).toBe('assigned');
+  });
+
+  it('DS7: POST /disputes/:id/resolve returns 200 with resolved status', async () => {
+    const res = await app.inject({
+      method: 'POST', url: '/api/v1/disputes/1/resolve',
+      headers: { authorization: `Bearer ${makeToken('admin')}`, 'content-type': 'application/json' },
+      payload: JSON.stringify({ resolution: 'Refund approved' }),
+    });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body.status).toBe('resolved');
+  });
+
+  it('DS8: POST /disputes/:id/evidence returns 201 with evidence record', async () => {
+    const res = await app.inject({
+      method: 'POST', url: '/api/v1/disputes/1/evidence',
+      headers: { authorization: `Bearer ${makeToken('admin')}`, 'content-type': 'application/json' },
+      payload: JSON.stringify({ reason: 'Escalated to management' }),
+    });
+    expect(res.statusCode).toBe(201);
+    const body = JSON.parse(res.payload);
+    expect(body).toHaveProperty('dispute_id', 1);
   });
 });
