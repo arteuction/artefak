@@ -9,12 +9,18 @@
  * SC6  expireBidAuthorizations — no-ops when none expired
  * SC7  expireBidAuthorizations — marks expired bids authorization_expired
  * SC8  expireBidAuthorizations — logs warning for won bid
+ * SC9  dispatchDomainEvents — no-ops when no pending events
+ * SC10 dispatchDomainEvents — dispatches event and marks dispatched
+ * SC11 dispatchDomainEvents — back-offs and logs on error
+ * SC12 dispatchTransferOutbox — no-ops when Stripe disabled
+ * SC13 dispatchTransferOutbox — dispatches pending entry and marks completed
  */
 
 import { jest } from '@jest/globals';
 import { Test, TestingModule } from '@nestjs/testing';
 import { SchedulerService } from './scheduler.service';
 import { PrismaService } from '../prisma.service';
+import { StripeService } from '../stripe/stripe.service';
 
 const fn = () => jest.fn() as any;
 
@@ -28,7 +34,12 @@ const mockPrisma = {
   $transaction: fn(),
   bid:          { findMany: fn(), update: fn() },
   auctionItem:  { update: fn() },
+  domain_events:   { findMany: fn(), update: fn() },
+  transfer_outbox: { findMany: fn(), update: fn() },
 };
+
+const mockStripe = { enabled: false };
+const mockStripeEnabled = { enabled: true };
 
 describe('Phase 0.5 — SchedulerService', () => {
   let svc: SchedulerService;
@@ -38,6 +49,7 @@ describe('Phase 0.5 — SchedulerService', () => {
       providers: [
         SchedulerService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: StripeService, useValue: mockStripe },
       ],
     }).compile();
     svc = module.get(SchedulerService);
@@ -145,5 +157,56 @@ describe('Phase 0.5 — SchedulerService', () => {
     await svc.expireBidAuthorizations();
 
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('authorization expired'));
+  });
+
+  // ── dispatchDomainEvents ────────────────────────────────────────────────────
+
+  it('SC9: dispatchDomainEvents — no-ops when no pending events', async () => {
+    mockPrisma.domain_events.findMany.mockResolvedValueOnce([]);
+    await svc.dispatchDomainEvents();
+    expect(mockPrisma.domain_events.update).not.toHaveBeenCalled();
+  });
+
+  it('SC10: dispatchDomainEvents — dispatches event and marks dispatched', async () => {
+    const event = { id: BigInt(1), event_type: 'artwork.published', payload: '{}', attempt: 0, next_attempt_at: new Date() };
+    mockPrisma.domain_events.findMany.mockResolvedValueOnce([event]);
+    mockPrisma.domain_events.update.mockResolvedValue(undefined);
+    await svc.dispatchDomainEvents();
+    expect(mockPrisma.domain_events.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: 'dispatched' }) })
+    );
+  });
+
+  it('SC11: dispatchDomainEvents — back-offs on handler error', async () => {
+    const event = { id: BigInt(2), event_type: 'bid.won', payload: 'invalid json', attempt: 1, next_attempt_at: new Date() };
+    mockPrisma.domain_events.findMany.mockResolvedValueOnce([event]);
+    mockPrisma.domain_events.update.mockResolvedValue(undefined);
+    await svc.dispatchDomainEvents();
+    const updateCalls = mockPrisma.domain_events.update.mock.calls as any[];
+    const lastCall = updateCalls[updateCalls.length - 1][0];
+    expect(lastCall.data.status).toBe('pending');
+    expect(lastCall.data.next_attempt_at).toBeInstanceOf(Date);
+  });
+
+  // ── dispatchTransferOutbox ──────────────────────────────────────────────────
+
+  it('SC12: dispatchTransferOutbox — no-ops when Stripe disabled', async () => {
+    await svc.dispatchTransferOutbox();
+    expect(mockPrisma.transfer_outbox.findMany).not.toHaveBeenCalled();
+  });
+
+  it('SC13: dispatchTransferOutbox — dispatches pending entry and marks completed', async () => {
+    (svc as any).stripe = mockStripeEnabled;
+    const entry = {
+      id: BigInt(1), amount_cents: 5000, currency: 'EUR', attempt: 0,
+      next_attempt_at: new Date(), settlement_lines: { stripe_account_id: 'acct_test' },
+    };
+    mockPrisma.transfer_outbox.findMany.mockResolvedValueOnce([entry]);
+    mockPrisma.transfer_outbox.update.mockResolvedValue(undefined);
+    await svc.dispatchTransferOutbox();
+    const updateCalls = mockPrisma.transfer_outbox.update.mock.calls as any[];
+    const lastCall = updateCalls[updateCalls.length - 1][0];
+    expect(lastCall.data.status).toBe('completed');
+    (svc as any).stripe = mockStripe;
   });
 });

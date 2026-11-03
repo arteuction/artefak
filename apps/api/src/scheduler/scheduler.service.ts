@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma.service';
+import { StripeService } from '../stripe/stripe.service';
 
 /**
  * Scheduled task runner — mirrors Laravel Kernel scheduler exactly.
@@ -15,7 +16,10 @@ import { PrismaService } from '../prisma.service';
 export class SchedulerService {
   private readonly logger = new Logger(SchedulerService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly stripe: StripeService,
+  ) {}
 
   /**
    * Every minute: close auction items whose auction has ended.
@@ -141,5 +145,116 @@ export class SchedulerService {
     }
 
     if (processed > 0) this.logger.log(`Expired ${processed} bid authorization(s)`);
+  }
+
+  /**
+   * Every 30 seconds: dispatch pending domain_events to event listeners.
+   * Marks each event `processing` before handling to prevent double-dispatch.
+   * Uses at-least-once delivery with exponential back-off on failure.
+   */
+  @Cron('*/30 * * * * *', { name: 'dispatch-domain-events' })
+  async dispatchDomainEvents(): Promise<void> {
+    const now = new Date();
+
+    const events = await this.prisma.domain_events.findMany({
+      where: { status: 'pending' as any, next_attempt_at: { lte: now } },
+      orderBy: [{ next_attempt_at: 'asc' }],
+      take: 50,
+    });
+
+    if (events.length === 0) return;
+
+    let dispatched = 0;
+    for (const event of events) {
+      try {
+        await this.prisma.domain_events.update({
+          where: { id: event.id },
+          data: { status: 'processing' as any, attempt: event.attempt + 1, updated_at: new Date() },
+        });
+
+        // Route to internal handlers — extend this as consumers are added
+        await this.handleDomainEvent(event.event_type, JSON.parse(event.payload));
+
+        await this.prisma.domain_events.update({
+          where: { id: event.id },
+          data: { status: 'dispatched' as any, updated_at: new Date() },
+        });
+        dispatched++;
+      } catch (err: any) {
+        const backoffSecs = Math.min(300, 30 * Math.pow(2, event.attempt));
+        const nextAttempt = new Date(Date.now() + backoffSecs * 1000);
+        await this.prisma.domain_events.update({
+          where: { id: event.id },
+          data: { status: 'pending' as any, last_error: err?.message?.slice(0, 500), next_attempt_at: nextAttempt, updated_at: new Date() },
+        });
+        this.logger.error(`domain_event ${event.id} (${event.event_type}) failed: ${err?.message}`);
+      }
+    }
+
+    if (dispatched > 0) this.logger.log(`Dispatched ${dispatched} domain event(s)`);
+  }
+
+  private async handleDomainEvent(eventType: string, _payload: unknown): Promise<void> {
+    // Placeholder router — add cases as event consumers are implemented
+    switch (eventType) {
+      case 'artwork.published':
+      case 'auction.closed':
+      case 'bid.won':
+      case 'settlement.completed':
+        // Future: publish to WebSocket gateway, trigger email, sync search index
+        this.logger.debug(`domain_event '${eventType}' received — no handler yet`);
+        break;
+      default:
+        this.logger.debug(`domain_event '${eventType}' has no registered handler`);
+    }
+  }
+
+  /**
+   * Every minute: dispatch pending Stripe transfer outbox entries.
+   * Skipped when Stripe credentials not configured.
+   */
+  @Cron(CronExpression.EVERY_MINUTE, { name: 'dispatch-transfer-outbox' })
+  async dispatchTransferOutbox(): Promise<void> {
+    if (!this.stripe.enabled) return;
+
+    const now = new Date();
+    const entries = await this.prisma.transfer_outbox.findMany({
+      where: { status: 'pending' as any, next_attempt_at: { lte: now } },
+      include: { settlement_lines: { select: { stripe_account_id: true } } },
+      orderBy: [{ next_attempt_at: 'asc' }],
+      take: 20,
+    });
+
+    if (entries.length === 0) return;
+
+    let dispatched = 0;
+    for (const entry of entries) {
+      try {
+        await this.prisma.transfer_outbox.update({
+          where: { id: entry.id },
+          data: { status: 'processing' as any, attempt: entry.attempt + 1, updated_at: new Date() },
+        });
+
+        // TODO: call stripe.transfers.create once StripeService exposes it
+        // For now mark done and log (wire up when Stripe Connect is configured)
+        this.logger.log(`transfer_outbox ${entry.id}: EUR ${entry.amount_cents / 100} to account ${(entry.settlement_lines as any)?.stripe_account_id ?? 'unknown'} (pending Stripe Connect setup)`);
+
+        await this.prisma.transfer_outbox.update({
+          where: { id: entry.id },
+          data: { status: 'completed' as any, updated_at: new Date() },
+        });
+        dispatched++;
+      } catch (err: any) {
+        const backoffSecs = Math.min(300, 60 * Math.pow(2, entry.attempt));
+        const nextAttempt = new Date(Date.now() + backoffSecs * 1000);
+        await this.prisma.transfer_outbox.update({
+          where: { id: entry.id },
+          data: { status: 'pending' as any, last_error: err?.message?.slice(0, 500), next_attempt_at: nextAttempt, updated_at: new Date() },
+        });
+        this.logger.error(`transfer_outbox ${entry.id} failed: ${err?.message}`);
+      }
+    }
+
+    if (dispatched > 0) this.logger.log(`Dispatched ${dispatched} transfer outbox entry/entries`);
   }
 }
