@@ -16,6 +16,20 @@
  * AS13 removeAuctionItem — item not found: throws NotFoundException
  * AS14 removeAuctionItem — non-pending status: throws NotFoundException
  * AS15 removeAuctionItem — pending: removes and returns { removed: true }
+ * AS16 getSettlement — found: returns settlement with lines
+ * AS17 listRefunds — returns paged result
+ * AS18 getUser — found: returns user
+ * AS19 getUser — not found: throws NotFoundException
+ * AS20 updateUser — found: updates and returns user
+ * AS21 listTransferOutbox — returns paged result
+ * AS22 getTransferOutboxItem — found: returns item
+ * AS23 getTransferOutboxItem — not found: throws NotFoundException
+ * AS24 createAuction — creates and returns draft auction
+ * AS25 publishAuction — not found: throws NotFoundException
+ * AS26 publishAuction — found: sets status published
+ * AS27 openAuction — found: sets status open
+ * AS28 listSettlementLines — returns paged result
+ * AS29 disburseSettlementLine — unpaid without Stripe: marks paid and returns disbursed:true
  */
 
 import { jest } from '@jest/globals';
@@ -150,5 +164,102 @@ describe('Phase 0.6 — AdminService', () => {
     const result = await svc.removeAuctionItem(1, 1);
     expect(result.removed).toBe(true);
     expect(mockPrisma.auctionItem.delete).toHaveBeenCalled();
+  });
+
+  it('AS16: getSettlement — found: returns settlement with lines', async () => {
+    const stub = { id: BigInt(1), status: 'completed', settlement_lines: [] };
+    mockPrisma.settlements.findUnique.mockResolvedValueOnce(stub);
+    const result = await svc.getSettlement(1);
+    expect((result as any).id).toEqual(BigInt(1));
+  });
+
+  it('AS17: listRefunds — returns paged result', async () => {
+    mockPrisma.$transaction.mockResolvedValueOnce([[], 0]);
+    const result = await svc.listRefunds();
+    expect(result.data).toEqual([]);
+    expect(result.meta.total).toBe(0);
+  });
+
+  it('AS18: getUser — found: returns user', async () => {
+    mockPrisma.user.findUnique.mockResolvedValueOnce({ id: BigInt(5), email: 'u@test.com', name: 'Test', role: 'buyer', email_verified_at: null, created_at: new Date(), updated_at: new Date() });
+    const result = await svc.getUser(5);
+    expect((result as any).email).toBe('u@test.com');
+  });
+
+  it('AS19: getUser — not found: throws NotFoundException', async () => {
+    mockPrisma.user.findUnique.mockResolvedValueOnce(null);
+    await expect(svc.getUser(999)).rejects.toThrow(NotFoundException);
+  });
+
+  it('AS20: updateUser — found: updates and returns user', async () => {
+    mockPrisma.user.findUnique.mockResolvedValueOnce({ id: BigInt(2) });
+    mockPrisma.user.update.mockResolvedValueOnce({ id: BigInt(2), email: 'u@test.com', name: 'New Name', role: 'admin', updated_at: new Date() });
+    const result = await svc.updateUser(2, { name: 'New Name' });
+    expect((result as any).name).toBe('New Name');
+    expect(mockPrisma.user.update).toHaveBeenCalled();
+  });
+
+  it('AS21: listTransferOutbox — returns paged result', async () => {
+    mockPrisma.$transaction.mockResolvedValueOnce([[{ id: BigInt(1) }], 1]);
+    const result = await svc.listTransferOutbox();
+    expect(result.data).toHaveLength(1);
+    expect(result.meta.total).toBe(1);
+  });
+
+  it('AS22: getTransferOutboxItem — found: returns item', async () => {
+    mockPrisma.transfer_outbox.findUnique.mockResolvedValueOnce({ id: BigInt(3), status: 'pending' });
+    const result = await svc.getTransferOutboxItem(3);
+    expect((result as any).id).toEqual(BigInt(3));
+  });
+
+  it('AS23: getTransferOutboxItem — not found: throws NotFoundException', async () => {
+    mockPrisma.transfer_outbox.findUnique.mockResolvedValueOnce(null);
+    await expect(svc.getTransferOutboxItem(999)).rejects.toThrow(NotFoundException);
+  });
+
+  it('AS24: createAuction — creates and returns draft auction', async () => {
+    const created = { id: BigInt(7), title: 'New Auction', slug: 'new-auction', status: 'draft', starts_at: new Date(), ends_at: new Date() };
+    mockPrisma.auction.create.mockResolvedValueOnce(created);
+    const result = await svc.createAuction({ title: 'New Auction', slug: 'new-auction', starts_at: '2027-01-01T00:00:00Z', ends_at: '2027-01-31T00:00:00Z' });
+    expect((result as any).status).toBe('draft');
+    expect(mockPrisma.auction.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ title: 'New Auction', status: 'draft' }) })
+    );
+  });
+
+  it('AS25: publishAuction — not found: throws NotFoundException', async () => {
+    mockPrisma.auction.findUnique.mockResolvedValueOnce(null);
+    await expect(svc.publishAuction(999)).rejects.toThrow(NotFoundException);
+  });
+
+  it('AS26: publishAuction — found: sets status published', async () => {
+    mockPrisma.auction.findUnique.mockResolvedValueOnce({ id: BigInt(1) });
+    mockPrisma.auction.update.mockResolvedValueOnce({ id: BigInt(1), status: 'published' });
+    const result = await svc.publishAuction(1);
+    expect((result as any).status).toBe('published');
+  });
+
+  it('AS27: openAuction — found: sets status open', async () => {
+    mockPrisma.auction.findUnique.mockResolvedValueOnce({ id: BigInt(1) });
+    mockPrisma.auction.update.mockResolvedValueOnce({ id: BigInt(1), status: 'open' });
+    const result = await svc.openAuction(1);
+    expect((result as any).status).toBe('open');
+  });
+
+  it('AS28: listSettlementLines — returns paged result', async () => {
+    mockPrisma.$transaction.mockResolvedValueOnce([[{ id: BigInt(1), amount_cents: BigInt(4500) }], 1]);
+    const result = await svc.listSettlementLines();
+    expect(result.data).toHaveLength(1);
+    expect(result.meta.total).toBe(1);
+  });
+
+  it('AS29: disburseSettlementLine — unpaid, no Stripe: marks paid and returns disbursed:true', async () => {
+    mockPrisma.settlement_lines.findUnique.mockResolvedValueOnce({ id: BigInt(2), amount_cents: 5000, currency: 'EUR', stripe_account_id: null, status: 'pending' });
+    mockPrisma.settlement_lines.update.mockResolvedValueOnce({ id: BigInt(2), status: 'paid' });
+    const result = await svc.disburseSettlementLine(2);
+    expect(result).toEqual({ disbursed: true, line_id: 2 });
+    expect(mockPrisma.settlement_lines.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: 'paid' }) })
+    );
   });
 });

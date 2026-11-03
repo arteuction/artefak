@@ -6,6 +6,8 @@
  * BC3  placeBid — auction ended: throws BidRejected
  * BC4  placeBid — bid below minimum: throws BidRejected
  * BC5  placeBid — first bid above starting: accepted
+ * BC6  placeBid — second bid outbids first and creates new accepted bid
+ * BC7  placeBid — deadlock error is converted to BidRejected
  */
 
 import { jest } from '@jest/globals';
@@ -103,5 +105,31 @@ describe('Phase 0.3V — BidConcurrencyService', () => {
     const result = await svc.placeBid({ auctionItemId: 1, bidderId: 1, amountCents: BigInt(1500) });
     expect(result.bidId).toEqual(BigInt(99));
     expect(result.status).toBe('accepted');
+  });
+
+  it('BC6: placeBid — second bid outbids first and marks previous outbid', async () => {
+    const STUB_BID = { id: BigInt(100), amount_cents: BigInt(2500), status: 'accepted' };
+    mockPrisma.$transaction.mockImplementationOnce(async (fn: any) => {
+      mockTx.$queryRaw
+        .mockResolvedValueOnce([{
+          id: 1, status: 'open', bid_increment_cents: BigInt(500),
+          auction_ended: 0, starting_bid_cents: BigInt(1000), ruleset_increment: null,
+        }])
+        .mockResolvedValueOnce([{ max_amount: BigInt(2000) }]); // existing best = 2000, min = 2500
+      mockTx.bid.updateMany.mockResolvedValueOnce({ count: 1 });
+      mockTx.bid.create.mockResolvedValueOnce(STUB_BID);
+      return fn(mockTx);
+    });
+    const result = await svc.placeBid({ auctionItemId: 1, bidderId: 2, amountCents: BigInt(2500) });
+    expect(result.bidId).toEqual(BigInt(100));
+    expect(mockTx.bid.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { status: 'outbid' } })
+    );
+  });
+
+  it('BC7: placeBid — deadlock error converts to BidRejected', async () => {
+    mockPrisma.$transaction.mockRejectedValueOnce(new Error('deadlock found when trying to get lock'));
+    await expect(svc.placeBid({ auctionItemId: 1, bidderId: 1, amountCents: BigInt(5000) }))
+      .rejects.toThrow(BidRejected);
   });
 });

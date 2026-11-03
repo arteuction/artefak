@@ -16,6 +16,9 @@
  * AU13 health — db error: returns status degraded
  * AU14 reAuthorizeItem — found: returns payment_re_authorized true
  * AU15 reAuthorizeItem — not found: throws NotFoundException
+ * AU16 createCheckoutSession — item not found: throws NotFoundException
+ * AU17 createCheckoutSession — item not 'won': throws ForbiddenException
+ * AU18 createCheckoutSession — winner initiates: returns checkout_url + amount
  */
 
 import { jest } from '@jest/globals';
@@ -156,5 +159,31 @@ describe('Phase 0.3V — AuctionService', () => {
   it('AU15: reAuthorizeItem — not found: throws NotFoundException', async () => {
     mockPrisma.auctionItem.findFirst.mockResolvedValueOnce(null);
     await expect(svc.reAuthorizeItem(999)).rejects.toThrow(NotFoundException);
+  });
+
+  it('AU16: createCheckoutSession — item not found: throws NotFoundException', async () => {
+    mockPrisma.$queryRaw.mockResolvedValueOnce([]);
+    await expect(svc.createCheckoutSession(999, 1, { success_url: 's', cancel_url: 'c' }))
+      .rejects.toThrow(NotFoundException);
+  });
+
+  it('AU17: createCheckoutSession — item not won: throws ForbiddenException', async () => {
+    const { ForbiddenException } = await import('@nestjs/common');
+    mockPrisma.$queryRaw.mockResolvedValueOnce([{
+      item_id: 1, item_status: 'open', winner_user_id: 1, winning_bid_id: 1, bid_amount: 10000, artwork_title: 'Test',
+    }]);
+    await expect(svc.createCheckoutSession(1, 1, { success_url: 's', cancel_url: 'c' }))
+      .rejects.toThrow(ForbiddenException);
+  });
+
+  it('AU18: createCheckoutSession — winner initiates: returns checkout_url', async () => {
+    mockPrisma.$queryRaw.mockResolvedValueOnce([{
+      item_id: 1, item_status: 'won', winner_user_id: 1, winning_bid_id: 1, bid_amount: 25000, artwork_title: 'Blue Sky',
+    }]);
+    mockStripe.createCheckoutSession.mockResolvedValueOnce({ checkout_url: 'https://checkout.stripe.com/test', session_id: 'cs_test' });
+    const result = await svc.createCheckoutSession(1, 1, { success_url: 'https://success', cancel_url: 'https://cancel' });
+    expect(result.checkout_url).toBe('https://checkout.stripe.com/test');
+    expect(result.amount_cents).toBe(25000);
+    expect(result.currency).toBe('eur');
   });
 });

@@ -7,6 +7,7 @@
  * EM4  sendOutbidNotification — formats amount correctly
  * EM5  sendPaymentConfirmation — formats amount correctly
  * EM6  sendBookPurchaseConfirmation — delegates to send
+ * EM7  sendEmailVerification — includes token link in email body
  */
 
 import { jest } from '@jest/globals';
@@ -78,6 +79,17 @@ describe('Phase 0.6 — EmailService', () => {
     expect(sendSpy).toHaveBeenCalledWith(
       expect.objectContaining({ subject: expect.stringContaining('Art History Vol. 1') })
     );
+    sendSpy.mockRestore();
+  });
+
+  it('EM7: sendEmailVerification — includes token in email link', async () => {
+    const sendSpy = jest.spyOn(svc, 'send').mockResolvedValue(undefined);
+    await svc.sendEmailVerification('user@example.com', 'abc123token');
+    expect(sendSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ subject: expect.stringContaining('Verify') })
+    );
+    const call = (sendSpy.mock.calls[0] as any)[0];
+    expect(call.text).toContain('abc123token');
     sendSpy.mockRestore();
   });
 });
