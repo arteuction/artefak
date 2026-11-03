@@ -12,6 +12,8 @@
  * GS9  listStaff — delegates to prisma.findMany
  * GS10 addStaff — non-admin: throws ForbiddenException
  * GS11 removeStaff — not found: throws NotFoundException
+ * GS16 addStaff — admin: creates gallery_staff row with correct gallery_id
+ * GS17 removeStaff — found: deletes row and returns { deleted: true }
  */
 
 import { jest } from '@jest/globals';
@@ -137,5 +139,28 @@ describe('Phase 0.3V — GalleryService', () => {
     mockPrisma.art_lots.findMany.mockResolvedValueOnce([{ id: BigInt(1), status: 'active' }]);
     const result = await svc.listGalleryLots('test-gallery');
     expect(result).toHaveLength(1);
+  });
+
+  it('GS16: addStaff — admin: creates gallery_staff row with correct gallery_id', async () => {
+    mockPrisma.galleries.findUnique.mockResolvedValueOnce(STUB_GALLERY);
+    mockPrisma.gallery_staff.create.mockResolvedValueOnce({ id: BigInt(1), gallery_id: BigInt(1), user_id: BigInt(20), role: 'curator', status: 'invited', invited_at: new Date() });
+    const result = await svc.addStaff('test-gallery', 1, 'admin', { user_id: 20, role: 'curator' });
+    expect(mockPrisma.gallery_staff.create).toHaveBeenCalledTimes(1);
+    const arg = mockPrisma.gallery_staff.create.mock.calls[0][0] as any;
+    expect(arg.data.gallery_id).toEqual(BigInt(1));
+    expect(arg.data.user_id).toEqual(BigInt(20));
+    expect(arg.data.role).toBe('curator');
+    expect(result.role).toBe('curator');
+  });
+
+  it('GS17: removeStaff — found: deletes row and returns { deleted: true }', async () => {
+    mockPrisma.galleries.findUnique.mockResolvedValueOnce(STUB_GALLERY);
+    mockPrisma.gallery_staff.findFirst.mockResolvedValueOnce({ id: BigInt(5), gallery_id: BigInt(1), user_id: BigInt(20) });
+    mockPrisma.gallery_staff.delete.mockResolvedValueOnce({});
+    const result = await svc.removeStaff('test-gallery', 20, 1, 'admin');
+    expect(mockPrisma.gallery_staff.delete).toHaveBeenCalledTimes(1);
+    const arg = mockPrisma.gallery_staff.delete.mock.calls[0][0] as any;
+    expect(arg.where.id).toEqual(BigInt(5));
+    expect(result.deleted).toBe(true);
   });
 });
