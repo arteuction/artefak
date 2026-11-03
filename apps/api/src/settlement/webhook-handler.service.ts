@@ -137,6 +137,55 @@ export class WebhookHandlerService {
       return;
     }
 
+    // ── Auction item path ──────────────────────────────────────────────────
+    const auctionItemId = session.metadata?.auction_item_id;
+    if (auctionItemId) {
+      const item = await this.prisma.auctionItem.findFirst({
+        where: { id: BigInt(auctionItemId), stripe_checkout_session_id: sessionId } as any,
+      });
+
+      if (item && (item as any).status === 'won') {
+        if (piId) {
+          await this.prisma.auctionItem.update({
+            where: { id: item.id },
+            data:  { stripe_payment_intent_id: piId, updated_at: new Date() } as any,
+          });
+        }
+
+        const amountCents = Number((item as any).winning_bid_amount_cents ?? 0);
+        const currency    = (item as any).currency ?? 'EUR';
+
+        await this.settleAuctionItem({
+          auctionItemId: Number(item.id),
+          grossCents:    amountCents,
+          currency,
+          piId:          piId ?? `session_${sessionId}`,
+          eventId:       event.id,
+        });
+
+        await this.prisma.auctionItem.update({
+          where: { id: item.id },
+          data:  { status: 'paid' as any, updated_at: new Date() },
+        });
+
+        try {
+          const userId = session.metadata?.user_id;
+          if (userId) {
+            const buyer = await this.prisma.user.findUnique({
+              where: { id: BigInt(userId) },
+              select: { email: true },
+            });
+            if (buyer?.email) {
+              await this.email.sendPaymentConfirmation(buyer.email, `Auction Item #${auctionItemId}`, amountCents, currency);
+            }
+          }
+        } catch (emailErr: any) {
+          this.logger.warn(`Payment email failed for auction item ${auctionItemId}: ${emailErr?.message}`);
+        }
+      }
+      return;
+    }
+
     // ── Book purchase path ──────────────────────────────────────────────────
     if (purchaseId && piId) {
       await this.prisma.book_purchases.updateMany({
@@ -148,6 +197,48 @@ export class WebhookHandlerService {
         data: { stripe_payment_intent_id: piId, updated_at: new Date() },
       });
     }
+  }
+
+  private async settleAuctionItem(opts: {
+    auctionItemId: number;
+    grossCents:    number;
+    currency:      string;
+    piId:          string;
+    eventId:       string;
+  }): Promise<number> {
+    const gross   = Money.fromCents(opts.grossCents, opts.currency);
+    const profile = SplitProfile.fromKey('social_pilot_45_45_10');
+    const result  = this.calc.calculate(gross, profile);
+
+    const recipients: RecipientLine[] = [
+      {
+        type: 'artist', legalEntityId: null, userId: null,
+        entityName: 'Artist (Auction)', entityEik: null, entityRole: 'artist',
+        stripeAccountId: null,
+        amount: result.artist, weight: result.artistBps,
+      },
+      {
+        type: 'fund', legalEntityId: null, userId: null,
+        entityName: 'Impact Fund', entityEik: null, entityRole: 'fund',
+        stripeAccountId: null,
+        amount: result.fund, weight: result.fundBps,
+      },
+      {
+        type: 'platform', legalEntityId: null, userId: null,
+        entityName: 'ARTeuCtion', entityEik: null, entityRole: 'platform',
+        stripeAccountId: null,
+        amount: result.ops, weight: result.opsBps,
+      },
+    ];
+
+    return this.settlements.settle({
+      grossCents:    opts.grossCents,
+      currency:      opts.currency,
+      profileKey:    'social_pilot_45_45_10',
+      paymentIntent: opts.piId,
+      stripeEvent:   opts.eventId,
+      recipients,
+    });
   }
 
   private async settleSellNowOffer(opts: {

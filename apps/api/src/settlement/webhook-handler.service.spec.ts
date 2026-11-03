@@ -12,6 +12,8 @@
  * WH9  charge.refunded — skips if no matching settlement
  * WH10 unknown event type — no error thrown
  * WH11 processWebhookEvent — resets status to received on error
+ * WH12 checkout.session.completed — auction item path: settles + marks paid
+ * WH13 checkout.session.completed — auction item not found or wrong status: no-op
  */
 
 import { jest } from '@jest/globals';
@@ -273,6 +275,60 @@ describe('Phase 0.5 — WebhookHandlerService', () => {
     mockPrisma.webhook_events.update.mockResolvedValue(undefined);
 
     await expect(svc.processWebhookEvent(1)).resolves.not.toThrow();
+  });
+
+  it('WH12: checkout.session.completed — auction item path: settles + marks paid', async () => {
+    const payload = {
+      type: 'checkout.session.completed',
+      id: 'evt_12',
+      data: { object: {
+        id: 'cs_auction', payment_intent: 'pi_auction_checkout',
+        metadata: { auction_item_id: '7', user_id: '3' },
+      }},
+    };
+    mockPrisma.webhook_events.findUnique.mockResolvedValueOnce({
+      ...RECV_EVENT, payload: JSON.stringify(payload),
+    });
+    mockPrisma.webhook_events.update.mockResolvedValue(undefined);
+    mockPrisma.auctionItem.findFirst.mockResolvedValueOnce({
+      id: BigInt(7), status: 'won',
+      winning_bid_amount_cents: BigInt(25000), currency: 'EUR',
+      stripe_checkout_session_id: 'cs_auction',
+    });
+    mockPrisma.auctionItem.update.mockResolvedValue(undefined);
+    mockSettlementService.settle.mockResolvedValueOnce(5);
+    mockPrisma.user.findUnique.mockResolvedValueOnce({ email: 'winner@example.com' });
+    mockEmailService.sendPaymentConfirmation.mockResolvedValueOnce(undefined);
+
+    await svc.processWebhookEvent(1);
+
+    expect(mockSettlementService.settle).toHaveBeenCalledWith(
+      expect.objectContaining({ grossCents: 25000, profileKey: 'social_pilot_45_45_10' })
+    );
+    expect(mockPrisma.auctionItem.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: 'paid' }) })
+    );
+  });
+
+  it('WH13: checkout.session.completed — auction item not won: no settlement', async () => {
+    const payload = {
+      type: 'checkout.session.completed',
+      id: 'evt_13',
+      data: { object: {
+        id: 'cs_not_won', payment_intent: 'pi_not_won',
+        metadata: { auction_item_id: '8', user_id: '4' },
+      }},
+    };
+    mockPrisma.webhook_events.findUnique.mockResolvedValueOnce({
+      ...RECV_EVENT, payload: JSON.stringify(payload),
+    });
+    mockPrisma.webhook_events.update.mockResolvedValue(undefined);
+    mockPrisma.auctionItem.findFirst.mockResolvedValueOnce(null);
+
+    await svc.processWebhookEvent(1);
+
+    expect(mockSettlementService.settle).not.toHaveBeenCalled();
+    expect(mockPrisma.auctionItem.update).not.toHaveBeenCalled();
   });
 
   it('WH11: resets status to received on error', async () => {
