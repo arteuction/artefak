@@ -8,6 +8,8 @@
  * CON5  getConsignment — found, different user: throws ForbiddenException
  * CON6  createConsignment — delegates to prisma.create
  * CON7  transition — found: updates status
+ * CON8  createLot — owner: creates art_lots row with BigInt fields
+ * CON9  createLot — not found: throws NotFoundException (via getConsignment)
  */
 
 import { jest } from '@jest/globals';
@@ -83,5 +85,24 @@ describe('Phase 0.3V — ConsignmentService', () => {
     mockPrisma.consignments.update.mockResolvedValueOnce({ ...STUB, status: 'active' });
     const result = await svc.transition(1, 10, 'artist', 'active');
     expect(result.status).toBe('active');
+  });
+
+  it('CON8: createLot — owner: creates art_lots row with correct fields', async () => {
+    mockPrisma.consignments.findFirst.mockResolvedValueOnce(STUB); // via getConsignment
+    mockPrisma.art_lots.create.mockResolvedValueOnce({ id: BigInt(1), status: 'draft', sale_mode: 'auction', created_at: new Date() });
+    const result = await svc.createLot(1, 10, 'artist', { sale_mode: 'auction', starting_bid_cents: 5000 });
+    expect(mockPrisma.art_lots.create).toHaveBeenCalledTimes(1);
+    const arg = mockPrisma.art_lots.create.mock.calls[0][0] as any;
+    expect(arg.data.consignment_id).toEqual(BigInt(1));
+    expect(arg.data.consignor_id).toEqual(BigInt(10));
+    expect(arg.data.starting_bid_cents).toEqual(BigInt(5000));
+    expect(arg.data.status).toBe('draft');
+    expect(result.status).toBe('draft');
+  });
+
+  it('CON9: createLot — not found: throws NotFoundException', async () => {
+    mockPrisma.consignments.findFirst.mockResolvedValueOnce(null);
+    await expect(svc.createLot(999, 10, 'artist', {})).rejects.toThrow(NotFoundException);
+    expect(mockPrisma.art_lots.create).not.toHaveBeenCalled();
   });
 });
