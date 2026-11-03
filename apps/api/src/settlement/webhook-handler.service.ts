@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { SettlementService } from './settlement.service';
+import { EmailService } from '../email/email.service';
 import { RecipientLine } from './recipient-line';
 import { Money } from './money';
 import { SplitProfile } from './split-profile';
@@ -26,6 +27,7 @@ export class WebhookHandlerService {
   constructor(
     private readonly prisma:      PrismaService,
     private readonly settlements: SettlementService,
+    private readonly email:       EmailService,
   ) {}
 
   async processWebhookEvent(webhookEventId: number): Promise<void> {
@@ -117,6 +119,20 @@ export class WebhookHandlerService {
           where: { id: offer.id },
           data:  { status: 'paid' as any, updated_at: new Date() },
         });
+
+        // Send payment confirmation email (best-effort, non-blocking)
+        try {
+          const buyer = await this.prisma.user.findUnique({
+            where: { id: offer.buyer_id },
+            select: { email: true },
+          });
+          const artTitle = `Artwork #${offerId}`;
+          if (buyer?.email) {
+            await this.email.sendPaymentConfirmation(buyer.email, artTitle, agreedCents, currency);
+          }
+        } catch (emailErr: any) {
+          this.logger.warn(`Payment email failed for offer ${offerId}: ${emailErr?.message}`);
+        }
       }
       return;
     }

@@ -19,10 +19,12 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { WebhookHandlerService } from './webhook-handler.service';
 import { SettlementService } from './settlement.service';
 import { PrismaService } from '../prisma.service';
+import { EmailService } from '../email/email.service';
 
 const fn = () => jest.fn() as any;
 
 const mockSettlementService = { settle: fn(), preview: fn() };
+const mockEmailService = { sendPaymentConfirmation: fn() };
 
 const mockPrisma = {
   webhook_events:    { findUnique: fn(), update: fn() },
@@ -35,6 +37,7 @@ const mockPrisma = {
   auction:           { findUnique: fn() },
   refunds:           { findUnique: fn(), create: fn() },
   ledger_entries:    { create: fn() },
+  user:              { findUnique: fn() },
   $transaction:      fn(),
 };
 
@@ -53,6 +56,7 @@ describe('Phase 0.5 — WebhookHandlerService', () => {
         WebhookHandlerService,
         { provide: SettlementService, useValue: mockSettlementService },
         { provide: PrismaService,     useValue: mockPrisma },
+        { provide: EmailService,      useValue: mockEmailService },
       ],
     }).compile();
     svc = module.get(WebhookHandlerService);
@@ -86,6 +90,8 @@ describe('Phase 0.5 — WebhookHandlerService', () => {
     });
     mockPrisma.sell_now_offers.update.mockResolvedValue(undefined);
     mockSettlementService.settle.mockResolvedValueOnce(1);
+    mockPrisma.user.findUnique.mockResolvedValueOnce({ email: 'buyer@example.com' });
+    mockEmailService.sendPaymentConfirmation.mockResolvedValueOnce(undefined);
 
     await svc.processWebhookEvent(1);
 
