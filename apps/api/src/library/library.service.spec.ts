@@ -23,6 +23,7 @@ import { jest } from '@jest/globals';
 import { Test, TestingModule } from '@nestjs/testing';
 import { LibraryService } from './library.service';
 import { PrismaService } from '../prisma.service';
+import { S3Service } from '../s3/s3.service';
 
 const STUB_BOOK = {
   id: BigInt(1), title: 'Art History', slug: 'art-history', description: null,
@@ -41,12 +42,18 @@ const mockPrisma = {
   $executeRaw: fn(),
 };
 
+const mockS3 = { enabled: false, presignDownload: jest.fn() as any, stubDownloadUrl: (key: string) => `https://stub-s3.local/download?key=${key}` };
+
 describe('Phase 0.3V — LibraryService', () => {
   let svc: LibraryService;
 
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [LibraryService, { provide: PrismaService, useValue: mockPrisma }],
+      providers: [
+        LibraryService,
+        { provide: PrismaService, useValue: mockPrisma },
+        { provide: S3Service, useValue: mockS3 },
+      ],
     }).compile();
     svc = module.get(LibraryService);
   });

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { S3Service } from '../s3/s3.service';
 
 export interface BooksQuery {
   featured?: boolean;
@@ -12,7 +13,10 @@ export interface BooksQuery {
 
 @Injectable()
 export class LibraryService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly s3: S3Service,
+  ) {}
 
   async listBooks(query: BooksQuery = {}) {
     const { featured, is_free, language, q, page = 1, perPage = 20 } = query;
@@ -106,8 +110,11 @@ export class LibraryService {
       where: { user_id: BigInt(userId), revoked_at: null, books: { slug } },
     });
     if (!entitlement) throw new Error('No entitlement for this book');
-    // Stub — actual implementation would generate a signed S3 URL
-    return { download_url: `https://cdn.example.com/books/${slug}/download?token=stub`, expires_at: new Date(Date.now() + 3600_000).toISOString() };
+    const key = `books/${slug}/download.pdf`;
+    const download_url = this.s3.enabled
+      ? await this.s3.presignDownload(key)
+      : this.s3.stubDownloadUrl(key);
+    return { download_url, expires_at: new Date(Date.now() + 3600_000).toISOString() };
   }
 
   async getBookReviews(slug: string, page = 1, perPage = 20) {

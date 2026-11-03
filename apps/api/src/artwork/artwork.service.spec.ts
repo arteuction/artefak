@@ -41,6 +41,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, ForbiddenException } from '@nestjs/common';
 import { ArtworkService } from './artwork.service';
 import { PrismaService } from '../prisma.service';
+import { S3Service } from '../s3/s3.service';
 
 const STUB = {
   id: BigInt(1), user_id: BigInt(10), title: 'Test Artwork', slug: 'test-artwork',
@@ -60,12 +61,18 @@ const mockPrisma = {
   $transaction: fn(),
 };
 
+const mockS3 = { enabled: false, presignUpload: jest.fn() as any, stubUploadUrl: (key: string) => `https://stub-s3.local/presign?key=${key}` };
+
 describe('Phase 0.3V — ArtworkService', () => {
   let svc: ArtworkService;
 
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [ArtworkService, { provide: PrismaService, useValue: mockPrisma }],
+      providers: [
+        ArtworkService,
+        { provide: PrismaService, useValue: mockPrisma },
+        { provide: S3Service, useValue: mockS3 },
+      ],
     }).compile();
     svc = module.get(ArtworkService);
   });
@@ -165,10 +172,13 @@ describe('Phase 0.3V — ArtworkService', () => {
     expect(result.qr_url).toContain('/artworks/');
   });
 
-  it('AW14: presignImage — returns upload_url and key', async () => {
+  it('AW14: presignImage — returns upload_url and key (stub mode when S3 not configured)', async () => {
+    mockPrisma.artworks.findFirst.mockResolvedValueOnce(STUB);
     const result = await svc.presignImage('test-artwork', 1, { filename: 'photo.jpg', content_type: 'image/jpeg' });
     expect(result.upload_url).toBeTruthy();
-    expect(result.key).toContain('photo.jpg');
+    expect(result.key).toContain('artworks/test-artwork');
+    expect(result.key).toMatch(/\.jpg$/);
+    expect(result.expires_in).toBe(3600);
   });
 
   it('AW15: generateDerivatives — non-admin: throws ForbiddenException', async () => {
@@ -283,6 +293,8 @@ describe('Phase 0.3V — ArtworkService', () => {
   });
 
   it('AW32: confirmImage — returns confirmed true', async () => {
+    mockPrisma.artworks.findFirst.mockResolvedValueOnce(STUB);
+    mockPrisma.artworks.update.mockResolvedValueOnce({ ...STUB, image_key: 'uploads/img.jpg' });
     const result = await svc.confirmImage('test-artwork', 1, { key: 'uploads/img.jpg' });
     expect(result.confirmed).toBe(true);
   });

@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { S3Service } from '../s3/s3.service';
 
 export interface ArtworksQuery {
   status?: string;
@@ -10,7 +11,10 @@ export interface ArtworksQuery {
 
 @Injectable()
 export class ArtworkService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly s3: S3Service,
+  ) {}
 
   async listArtworks(query: ArtworksQuery = {}) {
     const { status, medium, page = 1, perPage = 20 } = query;
@@ -266,16 +270,28 @@ export class ArtworkService {
     return { data };
   }
 
-  async presignImage(_artworkIdOrSlug: string, _userId: number, dto: { filename: string; content_type: string }) {
-    return { upload_url: 'https://stub.example.com/presign', key: `stub/${dto.filename}`, expires_in: 3600 };
+  async presignImage(artworkIdOrSlug: string, _userId: number, dto: { filename: string; content_type: string }) {
+    await this.getArtwork(artworkIdOrSlug);
+    const ext = dto.filename.split('.').pop() ?? 'bin';
+    const key = `artworks/${artworkIdOrSlug}/images/${Date.now()}.${ext}`;
+    const upload_url = this.s3.enabled
+      ? await this.s3.presignUpload(key, dto.content_type)
+      : this.s3.stubUploadUrl(key);
+    return { upload_url, key, expires_in: 3600 };
   }
 
-  async confirmImage(_artworkIdOrSlug: string, _userId: number, _dto: { key: string }) {
+  async confirmImage(artworkIdOrSlug: string, _userId: number, dto: { key: string }) {
+    const artwork = await this.getArtwork(artworkIdOrSlug);
+    await this.prisma.artworks.update({
+      where: { id: artwork.id },
+      data: { primary_image_key: dto.key, primary_image_status: 'uploaded' as any, updated_at: new Date() },
+    });
     return { confirmed: true, updated_at: new Date().toISOString() };
   }
 
   async generateDerivatives(_artworkIdOrSlug: string, _userId: number, role: string) {
     if (role !== 'admin' && role !== 'operator') throw new ForbiddenException();
+    // Enqueuing derivatives via BullMQ is a future M2 task; for now mark the artwork as processing
     return { queued: true };
   }
 
