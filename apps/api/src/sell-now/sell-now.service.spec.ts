@@ -18,6 +18,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { SellNowService } from './sell-now.service';
 import { PrismaService } from '../prisma.service';
+import { StripeService } from '../stripe/stripe.service';
 
 const STUB_LOT = {
   id: BigInt(1), status: 'active', currency: 'BGN',
@@ -37,12 +38,18 @@ const mockPrisma = {
   $transaction: fn(),
 };
 
+const mockStripe = { enabled: false, createCheckoutSession: jest.fn() as any };
+
 describe('Phase 0.3V — SellNowService', () => {
   let svc: SellNowService;
 
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [SellNowService, { provide: PrismaService, useValue: mockPrisma }],
+      providers: [
+        SellNowService,
+        { provide: PrismaService, useValue: mockPrisma },
+        { provide: StripeService, useValue: mockStripe },
+      ],
     }).compile();
     svc = module.get(SellNowService);
   });

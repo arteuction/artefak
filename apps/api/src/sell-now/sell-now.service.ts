@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { art_lots_status } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
+import { StripeService } from '../stripe/stripe.service';
 
 export interface CreateSellNowOfferDto {
   offered_price_cents: number;
@@ -10,7 +11,10 @@ export interface CreateSellNowOfferDto {
 
 @Injectable()
 export class SellNowService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly stripe: StripeService,
+  ) {}
 
   async createOffer(artLotId: number, buyerId: number, dto: CreateSellNowOfferDto) {
     if (!Number.isInteger(dto.offered_price_cents) || dto.offered_price_cents <= 0) {
@@ -104,6 +108,27 @@ export class SellNowService {
       where: { id: BigInt(offerId) },
       data: { status: 'rejected' as any },
       select: { id: true, status: true, updated_at: true },
+    });
+  }
+
+  async checkoutSession(offerId: number, buyerId: number) {
+    const offer = await this.prisma.sell_now_offers.findFirst({
+      where: { id: BigInt(offerId), buyer_id: BigInt(buyerId), status: 'accepted' as any },
+      include: { art_lots: { include: { artworks: { select: { title: true } } } } },
+    });
+    if (!offer) throw new NotFoundException(`Accepted offer ${offerId} not found`);
+
+    const baseUrl = process.env.APP_URL ?? 'https://arteuction.com';
+    return this.stripe.createCheckoutSession({
+      lineItems: [{
+        name: offer.art_lots.artworks?.title ?? 'Artwork Purchase',
+        amount_cents: Number(offer.agreed_price_cents ?? offer.offered_price_cents),
+        currency: offer.currency,
+      }],
+      successUrl: `${baseUrl}/purchases?session_id={CHECKOUT_SESSION_ID}`,
+      cancelUrl: `${baseUrl}/offers/${offerId}`,
+      clientReferenceId: `sell_now_offer_${offerId}`,
+      metadata: { offer_id: String(offerId), buyer_id: String(buyerId) },
     });
   }
 

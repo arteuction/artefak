@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { S3Service } from '../s3/s3.service';
+import { StripeService } from '../stripe/stripe.service';
 
 export interface BooksQuery {
   featured?: boolean;
@@ -16,6 +17,7 @@ export class LibraryService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly s3: S3Service,
+    private readonly stripe: StripeService,
   ) {}
 
   async listBooks(query: BooksQuery = {}) {
@@ -136,8 +138,26 @@ export class LibraryService {
     return { status: 'pending', message: 'Purchase initiated. Please complete payment.' };
   }
 
-  async checkoutSession(_slug: string, _userId: number) {
-    return { checkout_url: null, session_id: null, message: 'Checkout session not available in this environment.' };
+  async checkoutSession(slug: string, _userId: number) {
+    const book = await this.prisma.book.findFirst({
+      where: { slug, status: 'published' },
+      select: { id: true, title: true, price_cents: true, currency: true },
+    });
+    if (!book) throw new Error(`Book "${slug}" not found or not published`);
+
+    const baseUrl = process.env.APP_URL ?? 'https://arteuction.com';
+    const result = await this.stripe.createCheckoutSession({
+      lineItems: [{
+        name: book.title,
+        amount_cents: Number(book.price_cents),
+        currency: book.currency,
+      }],
+      successUrl: `${baseUrl}/library/${slug}?session_id={CHECKOUT_SESSION_ID}`,
+      cancelUrl: `${baseUrl}/books/${slug}`,
+      clientReferenceId: `book_${book.id}`,
+      metadata: { book_slug: slug },
+    });
+    return result;
   }
 
   async grantAccess(_slug: string, _userId: number, _granteeId: number) {

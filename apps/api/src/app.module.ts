@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { S3Module } from './s3/s3.module';
+import { StripeModule } from './stripe/stripe.module';
 import { LibraryModule } from './library/library.module';
 import { AuctionModule } from './auction/auction.module';
 import { AuthModule } from './auth/auth.module';
@@ -33,7 +34,7 @@ import { AuctionService } from './auction/auction.service';
 import { PrismaService } from './prisma.service';
 
 @Module({
-  imports: [S3Module, AuthModule, LibraryModule, AuctionModule, ProfileModule, ArtworkModule, GalleryModule, ArtistModule, CollectionModule, SellNowModule, ArtLotModule, VenueModule, ExhibitionModule, DisputeModule, DonationModule, ConsignmentModule, ImpactModule, DonationRecipientModule, OwnershipTransferModule, ReserveModule, SearchModule, InstitutionModule, ArtistApplicationModule, GovernanceModule, BookCategoryModule, PayoutModule, AdminModule, SettlementModule, SchedulerModule],
+  imports: [S3Module, StripeModule, AuthModule, LibraryModule, AuctionModule, ProfileModule, ArtworkModule, GalleryModule, ArtistModule, CollectionModule, SellNowModule, ArtLotModule, VenueModule, ExhibitionModule, DisputeModule, DonationModule, ConsignmentModule, ImpactModule, DonationRecipientModule, OwnershipTransferModule, ReserveModule, SearchModule, InstitutionModule, ArtistApplicationModule, GovernanceModule, BookCategoryModule, PayoutModule, AdminModule, SettlementModule, SchedulerModule],
   controllers: [HealthController],
   providers: [AuctionService, PrismaService],
 })

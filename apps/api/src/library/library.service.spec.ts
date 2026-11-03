@@ -24,6 +24,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { LibraryService } from './library.service';
 import { PrismaService } from '../prisma.service';
 import { S3Service } from '../s3/s3.service';
+import { StripeService } from '../stripe/stripe.service';
 
 const STUB_BOOK = {
   id: BigInt(1), title: 'Art History', slug: 'art-history', description: null,
@@ -43,6 +44,7 @@ const mockPrisma = {
 };
 
 const mockS3 = { enabled: false, presignDownload: jest.fn() as any, stubDownloadUrl: (key: string) => `https://stub-s3.local/download?key=${key}` };
+const mockStripe = { enabled: false, createCheckoutSession: jest.fn() as any };
 
 describe('Phase 0.3V — LibraryService', () => {
   let svc: LibraryService;
@@ -53,6 +55,7 @@ describe('Phase 0.3V — LibraryService', () => {
         LibraryService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: S3Service, useValue: mockS3 },
+        { provide: StripeService, useValue: mockStripe },
       ],
     }).compile();
     svc = module.get(LibraryService);
@@ -136,9 +139,12 @@ describe('Phase 0.3V — LibraryService', () => {
     expect(result.status).toBe('pending');
   });
 
-  it('LS13: checkoutSession — returns stub with null url', async () => {
+  it('LS13: checkoutSession — Stripe disabled: returns {checkout_url:null, session_id:null}', async () => {
+    mockPrisma.book.findFirst.mockResolvedValueOnce({ id: BigInt(1), title: 'Art History', price_cents: BigInt(2000), currency: 'EUR' });
+    mockStripe.createCheckoutSession.mockResolvedValueOnce({ checkout_url: null, session_id: null });
     const result = await svc.checkoutSession('art-history', 10);
     expect(result.checkout_url).toBeNull();
+    expect(result.session_id).toBeNull();
   });
 
   it('LS14: grantAccess — returns {granted:true}', async () => {
