@@ -43,7 +43,7 @@ export class DonationController {
 
   @Get('tax-receipt/:year')
   @ApiOperation({ summary: 'Get tax receipt for year' })
-  taxReceipt(@Param('year') _year: string, @CurrentUser() _user: AuthenticatedUser) {
-    return { tax_receipt: null };
+  taxReceipt(@Param('year', ParseIntPipe) year: number, @CurrentUser() user: AuthenticatedUser) {
+    return this.donationService.taxReceipt(user.id, year);
   }
 }

@@ -10,6 +10,7 @@
  * DN7  getDonation — found, different buyer requesting: throws NotFoundException (scoped visibility)
  * DN8  createDonation — writes to donations table (THREE-LEDGER: donations only, never ledger_entries)
  * DN9  createDonation — uses provided idempotency_key
+ * DN10 taxReceipt — aggregates completed deductible donations for year
  */
 
 import { jest } from '@jest/globals';
@@ -116,5 +117,23 @@ describe('Phase 0.3U â€” DonationService', () => {
     await svc.createDonation(10, dto);
     const callArg = mockPrisma.donations.create.mock.calls[0][0] as any;
     expect(callArg.data.idempotency_key).toBe('idem-123');
+  });
+
+  it('DN10: taxReceipt — aggregates completed deductible donations for year', async () => {
+    const row = {
+      id: BigInt(1), donated_cents: BigInt(5000), max_deductible_cents: BigInt(5000),
+      deduction_bps: 1000, currency: 'EUR', eligibility_basis: 'art31',
+      donation_recipients: { id: BigInt(1), name: 'Red Cross BG' }, created_at: new Date(),
+    };
+    mockPrisma.donations.findMany.mockResolvedValueOnce([row]);
+    const result = await svc.taxReceipt(10, 2026);
+    expect(mockPrisma.donations.findMany).toHaveBeenCalledTimes(1);
+    const callArg = mockPrisma.donations.findMany.mock.calls[0][0] as any;
+    expect(callArg.where.donor_id).toEqual(BigInt(10));
+    expect(callArg.where.status).toBe('completed');
+    expect(result.year).toBe(2026);
+    expect(result.total_donated_cents).toBe(5000);
+    expect(result.total_deductible_cents).toBe(5000);
+    expect(result.rows).toHaveLength(1);
   });
 });

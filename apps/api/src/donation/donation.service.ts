@@ -80,4 +80,36 @@ export class DonationService {
     }
     return donation;
   }
+
+  async taxReceipt(userId: number, year: number) {
+    const start = new Date(`${year}-01-01T00:00:00Z`);
+    const end = new Date(`${year + 1}-01-01T00:00:00Z`);
+
+    const rows = await this.prisma.donations.findMany({
+      where: {
+        donor_id: BigInt(userId),
+        status: 'completed' as any,
+        eligibility_basis: { not: 'voluntary' },
+        created_at: { gte: start, lt: end },
+      },
+      select: {
+        id: true, donated_cents: true, max_deductible_cents: true,
+        deduction_bps: true, currency: true, eligibility_basis: true,
+        donation_recipients: { select: { id: true, name: true } },
+        created_at: true,
+      },
+      orderBy: [{ created_at: 'asc' }],
+    });
+
+    const total_donated_cents = rows.reduce((s, r) => s + Number(r.donated_cents), 0);
+    const total_deductible_cents = rows.reduce((s, r) => s + Number(r.max_deductible_cents), 0);
+
+    return {
+      year,
+      currency: rows[0]?.currency ?? 'EUR',
+      total_donated_cents,
+      total_deductible_cents,
+      rows,
+    };
+  }
 }
