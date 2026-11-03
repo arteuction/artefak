@@ -4,6 +4,8 @@
  * DR1  GET /donation-recipients       — list (200)
  * DR2  GET /donation-recipients/:id   — get one (200)
  * DR3  GET /donation-recipients/999   — 404
+ * DR4  POST /donation-recipients      — 201 with created recipient
+ * DR5  PATCH /donation-recipients/:id — 200 with updated recipient
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
@@ -11,6 +13,9 @@ import { NestFastifyApplication, FastifyAdapter } from '@nestjs/platform-fastify
 import { NotFoundException } from '@nestjs/common';
 import { DonationRecipientController } from './donation-recipient.controller';
 import { DonationRecipientService } from './donation-recipient.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+
+const mockJwtGuard = { canActivate: () => true };
 
 const STUB_RECIPIENT = {
   id: 1, name: 'Sofia Art Foundation', legal_type: 'ngo',
@@ -27,6 +32,8 @@ const mockDonationRecipientService = {
     if (id === 999) throw new NotFoundException(`DonationRecipient ${id} not found`);
     return STUB_RECIPIENT;
   },
+  createRecipient: async (dto: any) => ({ ...STUB_RECIPIENT, ...dto }),
+  updateRecipient: async (_id: number, dto: any) => ({ ...STUB_RECIPIENT, ...dto, updated_at: new Date().toISOString() }),
 };
 
 describe('Phase 0.3N — DonationRecipient controller', () => {
@@ -36,7 +43,10 @@ describe('Phase 0.3N — DonationRecipient controller', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [DonationRecipientController],
       providers: [{ provide: DonationRecipientService, useValue: mockDonationRecipientService }],
-    }).compile();
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue(mockJwtGuard)
+      .compile();
 
     app = module.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
     app.setGlobalPrefix('api/v1');
@@ -64,5 +74,20 @@ describe('Phase 0.3N — DonationRecipient controller', () => {
   it('DR3: GET /donation-recipients/999 returns 404', async () => {
     const res = await app.inject({ method: 'GET', url: '/api/v1/donation-recipients/999' });
     expect(res.statusCode).toBe(404);
+  });
+
+  it('DR4: POST /donation-recipients returns 201 with created recipient', async () => {
+    const body = { name: 'New Foundation', legal_type: 'ngo' };
+    const res = await app.inject({ method: 'POST', url: '/api/v1/donation-recipients', payload: body });
+    expect(res.statusCode).toBe(201);
+    const resBody = JSON.parse(res.payload);
+    expect(resBody).toHaveProperty('name', 'New Foundation');
+  });
+
+  it('DR5: PATCH /donation-recipients/1 returns 200 with updated recipient', async () => {
+    const res = await app.inject({ method: 'PATCH', url: '/api/v1/donation-recipients/1', payload: { deduction_bps: 1000 } });
+    expect(res.statusCode).toBe(200);
+    const resBody = JSON.parse(res.payload);
+    expect(resBody).toHaveProperty('deduction_bps', 1000);
   });
 });
