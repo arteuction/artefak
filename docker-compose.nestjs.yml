@@ -1,0 +1,59 @@
+# NestJS API staging environment
+# Run alongside the shared infrastructure services (MariaDB, Redis, Meilisearch, MinIO)
+# from the main docker-compose.yml.
+#
+# Usage (start infrastructure first, then the NestJS API):
+#   docker compose -f docker-compose.yml up -d mariadb redis meilisearch minio minio-init
+#   docker compose -f docker-compose.nestjs.yml up -d
+#
+# The NestJS app container connects to the same 'artefak' network
+# as the infrastructure services via the `external: true` network declaration.
+
+services:
+
+  # ── NestJS API ────────────────────────────────────────────────────────────────
+  nestjs:
+    build:
+      context: apps/api
+      dockerfile: Dockerfile
+    env_file: apps/api/.env.staging
+    ports:
+      - "3000:3000"    # HTTP / REST
+      - "3001:3001"    # WebSocket (socket.io /bids namespace) — optional separate port
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      # DATABASE_URL, JWT_SECRET, STRIPE_SECRET_KEY, AWS_* etc. come from .env.staging
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks: [artefak]
+
+  # ── Stripe CLI (test-mode webhook forwarding to NestJS) ─────────────────────
+  stripe-nestjs:
+    image: stripe/stripe-cli:latest
+    command: >
+      listen
+        --api-key ${STRIPE_SECRET}
+        --forward-to http://nestjs:3000/api/v1/stripe/webhook
+        --events payment_intent.succeeded,payment_intent.payment_failed,charge.refunded,transfer.created,transfer.failed
+    env_file: apps/api/.env.staging
+    depends_on:
+      - nestjs
+    networks: [artefak]
+
+networks:
+  artefak:
+    external: true
