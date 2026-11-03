@@ -11,6 +11,9 @@
  * DS8  assignDispute — admin: updates assigned_to
  * DS9  resolveDispute — non-admin: throws ForbiddenException
  * DS10 resolveDispute — admin: sets status resolved
+ * DS11 attachEvidence — non-admin: throws ForbiddenException
+ * DS12 attachEvidence — admin: creates dispute_escalations row
+ * DS13 attachEvidence — admin, dispute not found: throws NotFoundException
  */
 
 import { jest } from '@jest/globals';
@@ -100,5 +103,28 @@ describe('Phase 0.3V — DisputeService', () => {
     mockPrisma.disputes.update.mockResolvedValueOnce({ ...STUB, status: 'resolved', resolution: 'Refunded' });
     const result = await svc.resolveDispute(1, 1, 'admin', { resolution: 'Refunded' });
     expect(result.status).toBe('resolved');
+  });
+
+  it('DS11: attachEvidence — non-admin/non-operator: throws ForbiddenException', async () => {
+    await expect(svc.attachEvidence(1, 10, 'buyer', { reason: 'photo evidence' })).rejects.toThrow(ForbiddenException);
+    expect(mockPrisma.disputes.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('DS12: attachEvidence — admin: creates dispute_escalations row', async () => {
+    mockPrisma.disputes.findFirst.mockResolvedValueOnce(STUB);
+    mockPrisma.dispute_escalations.create.mockResolvedValueOnce({ id: BigInt(1), dispute_id: BigInt(1), reason: 'photo evidence', created_at: new Date() });
+    const result = await svc.attachEvidence(1, 10, 'admin', { reason: 'photo evidence' });
+    expect(mockPrisma.dispute_escalations.create).toHaveBeenCalledTimes(1);
+    const arg = mockPrisma.dispute_escalations.create.mock.calls[0][0] as any;
+    expect(arg.data.dispute_id).toEqual(BigInt(1));
+    expect(arg.data.reason).toBe('photo evidence');
+    expect(arg.data.escalated_by).toEqual(BigInt(10));
+    expect(result.reason).toBe('photo evidence');
+  });
+
+  it('DS13: attachEvidence — admin, dispute not found: throws NotFoundException', async () => {
+    mockPrisma.disputes.findFirst.mockResolvedValueOnce(null);
+    await expect(svc.attachEvidence(999, 10, 'admin', { reason: 'x' })).rejects.toThrow(NotFoundException);
+    expect(mockPrisma.dispute_escalations.create).not.toHaveBeenCalled();
   });
 });
