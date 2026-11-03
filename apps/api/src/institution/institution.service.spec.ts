@@ -8,7 +8,8 @@
  * IS5  getInstitution by numeric id â€” found
  * IS6  createInstitution â€” delegates to prisma.create
  * IS7  updateInstitution â€” found and updated
- * IS8  updateInstitution â€” not found: throws NotFoundException
+ * IS8  updateInstitution — not found: throws NotFoundException
+ * IS9  attachArtwork — creates institution_artworks row
  */
 
 import { jest } from '@jest/globals';
@@ -88,8 +89,19 @@ describe('Phase 0.3U â€” InstitutionService', () => {
     expect(result.name).toBe('Updated Gallery');
   });
 
-  it('IS8: updateInstitution â€” not found: throws NotFoundException', async () => {
+  it('IS8: updateInstitution — not found: throws NotFoundException', async () => {
     mockPrisma.institutions.findFirst.mockResolvedValueOnce(null);
     await expect(svc.updateInstitution('missing', { name: 'X' })).rejects.toThrow(NotFoundException);
+  });
+
+  it('IS9: attachArtwork — creates institution_artworks row', async () => {
+    mockPrisma.institutions.findFirst.mockResolvedValueOnce(STUB);
+    const row = { id: BigInt(1), institution_id: BigInt(1), artwork_id: BigInt(5) };
+    mockPrisma.institution_artworks.create.mockResolvedValueOnce(row);
+    const result = await svc.attachArtwork('national-gallery', 5);
+    expect(mockPrisma.institution_artworks.create).toHaveBeenCalled();
+    const arg = mockPrisma.institution_artworks.create.mock.calls[0][0] as any;
+    expect(arg.data.artwork_id).toEqual(BigInt(5));
+    expect(result.artwork_id).toEqual(BigInt(5));
   });
 });

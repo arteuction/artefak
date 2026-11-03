@@ -5,7 +5,9 @@
  * IP2  listProjects default pagination
  * IP3  getProject by slug â€” found
  * IP4  getProject by slug â€” not found: throws NotFoundException
- * IP5  getProject by numeric id â€” found
+ * IP5  getProject by numeric id — found
+ * IP6  createProject — writes to impact_projects table
+ * IP7  updateProject — found: persists status change
  */
 
 import { jest } from '@jest/globals';
@@ -21,7 +23,7 @@ const STUB = {
 };
 
 const fn = () => jest.fn() as any;
-const mockPrisma = { impact_projects: { findMany: fn(), findFirst: fn(), count: fn() }, $transaction: fn() };
+const mockPrisma = { impact_projects: { findMany: fn(), findFirst: fn(), count: fn(), create: fn(), update: fn() }, $transaction: fn() };
 
 describe('Phase 0.3U â€” ImpactProjectService', () => {
   let svc: ImpactProjectService;
@@ -64,5 +66,29 @@ describe('Phase 0.3U â€” ImpactProjectService', () => {
     mockPrisma.impact_projects.findFirst.mockResolvedValueOnce(STUB);
     const result = await svc.getProject('1');
     expect(result.title).toBe('Reforestation BG');
+  });
+
+  it('IP6: createProject — writes to impact_projects table', async () => {
+    const created = { id: BigInt(2), title: 'Tree Planting', slug: 'tree-planting', sdg_number: 15, funding_target_cents: BigInt(50000), currency: 'EUR', status: 'active', created_at: new Date() };
+    mockPrisma.impact_projects.create.mockResolvedValueOnce(created);
+    const result = await svc.createProject({ title: 'Tree Planting', slug: 'tree-planting', sdg_number: 15, funding_target_cents: 50000 });
+    expect(mockPrisma.impact_projects.create).toHaveBeenCalledTimes(1);
+    const arg = mockPrisma.impact_projects.create.mock.calls[0][0] as any;
+    expect(arg.data.slug).toBe('tree-planting');
+    expect(arg.data.funding_target_cents).toEqual(BigInt(50000));
+    expect(arg.data.currency).toBe('EUR');
+    expect(result.title).toBe('Tree Planting');
+  });
+
+  it('IP7: updateProject — found: persists status change', async () => {
+    mockPrisma.impact_projects.findFirst.mockResolvedValueOnce(STUB);
+    const updated = { id: BigInt(1), title: 'Reforestation BG', slug: 'reforestation-bg', status: 'funded', updated_at: new Date() };
+    mockPrisma.impact_projects.update.mockResolvedValueOnce(updated);
+    const result = await svc.updateProject('reforestation-bg', { status: 'funded' });
+    expect(mockPrisma.impact_projects.update).toHaveBeenCalledTimes(1);
+    const arg = mockPrisma.impact_projects.update.mock.calls[0][0] as any;
+    expect(arg.where.id).toEqual(BigInt(1));
+    expect(arg.data.status).toBe('funded');
+    expect(result.status).toBe('funded');
   });
 });
