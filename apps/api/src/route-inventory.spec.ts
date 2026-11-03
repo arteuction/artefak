@@ -44,6 +44,7 @@ function notFound() { return Promise.reject(new NotFoundException('stub')); }
 
 const prismaMock = {
   $queryRaw: async () => [{ 1: 1 }],
+  $executeRaw: async () => 1,
   // $transaction receives an array of Promises when called with array style
   $transaction: async (ops: Promise<unknown>[]) => Promise.all(ops),
   auction: { findMany: emptyFindMany, count: emptyCount, findUnique: notFound, findFirst: notFound },
@@ -90,6 +91,8 @@ const prismaMock = {
   institution_artworks: { create: async () => ({ id: 1 }) },
   // Artist applications
   artist_applications: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound },
+  // Users (needed for auth service email verification)
+  user: { findUnique: async () => ({ id: BigInt(1), email: 'test@example.com', email_verified_at: null }), findMany: emptyFindMany, count: emptyCount, update: async () => ({ id: BigInt(1) }) },
   // Artwork sub-resources
   artwork_evidence: { findMany: emptyFindMany, create: async () => ({ id: 1 }) },
   artwork_sdg_claims: { findMany: emptyFindMany, findFirst: async () => ({ id: 1, sdg_number: 1, status: 'pending' }), create: async () => ({ id: 1 }), update: async () => ({ id: 1, status: 'approved' }) },
@@ -161,6 +164,8 @@ const PUBLIC_ROUTES = [
   'GET /api/v1/lots/1/qr',
   // ArtMetro legacy stubs (public)
   'GET /api/v1/artmetro/artifacts/test-token',
+  // Artwork image URL (public, returns 403 for non-active but not 404)
+  'GET /api/v1/artworks/1/images/url',
 ];
 
 const AUTH_ROUTES = [
