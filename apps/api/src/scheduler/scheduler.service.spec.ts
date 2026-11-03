@@ -17,6 +17,8 @@
  * SC14 dispatchDomainEvents — skips event when atomic claim returns 0 (already claimed)
  * SC15 dispatchTransferOutbox — reconciles existing Stripe transfer on retry
  * SC16 recoverStaleClaims — resets stale processing entries in both tables
+ * SC17 dispatchTransferOutbox — finds orphaned transfer via findTransferByGroup, marks completed
+ * SC18 dispatchTransferOutbox — generates external_ref on first attempt, stores before Stripe call
  */
 
 import { jest } from '@jest/globals';
@@ -42,8 +44,8 @@ const mockPrisma = {
   transfer_outbox: { findMany: fn(), update: fn() },
 };
 
-const mockStripe = { enabled: false, createTransfer: jest.fn() as any, retrieveTransfer: jest.fn() as any };
-const mockStripeEnabled = { enabled: true, createTransfer: jest.fn() as any, retrieveTransfer: jest.fn() as any };
+const mockStripe = { enabled: false, createTransfer: jest.fn() as any, retrieveTransfer: jest.fn() as any, findTransferByGroup: jest.fn() as any };
+const mockStripeEnabled = { enabled: true, createTransfer: jest.fn() as any, retrieveTransfer: jest.fn() as any, findTransferByGroup: jest.fn() as any };
 
 describe('Phase 0.5 — SchedulerService', () => {
   let svc: SchedulerService;
@@ -206,11 +208,12 @@ describe('Phase 0.5 — SchedulerService', () => {
     const entry = {
       id: BigInt(1), amount_cents: 5000, currency: 'EUR', attempt: 0,
       next_attempt_at: new Date(), settlement_lines: { stripe_account_id: 'acct_test' },
-      stripe_transfer_id: null,
+      stripe_transfer_id: null, external_ref: null,
     };
     mockPrisma.transfer_outbox.findMany.mockResolvedValueOnce([entry]);
-    // $executeRaw: (1) atomic claim, (2) persist stripe_transfer_id, (3) mark completed
+    // $executeRaw calls: (1) atomic claim, (2) set external_ref, (3) persist stripe_transfer_id, (4) mark completed
     mockPrisma.$executeRaw.mockResolvedValue(1);
+    mockStripeEnabled.findTransferByGroup.mockResolvedValueOnce(null); // no orphaned transfer
     mockStripeEnabled.createTransfer.mockResolvedValueOnce({ transfer_id: 'tr_test' });
 
     await svc.dispatchTransferOutbox();
@@ -218,7 +221,7 @@ describe('Phase 0.5 — SchedulerService', () => {
     expect(mockStripeEnabled.createTransfer).toHaveBeenCalledWith(
       expect.objectContaining({ destination: 'acct_test', idempotency_key: 'transfer_outbox:1' })
     );
-    expect(mockPrisma.$executeRaw).toHaveBeenCalledTimes(3);
+    expect(mockPrisma.$executeRaw).toHaveBeenCalledTimes(4);
     (svc as any).stripe = mockStripe;
   });
 
@@ -248,6 +251,50 @@ describe('Phase 0.5 — SchedulerService', () => {
 
     expect(mockStripeEnabled.createTransfer).not.toHaveBeenCalled(); // no new transfer!
     expect(mockPrisma.$executeRaw).toHaveBeenCalledTimes(2); // claim + complete
+    (svc as any).stripe = mockStripe;
+  });
+
+  it('SC17: dispatchTransferOutbox — finds orphaned transfer via findTransferByGroup, skips new transfer', async () => {
+    (svc as any).stripe = mockStripeEnabled;
+    const entry = {
+      id: BigInt(5), amount_cents: 7700, currency: 'EUR', attempt: 1,
+      next_attempt_at: new Date(), settlement_lines: { stripe_account_id: 'acct_test' },
+      stripe_transfer_id: null, external_ref: 'to-5-1234567890',
+    };
+    mockPrisma.transfer_outbox.findMany.mockResolvedValueOnce([entry]);
+    // $executeRaw: (1) atomic claim, (2) mark completed with transfer_id from group search
+    mockPrisma.$executeRaw.mockResolvedValue(1);
+    mockStripeEnabled.retrieveTransfer.mockResolvedValueOnce(null); // no persisted transfer_id
+    mockStripeEnabled.findTransferByGroup.mockResolvedValueOnce({ transfer_id: 'tr_orphaned', amount: 7700 });
+
+    await svc.dispatchTransferOutbox();
+
+    expect(mockStripeEnabled.createTransfer).not.toHaveBeenCalled();
+    expect(mockPrisma.$executeRaw).toHaveBeenCalledTimes(2);
+    (svc as any).stripe = mockStripe;
+  });
+
+  it('SC18: dispatchTransferOutbox — generates external_ref on first attempt before Stripe call', async () => {
+    (svc as any).stripe = mockStripeEnabled;
+    const entry = {
+      id: BigInt(6), amount_cents: 3300, currency: 'EUR', attempt: 0,
+      next_attempt_at: new Date(), settlement_lines: { stripe_account_id: 'acct_test' },
+      stripe_transfer_id: null, external_ref: null,
+    };
+    mockPrisma.transfer_outbox.findMany.mockResolvedValueOnce([entry]);
+    mockPrisma.$executeRaw.mockResolvedValue(1);
+    mockStripeEnabled.findTransferByGroup.mockResolvedValueOnce(null);
+    mockStripeEnabled.createTransfer.mockResolvedValueOnce({ transfer_id: 'tr_new' });
+
+    await svc.dispatchTransferOutbox();
+
+    // Second $executeRaw call should set external_ref before Stripe createTransfer
+    const calls: any[] = mockPrisma.$executeRaw.mock.calls;
+    // Call index 1 (0=claim, 1=set external_ref) must happen before createTransfer
+    expect(calls.length).toBe(4); // claim + set external_ref + persist transfer_id + complete
+    expect(mockStripeEnabled.createTransfer).toHaveBeenCalledWith(
+      expect.objectContaining({ metadata: expect.objectContaining({ external_ref: expect.stringContaining('to-6-') }) })
+    );
     (svc as any).stripe = mockStripe;
   });
 

@@ -76,6 +76,22 @@ export class StripeService {
     }
   }
 
+  /**
+   * Find the first transfer in a transfer_group. Used for crash-recovery when
+   * stripe_transfer_id was not yet persisted after a successful Stripe API call.
+   */
+  async findTransferByGroup(transferGroup: string): Promise<{ transfer_id: string; amount: number } | null> {
+    if (!this.stripe) return null;
+    try {
+      const list = await this.stripe.transfers.list({ transfer_group: transferGroup, limit: 1 });
+      const transfer = list.data[0];
+      if (!transfer) return null;
+      return { transfer_id: transfer.id, amount: transfer.amount };
+    } catch {
+      return null;
+    }
+  }
+
   async createTransfer(params: {
     amount_cents: number;
     currency: string;

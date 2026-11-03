@@ -276,16 +276,50 @@ export class SchedulerService {
         const stripeAccount = (entry.settlement_lines as any)?.stripe_account_id ?? null;
 
         if (stripeAccount) {
-          // Reconciliation: if we already have a stripe_transfer_id from a previous
-          // attempt, verify it exists at Stripe before creating another transfer.
-          // This handles crash-after-Stripe-success-before-DB-write scenarios.
-          const existingTransferId = (entry as any).stripe_transfer_id as string | null;
+          // Reconciliation strategy (handles crash-after-Stripe-before-DB scenarios):
+          //
+          // 1. stripe_transfer_id already persisted → retrieve directly (covers delayed
+          //    retries beyond Stripe's 24h idempotency window).
+          // 2. external_ref present but no stripe_transfer_id → search Stripe by
+          //    transfer_group which encodes the external_ref; covers crash between
+          //    Stripe API success and our first DB write.
+          // 3. Neither present → create new transfer (first attempt).
+          const existingTransferId = entry.stripe_transfer_id;
           if (existingTransferId) {
             const reconciled = await this.stripe.retrieveTransfer(existingTransferId);
             if (reconciled) {
               this.logger.log(`transfer_outbox ${entry.id}: reconciled existing Stripe transfer ${existingTransferId}`);
               await this.prisma.$executeRaw`
-                UPDATE transfer_outbox SET status = 'completed', lease_expires_at = NULL, updated_at = ${new Date()} WHERE id = ${entry.id}
+                UPDATE transfer_outbox SET status = 'completed', lease_expires_at = NULL, dispatched_at = ${new Date()}, updated_at = ${new Date()} WHERE id = ${entry.id}
+              `;
+              dispatched++;
+              continue;
+            }
+          }
+
+          // Ensure a stable external_ref exists before calling Stripe.
+          // Generated on first attempt; preserved on every subsequent retry.
+          let externalRef = (entry as any).external_ref as string | null;
+          if (!externalRef) {
+            externalRef = `to-${entry.id}-${Date.now()}`;
+            await this.prisma.$executeRaw`
+              UPDATE transfer_outbox SET external_ref = ${externalRef}, updated_at = ${new Date()} WHERE id = ${entry.id}
+            `;
+          }
+
+          const transferGroup = `outbox:${externalRef}`;
+
+          // If no stripe_transfer_id yet, try to find an existing transfer via
+          // transfer_group (covers crash after Stripe accepted but before DB write).
+          if (!existingTransferId) {
+            const found = await this.stripe.findTransferByGroup(transferGroup);
+            if (found) {
+              this.logger.log(`transfer_outbox ${entry.id}: found orphaned Stripe transfer ${found.transfer_id} via transfer_group`);
+              await this.prisma.$executeRaw`
+                UPDATE transfer_outbox
+                SET stripe_transfer_id = ${found.transfer_id}, status = 'completed',
+                    lease_expires_at = NULL, dispatched_at = ${new Date()}, updated_at = ${new Date()}
+                WHERE id = ${entry.id}
               `;
               dispatched++;
               continue;
@@ -296,9 +330,9 @@ export class SchedulerService {
             amount_cents: Number(entry.amount_cents),
             currency: 'eur',
             destination: stripeAccount,
-            transfer_group: `outbox:${entry.id}`,
+            transfer_group: transferGroup,
             idempotency_key: `transfer_outbox:${entry.id}`,
-            metadata: { outbox_id: String(entry.id) },
+            metadata: { outbox_id: String(entry.id), external_ref: externalRef },
           });
 
           // Persist the Stripe transfer ID immediately so crash recovery can reconcile
