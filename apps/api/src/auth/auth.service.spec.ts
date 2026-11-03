@@ -11,17 +11,22 @@
  * AS8  rotateRefreshToken — token expired: throws UnauthorizedException
  * AS9  revokeToken — calls $executeRaw
  * AS10 revokeAllForUser — calls $executeRaw
+ * AS11 sendVerificationEmail — already verified: throws BadRequestException
+ * AS12 sendVerificationEmail — unverified: returns token
+ * AS13 verifyEmail — invalid token: throws BadRequestException
+ * AS14 verifyEmail — valid token: returns { verified: true }
  */
 
 import { jest } from '@jest/globals';
 import { Test, TestingModule } from '@nestjs/testing';
 import {
-  UnauthorizedException, ConflictException, ForbiddenException,
+  UnauthorizedException, ConflictException, ForbiddenException, BadRequestException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma.service';
+import { EmailService } from '../email/email.service';
 
 const HASH = await bcrypt.hash('password123', 12);
 
@@ -38,6 +43,7 @@ const mockPrisma = {
 };
 
 const mockJwt = { sign: jest.fn() as any };
+const mockEmail = { enabled: false, sendEmailVerification: jest.fn(async () => void 0) as any };
 
 describe('Phase 0.3V — AuthService', () => {
   let svc: AuthService;
@@ -48,6 +54,7 @@ describe('Phase 0.3V — AuthService', () => {
         AuthService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: JwtService, useValue: mockJwt },
+        { provide: EmailService, useValue: mockEmail },
       ],
     }).compile();
     svc = module.get(AuthService);
@@ -117,5 +124,31 @@ describe('Phase 0.3V — AuthService', () => {
     mockPrisma.$executeRaw.mockResolvedValueOnce(1);
     await svc.revokeAllForUser(1);
     expect(mockPrisma.$executeRaw).toHaveBeenCalled();
+  });
+
+  it('AS11: sendVerificationEmail — already verified: throws BadRequestException', async () => {
+    mockPrisma.user.findUnique.mockResolvedValueOnce({ id: BigInt(1), email: 'u@u.com', email_verified_at: new Date() });
+    await expect(svc.sendVerificationEmail(1)).rejects.toThrow(BadRequestException);
+  });
+
+  it('AS12: sendVerificationEmail — unverified user: returns token', async () => {
+    mockPrisma.user.findUnique.mockResolvedValueOnce({ id: BigInt(1), email: 'u@u.com', email_verified_at: null });
+    mockPrisma.$executeRaw.mockResolvedValueOnce(1);
+    const result = await svc.sendVerificationEmail(1);
+    expect(typeof result.token).toBe('string');
+    expect(result.token.length).toBeGreaterThan(10);
+  });
+
+  it('AS13: verifyEmail — invalid token: throws BadRequestException', async () => {
+    mockPrisma.$queryRaw.mockResolvedValueOnce([]);
+    await expect(svc.verifyEmail('bad-token')).rejects.toThrow(BadRequestException);
+  });
+
+  it('AS14: verifyEmail — valid token: returns { verified: true }', async () => {
+    const future = new Date(Date.now() + 60_000);
+    mockPrisma.$queryRaw.mockResolvedValueOnce([{ user_id: 1, expires_at: future }]);
+    mockPrisma.$executeRaw.mockResolvedValue(1);
+    const result = await svc.verifyEmail('valid-token');
+    expect(result.verified).toBe(true);
   });
 });

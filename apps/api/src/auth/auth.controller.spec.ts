@@ -7,6 +7,9 @@
  * AC4  login — missing fields: throws BadRequestException
  * AC5  login — valid: returns user + access_token
  * AC6  logout — revokes token and clears cookie
+ * AC7  verify-email — missing token: throws BadRequestException
+ * AC8  verify-email — valid token: returns { verified: true }
+ * AC9  send-verification-email — delegates to authService
  */
 
 import { jest } from '@jest/globals';
@@ -22,6 +25,8 @@ const mockAuthService = {
   logAuthEvent: jest.fn() as any,
   revokeToken: jest.fn() as any,
   revokeAllForUser: jest.fn() as any,
+  sendVerificationEmail: jest.fn() as any,
+  verifyEmail: jest.fn() as any,
 };
 
 // Minimal Express-like res/req stubs
@@ -100,5 +105,24 @@ describe('Phase 0.3V — AuthController', () => {
     await ctrl.logout(user, makeReq({ cookies: { refresh_token: 'old-token' } }) as any, res as any);
     expect(mockAuthService.revokeToken).toHaveBeenCalledWith('old-token');
     expect(res.clearCookie).toHaveBeenCalled();
+  });
+
+  it('AC7: verify-email — missing token: throws BadRequestException', async () => {
+    await expect(ctrl.verifyEmail({})).rejects.toThrow(BadRequestException);
+  });
+
+  it('AC8: verify-email — valid token: returns verified', async () => {
+    mockAuthService.verifyEmail.mockResolvedValueOnce({ verified: true });
+    const result = await ctrl.verifyEmail({ token: 'abc123' });
+    expect(result.verified).toBe(true);
+    expect(mockAuthService.verifyEmail).toHaveBeenCalledWith('abc123');
+  });
+
+  it('AC9: send-verification-email — delegates to service', async () => {
+    mockAuthService.sendVerificationEmail.mockResolvedValueOnce({ token: 'tok_verify' });
+    const user = { id: 5, role: 'buyer' as const, email: 'u@u.com', emailVerifiedAt: null };
+    const result = await ctrl.sendVerificationEmail(user);
+    expect(result.token).toBe('tok_verify');
+    expect(mockAuthService.sendVerificationEmail).toHaveBeenCalledWith(5);
   });
 });

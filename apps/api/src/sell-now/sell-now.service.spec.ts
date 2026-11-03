@@ -116,4 +116,26 @@ describe('Phase 0.3V — SellNowService', () => {
     mockPrisma.sell_now_offers.findFirst.mockResolvedValueOnce(null);
     await expect(svc.getOffer(999, 10)).rejects.toThrow(NotFoundException);
   });
+
+  it('SN11: checkoutSession — accepted offer: returns checkout_url', async () => {
+    const acceptedOffer = {
+      ...STUB_OFFER, status: 'accepted', agreed_price_cents: BigInt(5000),
+      art_lots: { artworks: { title: 'Test Artwork' }, currency: 'BGN' },
+    };
+    mockPrisma.sell_now_offers.findFirst.mockResolvedValueOnce(acceptedOffer);
+    mockStripe.createCheckoutSession.mockResolvedValueOnce({
+      checkout_url: 'https://stripe.com/checkout/test123',
+      session_id: 'cs_test123',
+    });
+    const result = await svc.checkoutSession(1, 10);
+    expect(result.checkout_url).toMatch(/stripe/);
+    expect(mockStripe.createCheckoutSession).toHaveBeenCalledWith(
+      expect.objectContaining({ clientReferenceId: 'sell_now_offer_1' })
+    );
+  });
+
+  it('SN12: checkoutSession — offer not found: throws NotFoundException', async () => {
+    mockPrisma.sell_now_offers.findFirst.mockResolvedValueOnce(null);
+    await expect(svc.checkoutSession(999, 10)).rejects.toThrow(NotFoundException);
+  });
 });

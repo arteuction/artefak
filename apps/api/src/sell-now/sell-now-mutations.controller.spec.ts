@@ -36,6 +36,7 @@ const mockService = {
   counterOffer: async () => ({ id: 1, status: 'countered', counter_price_cents: 150000, updated_at: null }),
   acceptOffer: async () => ({ id: 1, status: 'accepted', agreed_price_cents: 100000, updated_at: null }),
   rejectOffer: async () => ({ id: 1, status: 'rejected', updated_at: null }),
+  checkoutSession: async () => ({ checkout_url: 'https://stripe.com/checkout/test', session_id: 'cs_test' }),
 };
 
 import jwt from 'jsonwebtoken';
@@ -91,5 +92,16 @@ describe('Phase 0.3T — Sell-now offer mutations controller', () => {
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.payload);
     expect(body.status).toBe('rejected');
+  });
+
+  it('SN4: POST /sell-now-offers/:id/checkout-session returns 200 with checkout_url', async () => {
+    const res = await app.inject({
+      method: 'POST', url: '/api/v1/sell-now-offers/1/checkout-session',
+      headers: { authorization: `Bearer ${makeToken()}` },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body.checkout_url).toBeDefined();
+    expect(body.session_id).toBeDefined();
   });
 });

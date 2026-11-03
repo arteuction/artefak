@@ -9,6 +9,7 @@ import { JwtStrategy } from './jwt.strategy';
 import { JwtRefreshStrategy } from './jwt-refresh.strategy';
 import { RolesGuard } from './roles.guard';
 import { PrismaService } from '../prisma.service';
+import { EmailService } from '../email/email.service';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { PrismaService } from '../prisma.service';
     JwtRefreshStrategy,
     RolesGuard,
     PrismaService,
+    EmailService,
   ],
   exports: [AuthService, AuthorizationService, JwtStrategy, JwtRefreshStrategy, RolesGuard],
 })

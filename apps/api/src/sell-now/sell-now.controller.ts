@@ -82,8 +82,11 @@ export class SellNowController {
   @Post('sell-now-offers/:id/checkout-session')
   @HttpCode(200)
   @ApiOperation({ summary: 'Create Stripe checkout session for sell-now offer' })
-  checkoutSession(@Param('id', ParseIntPipe) _offerId: number, @CurrentUser() _user: AuthenticatedUser) {
-    return { checkout_url: 'https://stub.example.com/checkout', session_id: 'stub_session' };
+  checkoutSession(
+    @Param('id', ParseIntPipe) offerId: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.sellNowService.checkoutSession(offerId, user.id);
   }
 
   @Post('sell-now-offers/:id/confirm-payment')

@@ -6,8 +6,11 @@
  *   GET /api/v1/artworks/:id          — show by ID or slug
  *   GET /api/v1/artworks/not-found    — 404 path
  *   GET /api/v1/artworks/:id/lots     — art lots for an artwork
+ *   AW8  POST /artworks/:id/images/approve — delegates to artworkService.approveImage
+ *   AW9  GET  /artworks/:id/images/url    — delegates to artworkService.getImageUrl
  */
 
+import { jest } from '@jest/globals';
 import { Test, TestingModule } from '@nestjs/testing';
 import { NestFastifyApplication, FastifyAdapter } from '@nestjs/platform-fastify';
 import { NotFoundException } from '@nestjs/common';
@@ -43,15 +46,17 @@ const STUB_LOT = {
 };
 
 const mockArtworkService = {
-  listArtworks: async () => ({
+  listArtworks: jest.fn(async () => ({
     data: [STUB_ARTWORK],
     meta: { current_page: 1, last_page: 1, per_page: 20, total: 1 },
-  }),
-  getArtwork: async (id: string) => {
+  })) as any,
+  getArtwork: jest.fn(async (id: string) => {
     if (id === 'not-found') throw new NotFoundException('Artwork "not-found" not found');
     return STUB_ARTWORK;
-  },
-  listArtLots: async (_id: string) => [STUB_LOT],
+  }) as any,
+  listArtLots: jest.fn(async (_id: string) => [STUB_LOT]) as any,
+  approveImage: jest.fn() as any,
+  getImageUrl: jest.fn() as any,
 };
 
 // ── suite ──────────────────────────────────────────────────────────────────────
@@ -118,5 +123,13 @@ describe('Phase 0.3D — Artwork controller', () => {
     expect(Array.isArray(body)).toBe(true);
     expect(body[0]).toHaveProperty('sale_mode');
     expect(body[0]).toHaveProperty('currency');
+  });
+
+  it('AW8: GET /artworks/:id/images/url — delegates to artworkService.getImageUrl', async () => {
+    mockArtworkService.getImageUrl.mockResolvedValueOnce({ url: 'https://cdn.example.com/img.jpg', expires_in: 3600 });
+    const res = await app.inject({ method: 'GET', url: '/api/v1/artworks/1/images/url' });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body.url).toContain('cdn.example.com');
   });
 });

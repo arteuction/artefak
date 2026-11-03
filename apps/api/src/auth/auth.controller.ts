@@ -119,7 +119,7 @@ export class AuthController {
     res.clearCookie('refresh_token', { path: '/api/v1/auth' });
   }
 
-  // â”€â”€ POST /api/v1/auth/logout-all â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── POST /api/v1/auth/logout-all ─────────────────────────────────────────────
   @Post('logout-all')
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(JwtAuthGuard)
@@ -129,6 +129,22 @@ export class AuthController {
   ) {
     await this.authService.revokeAllForUser(user.id);
     res.clearCookie('refresh_token', { path: '/api/v1/auth' });
+  }
+
+  // ── POST /api/v1/auth/send-verification-email ─────────────────────────────
+  @Post('send-verification-email')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  async sendVerificationEmail(@CurrentUser() user: AuthenticatedUser) {
+    return this.authService.sendVerificationEmail(user.id);
+  }
+
+  // ── POST /api/v1/auth/verify-email ────────────────────────────────────────
+  @Post('verify-email')
+  @HttpCode(HttpStatus.OK)
+  async verifyEmail(@Body() body: { token?: string }) {
+    if (!body.token) throw new BadRequestException('token is required');
+    return this.authService.verifyEmail(body.token);
   }
 }
 

@@ -89,4 +89,15 @@ export class EmailService {
       text: `"${bookTitle}" is now available in your library.`,
     });
   }
+
+  async sendEmailVerification(to: string, token: string): Promise<void> {
+    const appUrl = process.env.APP_URL ?? 'https://arteuction.com';
+    const link = `${appUrl}/verify-email?token=${token}`;
+    await this.send({
+      to,
+      subject: 'Verify your ARTeuCtion email address',
+      html: `<p>Please verify your email address by clicking the link below:</p><p><a href="${link}">Verify email</a></p><p>This link expires in 24 hours.</p>`,
+      text: `Verify your email: ${link} (expires in 24 hours)`,
+    });
+  }
 }

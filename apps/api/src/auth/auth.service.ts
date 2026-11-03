@@ -3,11 +3,14 @@
   UnauthorizedException,
   ConflictException,
   ForbiddenException,
+  BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma.service';
+import { EmailService } from '../email/email.service';
 import { AuthenticatedUser, JwtPayload, TokenPair, UserRole } from './auth.types';
 
 const ACCESS_TOKEN_TTL  = 15 * 60;         // 15 minutes
@@ -18,6 +21,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly email: EmailService,
   ) {}
 
   // â”€â”€ Credential validation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -173,7 +177,55 @@ export class AuthService {
     };
   }
 
-  // â”€â”€ Auth audit log â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Email verification ────────────────────────────────────────────────────────
+
+  async sendVerificationEmail(userId: number): Promise<{ token: string }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: BigInt(userId) },
+      select: { id: true, email: true, email_verified_at: true },
+    });
+    if (!user) throw new NotFoundException('User not found');
+    if (user.email_verified_at) throw new BadRequestException('Email already verified');
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
+
+    await this.prisma.$executeRaw`
+      INSERT INTO email_verification_tokens (user_id, token, expires_at, created_at)
+      VALUES (${userId}, ${token}, ${expiresAt}, UTC_TIMESTAMP())
+      ON DUPLICATE KEY UPDATE token = ${token}, expires_at = ${expiresAt}, created_at = UTC_TIMESTAMP()
+    `;
+
+    // Fire-and-forget: email delivery failure must not block the response
+    void Promise.resolve(this.email.sendEmailVerification(user.email, token)).catch(() => void 0);
+
+    return { token };
+  }
+
+  async verifyEmail(token: string): Promise<{ verified: boolean }> {
+    const rows = await this.prisma.$queryRaw<Array<{ user_id: number; expires_at: Date }>>`
+      SELECT user_id, expires_at
+      FROM email_verification_tokens
+      WHERE token = ${token}
+      LIMIT 1
+    `;
+
+    const row = rows[0];
+    if (!row) throw new BadRequestException('Invalid or expired verification token');
+    if (new Date() > row.expires_at) throw new BadRequestException('Verification token has expired');
+
+    await this.prisma.$executeRaw`
+      UPDATE users SET email_verified_at = UTC_TIMESTAMP(), updated_at = UTC_TIMESTAMP()
+      WHERE id = ${row.user_id}
+    `;
+    await this.prisma.$executeRaw`
+      DELETE FROM email_verification_tokens WHERE user_id = ${row.user_id}
+    `;
+
+    return { verified: true };
+  }
+
+  // ── Auth audit log ────────────────────────────────────────────────────────────
 
   async logAuthEvent(
     userId: number,

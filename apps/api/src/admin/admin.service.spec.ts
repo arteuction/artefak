@@ -10,6 +10,12 @@
  * AS7  disburseSettlementLine — already paid: returns disbursed:false
  * AS8  listLedger — returns paged result
  * AS9  listAuditLog — returns paged result
+ * AS10 addAuctionItem — auction not found: throws NotFoundException
+ * AS11 addAuctionItem — art lot not found: throws NotFoundException
+ * AS12 addAuctionItem — valid: creates and returns item
+ * AS13 removeAuctionItem — item not found: throws NotFoundException
+ * AS14 removeAuctionItem — non-pending status: throws NotFoundException
+ * AS15 removeAuctionItem — pending: removes and returns { removed: true }
  */
 
 import { jest } from '@jest/globals';
@@ -29,6 +35,8 @@ const mockPrisma = {
   transfer_outbox: { findMany: fn(), count: fn(), findUnique: fn() },
   settlement_lines: { findMany: fn(), count: fn(), findUnique: fn(), update: fn() },
   auction: { findUnique: fn(), update: fn(), create: fn() },
+  art_lots: { findUnique: fn() },
+  auctionItem: { findFirst: fn(), create: fn(), delete: fn() },
   admin_audit_log: { findMany: fn(), count: fn() },
   $transaction: fn(),
 };
@@ -103,5 +111,44 @@ describe('Phase 0.6 — AdminService', () => {
     mockPrisma.$transaction.mockResolvedValueOnce([[], 0]);
     const result = await svc.listAuditLog();
     expect(result.data).toEqual([]);
+  });
+
+  it('AS10: addAuctionItem — auction not found: throws NotFoundException', async () => {
+    mockPrisma.auction.findUnique.mockResolvedValueOnce(null);
+    await expect(svc.addAuctionItem(999, { art_lot_id: 1, lot_number: 1 })).rejects.toThrow(NotFoundException);
+  });
+
+  it('AS11: addAuctionItem — art lot not found: throws NotFoundException', async () => {
+    mockPrisma.auction.findUnique.mockResolvedValueOnce({ id: BigInt(1) });
+    mockPrisma.art_lots.findUnique.mockResolvedValueOnce(null);
+    await expect(svc.addAuctionItem(1, { art_lot_id: 999, lot_number: 1 })).rejects.toThrow(NotFoundException);
+  });
+
+  it('AS12: addAuctionItem — valid: creates and returns item', async () => {
+    mockPrisma.auction.findUnique.mockResolvedValueOnce({ id: BigInt(1) });
+    mockPrisma.art_lots.findUnique.mockResolvedValueOnce({ id: BigInt(5) });
+    const created = { id: BigInt(10), auction_id: BigInt(1), art_lot_id: BigInt(5), lot_number: 1, bid_increment_cents: null, status: 'pending' };
+    mockPrisma.auctionItem.create.mockResolvedValueOnce(created);
+    const result = await svc.addAuctionItem(1, { art_lot_id: 5, lot_number: 1 });
+    expect((result as any).status).toBe('pending');
+    expect(mockPrisma.auctionItem.create).toHaveBeenCalled();
+  });
+
+  it('AS13: removeAuctionItem — item not found: throws NotFoundException', async () => {
+    mockPrisma.auctionItem.findFirst.mockResolvedValueOnce(null);
+    await expect(svc.removeAuctionItem(1, 999)).rejects.toThrow(NotFoundException);
+  });
+
+  it('AS14: removeAuctionItem — non-pending status: throws NotFoundException', async () => {
+    mockPrisma.auctionItem.findFirst.mockResolvedValueOnce({ id: BigInt(1), status: 'open' });
+    await expect(svc.removeAuctionItem(1, 1)).rejects.toThrow(NotFoundException);
+  });
+
+  it('AS15: removeAuctionItem — pending: removes and returns removed:true', async () => {
+    mockPrisma.auctionItem.findFirst.mockResolvedValueOnce({ id: BigInt(1), status: 'pending' });
+    mockPrisma.auctionItem.delete.mockResolvedValueOnce({ id: BigInt(1) });
+    const result = await svc.removeAuctionItem(1, 1);
+    expect(result.removed).toBe(true);
+    expect(mockPrisma.auctionItem.delete).toHaveBeenCalled();
   });
 });

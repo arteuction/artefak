@@ -189,4 +189,23 @@ export class ArtworkController {
   generateDerivatives(@Param('artwork') artwork: string, @CurrentUser() user: AuthenticatedUser) {
     return this.artworkService.generateDerivatives(artwork, user.id, user.role);
   }
+
+  @Post(':artwork/images/approve')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Approve and activate artwork image (admin/operator only)' })
+  approveImage(
+    @Param('artwork') artwork: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { approved_key: string },
+  ) {
+    return this.artworkService.approveImage(artwork, user.role, body);
+  }
+
+  @Get(':artwork/images/url')
+  @ApiOperation({ summary: 'Get presigned GET URL for approved artwork image' })
+  getImageUrl(@Param('artwork') artwork: string) {
+    return this.artworkService.getImageUrl(artwork);
+  }
 }
