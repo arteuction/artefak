@@ -76,9 +76,9 @@ const prismaMock = {
   impact_events: { findMany: emptyFindMany, count: emptyCount, findFirst: async () => ({ id: BigInt(1), sdg_number: 13, metric: 'CO2_tons', magnitude: BigInt(10), currency: 'EUR', type: 'event', created_at: new Date() }) },
   impact_evidence: { findMany: emptyFindMany, create: async () => ({ id: BigInt(1) }) },
   // Donation recipients
-  donation_recipients: { findMany: emptyFindMany, count: emptyCount, findFirst: async () => ({ id: BigInt(1), name: 'Test Recipient' }), create: async () => ({ id: BigInt(1) }), update: async () => ({ id: BigInt(1) }) },
+  donation_recipients: { findMany: emptyFindMany, count: emptyCount, findFirst: async () => ({ id: BigInt(1), name: 'Test Recipient' }), create: async () => ({ id: BigInt(1), name: 'Test', legal_type: 'ngo', eligibility_basis: 'art31', deduction_bps: 0, status: 'active', created_at: new Date() }), update: async () => ({ id: BigInt(1), name: 'Test', status: 'active', updated_at: new Date() }) },
   // Impact projects
-  impact_projects: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound },
+  impact_projects: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound, create: async () => ({ id: BigInt(1), title: 'T', slug: 's', sdg_number: 15, funding_target_cents: BigInt(1000), currency: 'EUR', status: 'active', created_at: new Date() }), update: async () => ({ id: BigInt(1), title: 'T', slug: 's', status: 'funded', updated_at: new Date() }) },
   // Ownership transfers
   ownership_transfers: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound },
   // Reserves

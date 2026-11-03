@@ -37,14 +37,18 @@ export class ImpactProjectController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create impact project' })
-  store(@Body() _body: Record<string, unknown>) { return { id: 1, created_at: new Date().toISOString() }; }
+  store(@Body() body: { title: string; slug: string; sdg_number: number; funding_target_cents: number; currency?: string; description?: string; starts_on?: string; ends_on?: string }) {
+    return this.impactProjectService.createProject(body);
+  }
 
   @Patch(':impactProject')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @HttpCode(200)
   @ApiOperation({ summary: 'Update impact project' })
-  update(@Param('impactProject') _impactProject: string, @Body() _body: Record<string, unknown>) { return { updated_at: new Date().toISOString() }; }
+  update(@Param('impactProject') impactProject: string, @Body() body: { title?: string; description?: string; status?: string; ends_on?: string }) {
+    return this.impactProjectService.updateProject(impactProject, body);
+  }
 
   @Get(':impactProject/evidence')
   @ApiOperation({ summary: 'List evidence for impact project' })
