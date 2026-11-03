@@ -196,8 +196,25 @@ export class AdminController {
     return this.adminService.updateAuction(auctionId, body);
   }
 
-  @Post('auctions/:auction/items') @HttpCode(201) @ApiOperation({ summary: 'Add auction item' }) addAuctionItem() { return stub(); }
-  @Delete('auctions/:auction/items/:item') @HttpCode(200) @ApiOperation({ summary: 'Remove auction item' }) removeAuctionItem() { return stub(); }
+  @Post('auctions/:auction/items')
+  @HttpCode(201)
+  @ApiOperation({ summary: 'Add item (art lot) to auction' })
+  addAuctionItem(
+    @Param('auction', ParseIntPipe) auctionId: number,
+    @Body() body: { art_lot_id: number; lot_number: number; bid_increment_cents?: number },
+  ) {
+    return this.adminService.addAuctionItem(auctionId, body);
+  }
+
+  @Delete('auctions/:auction/items/:item')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Remove item from auction (pending only)' })
+  removeAuctionItem(
+    @Param('auction', ParseIntPipe) auctionId: number,
+    @Param('item', ParseIntPipe) itemId: number,
+  ) {
+    return this.adminService.removeAuctionItem(auctionId, itemId);
+  }
 
   @Post('auctions/:auction/publish')
   @HttpCode(200)

@@ -6,9 +6,12 @@
  * BG3  handleSubscribeLot — client joins room and receives subscribed ack
  * BG4  handleUnsubscribeLot — client leaves room and receives unsubscribed ack
  * BG5  emitBidPlaced — no-ops gracefully when server is undefined
+ * BG6  handleSubscribeUser — room is always user:{JWT userId}, body params are ignored (cross-user structurally impossible)
+ * BG7  handleSubscribeUser — emits TOKEN_EXPIRED when JWT has expired since connect time
  */
 
 import { jest } from '@jest/globals';
+import jwt from 'jsonwebtoken';
 import { Test, TestingModule } from '@nestjs/testing';
 import { BidGateway, BidPlacedEvent, LotClosedEvent } from './bid.gateway';
 
@@ -103,5 +106,65 @@ describe('Phase 0.3U — BidGateway', () => {
     };
     expect(() => gateway.emitBidPlaced(event)).not.toThrow();
     (gateway as any).server = mockServer;
+  });
+
+  it('BG6: handleSubscribeUser — room is user:{JWT userId}, ignores any client-supplied userId', () => {
+    // This test confirms the structural guarantee: the room is derived from
+    // client.data.userId (set from JWT at connect time), not from any message body.
+    // handleSubscribeUser takes no @MessageBody — cross-user subscription is impossible by design.
+    const secret = 'test-secret';
+    process.env.JWT_SECRET = secret;
+    const token = jwt.sign({ sub: 10 }, secret, { expiresIn: '1h' });
+
+    const mockJoin = jest.fn() as any;
+    const mockClientEmit = jest.fn() as any;
+    const mockClient = {
+      id: 'socket-bg6',
+      join: mockJoin,
+      emit: mockClientEmit,
+      data: { authenticated: true, userId: 10 },
+      handshake: { auth: { token }, headers: {} },
+    } as any;
+
+    gateway.handleSubscribeUser(mockClient);
+
+    // Must join user:10 (from JWT), not any other room
+    expect(mockJoin).toHaveBeenCalledWith('user:10');
+    expect(mockClientEmit).toHaveBeenCalledWith('subscribed-user', { userId: 10 });
+    delete process.env.JWT_SECRET;
+  });
+
+  it('BG7: handleSubscribeUser — emits TOKEN_EXPIRED when JWT has expired since connect time', () => {
+    const secret = 'test-secret';
+    process.env.JWT_SECRET = secret;
+    // Construct a token whose exp is in the past: iat = 2h ago, expiresIn = 1s → exp = iat+1 (past)
+    const iatPast = Math.floor(Date.now() / 1000) - 7200;
+    // Override exp to be in the past: iat=2h ago, exp=iat+1 (expired)
+    const alreadyExpiredTokenActual = jwt.sign(
+      { sub: 5, iat: iatPast, exp: iatPast + 1 },
+      secret,
+    );
+
+    const mockJoin = jest.fn() as any;
+    const mockClientEmit = jest.fn() as any;
+    const mockClient = {
+      id: 'socket-bg7',
+      join: mockJoin,
+      emit: mockClientEmit,
+      // Simulates a connection that was authenticated at connect time but token has since expired
+      data: { authenticated: true, userId: 5 },
+      handshake: { auth: { token: alreadyExpiredTokenActual }, headers: {} },
+    } as any;
+
+    gateway.handleSubscribeUser(mockClient);
+
+    // Must NOT join any private room
+    expect(mockJoin).not.toHaveBeenCalled();
+    // Must emit TOKEN_EXPIRED, not subscribed-user
+    expect(mockClientEmit).toHaveBeenCalledWith('error', expect.objectContaining({ code: 'TOKEN_EXPIRED' }));
+    expect(mockClientEmit).not.toHaveBeenCalledWith('subscribed-user', expect.anything());
+    // client.data.authenticated must be reset to false
+    expect(mockClient.data.authenticated).toBe(false);
+    delete process.env.JWT_SECRET;
   });
 });

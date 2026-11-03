@@ -38,7 +38,7 @@
 
 import { jest } from '@jest/globals';
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, ForbiddenException } from '@nestjs/common';
+import { NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { ArtworkService } from './artwork.service';
 import { PrismaService } from '../prisma.service';
 import { S3Service } from '../s3/s3.service';
@@ -62,7 +62,13 @@ const mockPrisma = {
   $transaction: fn(),
 };
 
-const mockS3 = { enabled: false, presignUpload: jest.fn() as any, stubUploadUrl: (key: string) => `https://stub-s3.local/presign?key=${key}` };
+const mockS3 = {
+  enabled: false,
+  presignUpload: jest.fn() as any,
+  stubUploadUrl: (key: string) => `https://stub-s3.local/presign?key=${key}`,
+  presignDownload: jest.fn() as any,
+  stubDownloadUrl: (key: string) => `https://stub-s3.local/download?key=${key}`,
+};
 
 describe('Phase 0.3V — ArtworkService', () => {
   let svc: ArtworkService;
@@ -173,11 +179,13 @@ describe('Phase 0.3V — ArtworkService', () => {
     expect(result.qr_url).toContain('/artworks/');
   });
 
-  it('AW14: presignImage — returns upload_url and key (stub mode when S3 not configured)', async () => {
+  it('AW14: presignImage — returns upload_url and quarantine key (stub mode when S3 not configured)', async () => {
     mockPrisma.artworks.findFirst.mockResolvedValueOnce(STUB);
-    const result = await svc.presignImage('test-artwork', 1, { filename: 'photo.jpg', content_type: 'image/jpeg' });
+    // userId 10 matches STUB.user_id (BigInt(10))
+    const result = await svc.presignImage('test-artwork', 10, { filename: 'photo.jpg', content_type: 'image/jpeg' });
     expect(result.upload_url).toBeTruthy();
-    expect(result.key).toContain('artworks/test-artwork');
+    // Originals go to quarantine prefix, not artworks/ directly
+    expect(result.key).toMatch(/^quarantine\/1\//);
     expect(result.key).toMatch(/\.jpg$/);
     expect(result.expires_in).toBe(3600);
   });
@@ -305,11 +313,44 @@ describe('Phase 0.3V — ArtworkService', () => {
     expect(result.data).toHaveLength(1);
   });
 
-  it('AW32: confirmImage — returns confirmed true', async () => {
+  it('AW32: confirmImage — returns confirmed:true and status:processing', async () => {
     mockPrisma.artworks.findFirst.mockResolvedValueOnce(STUB);
-    mockPrisma.artworks.update.mockResolvedValueOnce({ ...STUB, image_key: 'uploads/img.jpg' });
-    const result = await svc.confirmImage('test-artwork', 1, { key: 'uploads/img.jpg' });
+    mockPrisma.artworks.update.mockResolvedValueOnce({ ...STUB, primary_image_key: 'quarantine/1/img.jpg' });
+    // Key must be in quarantine prefix for this artwork (id=1), userId must match owner (10)
+    const result = await svc.confirmImage('test-artwork', 10, { key: 'quarantine/1/img.jpg' });
     expect(result.confirmed).toBe(true);
+    expect(result.status).toBe('processing');
+  });
+
+  it('AW33a: approveImage — non-admin/operator: throws ForbiddenException', async () => {
+    await expect(svc.approveImage('test-artwork', 'artist', { approved_key: 'artworks/1/final.jpg' })).rejects.toThrow(ForbiddenException);
+  });
+
+  it('AW33b: approveImage — quarantine key rejected', async () => {
+    mockPrisma.artworks.findFirst.mockResolvedValueOnce(STUB);
+    await expect(svc.approveImage('test-artwork', 'admin', { approved_key: 'quarantine/1/img.jpg' })).rejects.toThrow(BadRequestException);
+  });
+
+  it('AW33c: approveImage — admin with permanent key: marks active', async () => {
+    mockPrisma.artworks.findFirst.mockResolvedValueOnce(STUB);
+    mockPrisma.artworks.update.mockResolvedValueOnce({ ...STUB, primary_image_key: 'artworks/1/final.jpg', primary_image_status: 'active' });
+    const result = await svc.approveImage('test-artwork', 'admin', { approved_key: 'artworks/1/final.jpg' });
+    expect(result.approved).toBe(true);
+    expect(result.key).toBe('artworks/1/final.jpg');
+    const updateCall = mockPrisma.artworks.update.mock.calls[0][0] as any;
+    expect(updateCall.data.primary_image_status).toBe('active');
+  });
+
+  it('AW33d: getImageUrl — throws ForbiddenException when status is not active', async () => {
+    mockPrisma.artworks.findFirst.mockResolvedValueOnce({ ...STUB, primary_image_status: 'processing', primary_image_key: 'quarantine/1/img.jpg' });
+    await expect(svc.getImageUrl('test-artwork')).rejects.toThrow(ForbiddenException);
+  });
+
+  it('AW33e: getImageUrl — returns presigned URL when status is active', async () => {
+    mockPrisma.artworks.findFirst.mockResolvedValueOnce({ ...STUB, primary_image_status: 'active', primary_image_key: 'artworks/1/final.jpg' });
+    const result = await svc.getImageUrl('test-artwork');
+    expect(result.url).toBeTruthy();
+    expect(result.expires_in).toBe(3600);
   });
 
   it('AW33: listArtLots — returns art lots', async () => {

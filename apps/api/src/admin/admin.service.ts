@@ -248,6 +248,43 @@ export class AdminService {
     });
   }
 
+  async addAuctionItem(auctionId: number, dto: { art_lot_id: number; lot_number: number; bid_increment_cents?: number }) {
+    const auction = await this.prisma.auction.findUnique({ where: { id: BigInt(auctionId) } });
+    if (!auction) throw new NotFoundException(`Auction ${auctionId} not found`);
+
+    const artLot = await this.prisma.art_lots.findUnique({ where: { id: BigInt(dto.art_lot_id) } });
+    if (!artLot) throw new NotFoundException(`ArtLot ${dto.art_lot_id} not found`);
+
+    return this.prisma.auctionItem.create({
+      data: {
+        auction_id:          BigInt(auctionId),
+        art_lot_id:          BigInt(dto.art_lot_id),
+        lot_number:          dto.lot_number,
+        bid_increment_cents: dto.bid_increment_cents ? BigInt(dto.bid_increment_cents) : null,
+        status:              'pending' as any,
+        created_at:          new Date(),
+        updated_at:          new Date(),
+      },
+      select: {
+        id: true, auction_id: true, art_lot_id: true,
+        lot_number: true, bid_increment_cents: true, status: true,
+      },
+    });
+  }
+
+  async removeAuctionItem(auctionId: number, itemId: number) {
+    const item = await this.prisma.auctionItem.findFirst({
+      where: { id: BigInt(itemId), auction_id: BigInt(auctionId) },
+      select: { id: true, status: true },
+    });
+    if (!item) throw new NotFoundException(`Auction item ${itemId} not found in auction ${auctionId}`);
+    if ((item.status as string) !== 'pending') {
+      throw new NotFoundException(`Cannot remove item with status '${item.status as string}' — only pending items may be removed`);
+    }
+    await this.prisma.auctionItem.delete({ where: { id: BigInt(itemId) } });
+    return { removed: true, item_id: itemId };
+  }
+
   // ── Audit log ────────────────────────────────────────────────────────────────
 
   async listAuditLog(page = 1, perPage = 20) {

@@ -126,6 +126,29 @@ export class BidGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
       client.emit('error', { code: 'UNAUTHORIZED', message: 'Authentication required for private subscriptions' });
       return;
     }
+
+    // Re-verify the JWT at subscribe time, not just at connect time.
+    // A long-lived connection may hold a token that has since expired.
+    const jwtSecret = process.env.JWT_SECRET;
+    if (jwtSecret) {
+      const token =
+        (client.handshake.auth as Record<string, string>)?.token ??
+        (client.handshake.headers.authorization ?? '').replace(/^Bearer\s+/i, '');
+      if (token) {
+        try {
+          jwt.verify(token, jwtSecret);
+        } catch {
+          // Token expired or revoked since connect time — degrade to anonymous
+          client.data.authenticated = false;
+          client.emit('error', { code: 'TOKEN_EXPIRED', message: 'Token has expired — re-authenticate to access private subscriptions' });
+          return;
+        }
+      }
+    }
+
+    // Room is derived from the server-side JWT payload (client.data.userId),
+    // never from a client-supplied body parameter — cross-user subscription
+    // is structurally impossible.
     const room = `user:${client.data.userId as number}`;
     void client.join(room);
     client.emit('subscribed-user', { userId: client.data.userId });

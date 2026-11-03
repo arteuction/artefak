@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { StripeService } from '../stripe/stripe.service';
 
 export interface AuctionsQuery {
   status?: string;
@@ -9,7 +10,10 @@ export interface AuctionsQuery {
 
 @Injectable()
 export class AuctionService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly stripe: StripeService,
+  ) {}
 
   async listAuctions(query: AuctionsQuery = {}) {
     const { status, page = 1, perPage = 20 } = query;
@@ -120,6 +124,57 @@ export class AuctionService {
       data: { fulfillment_status: 'delivered' as any },
       select: { id: true, fulfillment_status: true, updated_at: true },
     });
+  }
+
+  /**
+   * Creates a Stripe checkout session for an auction winner to pay.
+   * Only the winner of the item may call this; the item must be in 'won' status.
+   */
+  async createCheckoutSession(itemId: number, userId: number, dto: { success_url: string; cancel_url: string }) {
+    // Use $queryRaw to avoid Prisma generated-type limitations on include
+    const rows = await this.prisma.$queryRaw<Array<{
+      item_id: number; item_status: string; winner_user_id: number | null;
+      winning_bid_id: number | null; bid_amount: number | null;
+      artwork_title: string | null;
+    }>>`
+      SELECT
+        ai.id        AS item_id,
+        ai.status    AS item_status,
+        ai.winner_user_id,
+        ai.winning_bid_id,
+        b.amount_cents AS bid_amount,
+        aw.title     AS artwork_title
+      FROM auction_items ai
+      LEFT JOIN bids b        ON b.id = ai.winning_bid_id
+      LEFT JOIN art_lots al   ON al.id = ai.art_lot_id
+      LEFT JOIN artworks aw   ON aw.id = al.artwork_id
+      WHERE ai.id = ${BigInt(itemId)}
+      LIMIT 1
+    `;
+
+    const item = rows[0] ?? null;
+    if (!item) throw new NotFoundException(`Auction item ${itemId} not found`);
+    if (item.item_status !== 'won') {
+      throw new ForbiddenException('Checkout is only available for won auction items');
+    }
+    if (!item.winner_user_id || Number(item.winner_user_id) !== userId) {
+      throw new ForbiddenException('Only the auction winner may initiate checkout');
+    }
+    if (!item.bid_amount) throw new NotFoundException('Winning bid not found on item');
+
+    const amountCents = Number(item.bid_amount);
+    const currency = 'eur';
+    const title = item.artwork_title ?? `Auction Item #${itemId}`;
+
+    const { checkout_url, session_id } = await this.stripe.createCheckoutSession({
+      lineItems: [{ name: title, amount_cents: amountCents, currency }],
+      successUrl: dto.success_url,
+      cancelUrl:  dto.cancel_url,
+      clientReferenceId: `auction_item:${itemId}`,
+      metadata: { auction_item_id: String(itemId), user_id: String(userId) },
+    });
+
+    return { checkout_url, session_id, amount_cents: amountCents, currency };
   }
 
   async health(): Promise<{ status: string; db: string; timestamp: string }> {

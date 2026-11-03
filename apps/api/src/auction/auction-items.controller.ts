@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, ParseIntPipe, UseGuards, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, ParseIntPipe, UseGuards, HttpCode } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -41,5 +41,23 @@ export class AuctionItemsController {
   @ApiOperation({ summary: 'Confirm delivery of auction item' })
   confirmDelivery(@Param('item', ParseIntPipe) itemId: number, @CurrentUser() _user: AuthenticatedUser) {
     return this.auctionService.confirmDelivery(itemId);
+  }
+
+  /**
+   * POST /api/v1/auction-items/:item/checkout-session
+   * Creates a Stripe checkout URL for the auction winner to complete payment.
+   * Only callable by the winner; item must be in 'won' status.
+   */
+  @Post(':item/checkout-session')
+  @HttpCode(201)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create Stripe checkout session for auction item winner' })
+  checkoutSession(
+    @Param('item', ParseIntPipe) itemId: number,
+    @Body() body: { success_url: string; cancel_url: string },
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.auctionService.createCheckoutSession(itemId, user.id, body);
   }
 }

@@ -23,6 +23,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { AuctionService } from './auction.service';
 import { PrismaService } from '../prisma.service';
+import { StripeService } from '../stripe/stripe.service';
 
 const STUB_AUCTION = {
   id: 1, title: 'Spring Auction', slug: 'spring-auction', status: 'active',
@@ -39,12 +40,18 @@ const mockPrisma = {
   $queryRaw: fn(),
 };
 
+const mockStripe = { createCheckoutSession: jest.fn() as any };
+
 describe('Phase 0.3V — AuctionService', () => {
   let svc: AuctionService;
 
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [AuctionService, { provide: PrismaService, useValue: mockPrisma }],
+      providers: [
+        AuctionService,
+        { provide: PrismaService, useValue: mockPrisma },
+        { provide: StripeService, useValue: mockStripe },
+      ],
     }).compile();
     svc = module.get(AuctionService);
   });

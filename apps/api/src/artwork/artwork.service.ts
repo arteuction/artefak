@@ -275,8 +275,9 @@ export class ArtworkService {
   ]);
   private static readonly MAX_IMAGE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
 
-  async presignImage(artworkIdOrSlug: string, _userId: number, dto: { filename: string; content_type: string; size_bytes?: number }) {
-    await this.getArtwork(artworkIdOrSlug);
+  async presignImage(artworkIdOrSlug: string, userId: number, dto: { filename: string; content_type: string; size_bytes?: number }) {
+    const artwork = await this.getArtwork(artworkIdOrSlug);
+    if (Number(artwork.user_id) !== userId) throw new ForbiddenException('Only the artwork owner may upload images');
 
     if (!ArtworkService.ALLOWED_IMAGE_TYPES.has(dto.content_type)) {
       throw new BadRequestException(
@@ -287,21 +288,83 @@ export class ArtworkService {
       throw new BadRequestException(`Image exceeds 50 MB limit (received ${dto.size_bytes} bytes)`);
     }
 
+    // Upload to a private quarantine prefix — originals are never publicly accessible
+    // until content validation (magic bytes, decode check) has passed.
+    // See S3_SECURITY_VALIDATION.md for the full quarantine pipeline design.
     const ext = dto.filename.split('.').pop() ?? 'bin';
-    const key = `artworks/${artworkIdOrSlug}/images/${Date.now()}.${ext}`;
+    const quarantineKey = `quarantine/${String(artwork.id)}/${Date.now()}.${ext}`;
     const upload_url = this.s3.enabled
-      ? await this.s3.presignUpload(key, dto.content_type)
-      : this.s3.stubUploadUrl(key);
-    return { upload_url, key, expires_in: 3600 };
+      ? await this.s3.presignUpload(quarantineKey, dto.content_type)
+      : this.s3.stubUploadUrl(quarantineKey);
+    return { upload_url, key: quarantineKey, expires_in: 3600 };
   }
 
-  async confirmImage(artworkIdOrSlug: string, _userId: number, dto: { key: string }) {
+  async confirmImage(artworkIdOrSlug: string, userId: number, dto: { key: string }) {
     const artwork = await this.getArtwork(artworkIdOrSlug);
+    if (Number(artwork.user_id) !== userId) throw new ForbiddenException('Only the artwork owner may confirm an upload');
+
+    // Validate the key belongs to this artwork's quarantine prefix
+    if (!dto.key.startsWith(`quarantine/${String(artwork.id)}/`)) {
+      throw new BadRequestException('key must be a quarantine key for this artwork');
+    }
+
+    // Image is uploaded but not yet verified — status remains pending_verification.
+    // It will not be served publicly until approveImage() is called by admin/operator
+    // after content validation (magic bytes, decode check).
     await this.prisma.artworks.update({
       where: { id: artwork.id },
-      data: { primary_image_key: dto.key, primary_image_status: 'uploaded' as any, updated_at: new Date() },
+      data: {
+        primary_image_key: dto.key,
+        primary_image_status: 'processing' as any, // quarantine → processing → active
+        updated_at: new Date(),
+      },
     });
-    return { confirmed: true, updated_at: new Date().toISOString() };
+    return { confirmed: true, status: 'processing', updated_at: new Date().toISOString() };
+  }
+
+  /**
+   * Called by the image-processing worker (or admin override) after content validation.
+   * Sets primary_image_key to the permanent (non-quarantine) key and marks active.
+   */
+  async approveImage(artworkIdOrSlug: string, role: string, dto: { approved_key: string }) {
+    if (role !== 'admin' && role !== 'operator') throw new ForbiddenException('Insufficient permissions');
+    const artwork = await this.getArtwork(artworkIdOrSlug);
+
+    // Approved key must be in the permanent artworks/ prefix, not quarantine/
+    if (dto.approved_key.startsWith('quarantine/')) {
+      throw new BadRequestException('approved_key must be a permanent (non-quarantine) key');
+    }
+
+    await this.prisma.artworks.update({
+      where: { id: artwork.id },
+      data: {
+        primary_image_key: dto.approved_key,
+        primary_image_status: 'active' as any,
+        updated_at: new Date(),
+      },
+    });
+    return { approved: true, key: dto.approved_key, updated_at: new Date().toISOString() };
+  }
+
+  /**
+   * Returns a presigned GET URL for an artwork image.
+   * Refuses if primary_image_status is not 'active' — originals are never
+   * publicly accessible before content validation passes.
+   */
+  async getImageUrl(artworkIdOrSlug: string) {
+    const artwork = await this.getArtwork(artworkIdOrSlug);
+
+    if (artwork.primary_image_status !== 'active' as any) {
+      throw new ForbiddenException('Image is not yet approved for public access');
+    }
+    if (!artwork.primary_image_key) {
+      throw new NotFoundException('No image uploaded for this artwork');
+    }
+
+    const url = this.s3.enabled
+      ? await this.s3.presignDownload(artwork.primary_image_key)
+      : this.s3.stubDownloadUrl(artwork.primary_image_key);
+    return { url, expires_in: 3600 };
   }
 
   async generateDerivatives(artworkIdOrSlug: string, _userId: number, role: string) {
