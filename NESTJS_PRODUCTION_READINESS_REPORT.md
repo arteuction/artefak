@@ -110,7 +110,7 @@ cross-env NODE_OPTIONS=--experimental-vm-modules npx jest --testPathPattern="int
 | **Stripe checkout sessions** (sell-now + library) | Medium (5–8 SP) | Returns `{ checkout_url: null }` |
 | **Domain event dispatch** (outbox worker) | Medium (5–8 SP) | Events written to DB, never dispatched |
 | **Email notifications** | Medium (5–8 SP) | Zero implementation |
-| **WebSocket / real-time bidding** | High (8–13 SP) | Zero implementation |
+| **WebSocket / real-time bidding** | High (8–13 SP) | ✅ **DONE** — BidGateway (namespace `bids`), subscribe-lot/unsubscribe-lot, emits `bid:placed` + `lot:closed`; wired into BidConcurrencyService |
 
 ### 3.2 HIGH PRIORITY — Blocks Admin Operations
 
@@ -182,7 +182,7 @@ The following items are listed as stubs in the dependency document but have sinc
 | S3 / AWS | Zero integration |
 | Meilisearch | Zero integration |
 | Email (Postmark/Resend) | Zero integration |
-| WebSocket | Zero integration |
+| WebSocket | ✅ BidGateway (`/bids` namespace, socket.io) |
 | Redis / BullMQ | Zero integration |
 
 ---
@@ -209,7 +209,7 @@ No load testing performed. The concurrency test for bids (`bid-concurrency.servi
 | 6 | Donations + tax receipts | ✅ Yes | None |
 | 7 | Governance / consent | ✅ Yes | None |
 | 8 | Artwork mutations (create/update) | ⚠️ Partial | S3 upload not wired |
-| 9 | Live bidding | ❌ No | WebSocket missing |
+| 9 | Live bidding | ✅ Yes | BidGateway emits `bid:placed` per accepted bid |
 | 10 | Sell-now checkout | ❌ No | Stripe checkout session missing |
 | 11 | Library purchases | ❌ No | Stripe + S3 missing |
 | 12 | Settlement + payouts | ⚠️ Partial | Stripe transfer dispatch not wired |
@@ -228,7 +228,7 @@ No load testing performed. The concurrency test for bids (`bid-concurrency.servi
 - Stripe transfer dispatch (BullMQ queue worker)
 - Email notifications (outbid, payment confirmation, book purchase)
 - Domain event dispatch worker
-- WebSocket gateway (NestJS WS or Ably)
+- ~~WebSocket gateway (NestJS WS or Ably)~~ — DONE: BidGateway in `src/realtime/`
 
 **M3 (Staging validation, ~2–3 weeks):**
 - Production-like staging deployment
@@ -255,7 +255,7 @@ No load testing performed. The concurrency test for bids (`bid-concurrency.servi
 | S3 / file operations | **NO-GO** |
 | Stripe live payments | **NO-GO** |
 | Email notifications | **NO-GO** |
-| WebSocket / real-time | **NO-GO** |
+| WebSocket / real-time | **✅ DONE** |
 | Admin panel | **NO-GO** |
 | Rate limiting / CORS | **NO-GO** |
 | Admin route authorization | **NO-GO** (role-based, not just JWT) |
