@@ -1,5 +1,16 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma.service';
+
+export interface CreateDonationDto {
+  donation_recipient_id: number;
+  donated_cents: number;
+  currency?: string;
+  eligibility_basis?: string;
+  deduction_bps?: number;
+  impact_project_id?: number;
+  idempotency_key?: string;
+}
 
 @Injectable()
 export class DonationService {
@@ -35,6 +46,28 @@ export class DonationService {
         total: Number(total),
       },
     };
+  }
+
+  async createDonation(userId: number, dto: CreateDonationDto) {
+    return this.prisma.donations.create({
+      data: {
+        donor_id:              BigInt(userId),
+        donation_recipient_id: BigInt(dto.donation_recipient_id),
+        donated_cents:         BigInt(dto.donated_cents),
+        currency:              dto.currency ?? 'EUR',
+        eligibility_basis:     dto.eligibility_basis ?? 'voluntary',
+        deduction_bps:         dto.deduction_bps ?? 0,
+        max_deductible_cents:  BigInt(dto.donated_cents),
+        ...(dto.impact_project_id ? { impact_project_id: BigInt(dto.impact_project_id) } : {}),
+        idempotency_key:       dto.idempotency_key ?? randomUUID(),
+        status:                'pending' as any,
+      },
+      select: {
+        id: true, donated_cents: true, currency: true,
+        type: true, status: true, eligibility_basis: true,
+        deduction_bps: true, created_at: true,
+      },
+    });
   }
 
   async getDonation(donationId: number, userId: number, role: string) {

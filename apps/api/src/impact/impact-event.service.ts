@@ -37,4 +37,27 @@ export class ImpactEventService {
     if (!event) throw new NotFoundException(`ImpactEvent ${id} not found`);
     return event;
   }
+
+  async getEventEvidence(eventId: number) {
+    const event = await this.getEvent(eventId);
+    return this.prisma.impact_evidence.findMany({
+      where: { impact_event_id: event.id, deleted_at: null },
+      select: { id: true, type: true, url: true, description: true, created_at: true },
+      orderBy: [{ created_at: 'desc' }],
+    });
+  }
+
+  async createEventEvidence(eventId: number, uploadedBy: number, dto: { type: string; url: string; description?: string }) {
+    const event = await this.getEvent(eventId);
+    return this.prisma.impact_evidence.create({
+      data: {
+        impact_event_id: event.id,
+        uploaded_by:     BigInt(uploadedBy),
+        type:            dto.type as any,
+        url:             dto.url,
+        description:     dto.description ?? null,
+      },
+      select: { id: true, type: true, url: true, description: true, created_at: true },
+    });
+  }
 }

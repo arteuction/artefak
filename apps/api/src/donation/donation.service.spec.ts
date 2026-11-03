@@ -7,13 +7,15 @@
  * DN4  getDonation â€” found, owner requesting: returns donation
  * DN5  getDonation â€” found, admin requesting: returns donation
  * DN6  getDonation â€” not found: throws NotFoundException
- * DN7  getDonation â€” found, different buyer requesting: throws NotFoundException (scoped visibility)
+ * DN7  getDonation — found, different buyer requesting: throws NotFoundException (scoped visibility)
+ * DN8  createDonation — writes to donations table (THREE-LEDGER: donations only, never ledger_entries)
+ * DN9  createDonation — uses provided idempotency_key
  */
 
 import { jest } from '@jest/globals';
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
-import { DonationService } from './donation.service';
+import { DonationService, CreateDonationDto } from './donation.service';
 import { PrismaService } from '../prisma.service';
 
 const STUB_DONATION = {
@@ -30,7 +32,7 @@ const STUB_DONATION = {
 
 const fn = () => jest.fn() as any;
 const mockPrisma = {
-  donations: { findMany: fn(), findFirst: fn(), count: fn() },
+  donations: { findMany: fn(), findFirst: fn(), count: fn(), create: fn() },
   $transaction: fn(),
 };
 
@@ -89,8 +91,30 @@ describe('Phase 0.3U â€” DonationService', () => {
     await expect(svc.getDonation(999, 1, 'buyer')).rejects.toThrow(NotFoundException);
   });
 
-  it('DN7: getDonation â€” different buyer: throws NotFoundException (scoped)', async () => {
+  it('DN7: getDonation — different buyer: throws NotFoundException (scoped)', async () => {
     mockPrisma.donations.findFirst.mockResolvedValueOnce(STUB_DONATION); // donor_id = 10
     await expect(svc.getDonation(1, 99, 'buyer')).rejects.toThrow(NotFoundException);
+  });
+
+  it('DN8: createDonation — writes to donations table (THREE-LEDGER invariant)', async () => {
+    const created = { ...STUB_DONATION, id: BigInt(5) };
+    mockPrisma.donations.create.mockResolvedValueOnce(created);
+    const dto: CreateDonationDto = { donation_recipient_id: 3, donated_cents: 5000 };
+    const result = await svc.createDonation(10, dto);
+    // Must write to donations — never to ledger_entries or impact_events
+    expect(mockPrisma.donations.create).toHaveBeenCalledTimes(1);
+    const callArg = mockPrisma.donations.create.mock.calls[0][0] as any;
+    expect(callArg.data.donor_id).toEqual(BigInt(10));
+    expect(callArg.data.donated_cents).toEqual(BigInt(5000));
+    expect(callArg.data.status).toBe('pending');
+    expect(result.id).toEqual(BigInt(5));
+  });
+
+  it('DN9: createDonation — uses provided idempotency_key', async () => {
+    mockPrisma.donations.create.mockResolvedValueOnce(STUB_DONATION);
+    const dto: CreateDonationDto = { donation_recipient_id: 3, donated_cents: 1000, idempotency_key: 'idem-123' };
+    await svc.createDonation(10, dto);
+    const callArg = mockPrisma.donations.create.mock.calls[0][0] as any;
+    expect(callArg.data.idempotency_key).toBe('idem-123');
   });
 });

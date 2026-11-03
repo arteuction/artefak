@@ -1,6 +1,6 @@
 import {
   Controller, Get, Post, Param, Query, Body, UseGuards, HttpCode,
-  DefaultValuePipe, ParseIntPipe,
+  DefaultValuePipe, ParseIntPipe, Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -28,12 +28,20 @@ export class ImpactEventController {
 
   @Get(':impactEvent/evidence')
   @ApiOperation({ summary: 'List evidence for impact event' })
-  listEvidence(@Param('impactEvent') _impactEvent: string) { return { data: [] }; }
+  listEvidence(@Param('impactEvent', ParseIntPipe) impactEvent: number) {
+    return this.impactEventService.getEventEvidence(impactEvent);
+  }
 
   @Post(':impactEvent/evidence')
   @HttpCode(201)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Attach evidence to impact event' })
-  createEvidence(@Param('impactEvent') _impactEvent: string, @Body() _body: Record<string, unknown>) { return { id: 1, created_at: new Date().toISOString() }; }
+  createEvidence(
+    @Param('impactEvent', ParseIntPipe) impactEvent: number,
+    @Req() req: any,
+    @Body() body: { type: string; url: string; description?: string },
+  ) {
+    return this.impactEventService.createEventEvidence(impactEvent, req.user.sub, body);
+  }
 }

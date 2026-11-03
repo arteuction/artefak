@@ -6,7 +6,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser } from '../auth/auth.types';
-import { DonationService } from './donation.service';
+import { DonationService, CreateDonationDto } from './donation.service';
 
 @ApiTags('donations')
 @ApiBearerAuth()
@@ -37,8 +37,8 @@ export class DonationController {
   @Post()
   @HttpCode(201)
   @ApiOperation({ summary: 'Make a donation' })
-  store(@Body() _body: Record<string, unknown>, @CurrentUser() _user: AuthenticatedUser) {
-    return { id: 1, status: 'pending', created_at: new Date().toISOString() };
+  store(@Body() body: CreateDonationDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.donationService.createDonation(user.id, body);
   }
 
   @Get('tax-receipt/:year')
