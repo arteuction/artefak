@@ -1,4 +1,4 @@
-import { validateConfig } from './config-validation.service';
+import { validateConfig, assertProductionConfig, ConfigValidationError } from './config-validation.service';
 
 const VALID_PROD: NodeJS.ProcessEnv = {
   NODE_ENV: 'production',
@@ -64,5 +64,31 @@ describe('validateConfig', () => {
     const { errors, warnings } = validateConfig({ ...VALID_PROD, MAIL_HOST: undefined });
     expect(errors.filter(e => e.includes('MAIL_HOST'))).toHaveLength(0);
     expect(warnings.some(w => w.includes('MAIL_HOST'))).toBe(true);
+  });
+});
+
+describe('assertProductionConfig', () => {
+  it('CV11 — does not throw when all required vars present', () => {
+    expect(() => assertProductionConfig(VALID_PROD)).not.toThrow();
+  });
+
+  it('CV12 — throws ConfigValidationError in production with missing vars', () => {
+    expect(() => assertProductionConfig({ ...VALID_PROD, JWT_SECRET: undefined }))
+      .toThrow(ConfigValidationError);
+  });
+
+  it('CV13 — thrown error contains the failing key name', () => {
+    let caught: unknown;
+    try {
+      assertProductionConfig({ ...VALID_PROD, STRIPE_SECRET_KEY: undefined });
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(ConfigValidationError);
+    expect((caught as ConfigValidationError).message).toContain('STRIPE_SECRET_KEY');
+  });
+
+  it('CV14 — does not throw in development even with missing vars', () => {
+    expect(() => assertProductionConfig({ NODE_ENV: 'development' })).not.toThrow();
   });
 });

@@ -64,7 +64,9 @@ describe('Phase 0.3U — BidGateway', () => {
     gateway.emitLotClosed(event);
 
     expect(mockServer.to).toHaveBeenCalledWith('lot:42');
-    expect(mockEmit).toHaveBeenCalledWith('lot:closed', event);
+    // winner_user_id stripped from public broadcast
+    const { winner_user_id: _w, ...publicEvent } = event;
+    expect(mockEmit).toHaveBeenCalledWith('lot:closed', publicEvent);
   });
 
   it('BG3: handleSubscribeLot — client joins room and receives subscribed ack', () => {

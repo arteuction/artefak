@@ -149,9 +149,14 @@ export class SchedulerService {
 
   /**
    * Every 30 seconds: dispatch pending domain_events to event listeners.
-   * Marks each event `processing` before handling to prevent double-dispatch.
-   * Uses at-least-once delivery with exponential back-off on failure.
+   *
+   * Multi-instance safety: each event is claimed atomically with an UPDATE WHERE
+   * status='pending'. Only one instance can transition a row from pending→processing.
+   * An instance that crashes leaves the row in 'processing'; a lease expiry scan
+   * (see recoverStaleClaims) resets it to 'pending' after LEASE_TIMEOUT_MS.
    */
+  private static readonly DOMAIN_EVENT_LEASE_MS = 5 * 60 * 1000; // 5 min
+
   @Cron('*/30 * * * * *', { name: 'dispatch-domain-events' })
   async dispatchDomainEvents(): Promise<void> {
     const now = new Date();
@@ -166,27 +171,38 @@ export class SchedulerService {
 
     let dispatched = 0;
     for (const event of events) {
-      try {
-        await this.prisma.domain_events.update({
-          where: { id: event.id },
-          data: { status: 'processing' as any, attempt: event.attempt + 1, updated_at: new Date() },
-        });
+      // Atomic claim: UPDATE ... WHERE status = 'pending' AND id = ?
+      // If another instance already claimed it, rowsAffected = 0 and we skip.
+      const claimed = await this.prisma.$executeRaw`
+        UPDATE domain_events
+        SET    status = 'processing',
+               attempt = attempt + 1,
+               lease_expires_at = ${new Date(Date.now() + SchedulerService.DOMAIN_EVENT_LEASE_MS)},
+               updated_at = ${new Date()}
+        WHERE  id = ${event.id}
+          AND  status = 'pending'
+      `;
+      if (claimed === 0) continue; // another instance claimed it
 
-        // Route to internal handlers — extend this as consumers are added
+      try {
         await this.handleDomainEvent(event.event_type, JSON.parse(event.payload));
 
-        await this.prisma.domain_events.update({
-          where: { id: event.id },
-          data: { status: 'dispatched' as any, updated_at: new Date() },
-        });
+        await this.prisma.$executeRaw`
+          UPDATE domain_events
+          SET status = 'dispatched', lease_expires_at = NULL, updated_at = ${new Date()}
+          WHERE id = ${event.id}
+        `;
         dispatched++;
       } catch (err: any) {
         const backoffSecs = Math.min(300, 30 * Math.pow(2, event.attempt));
         const nextAttempt = new Date(Date.now() + backoffSecs * 1000);
-        await this.prisma.domain_events.update({
-          where: { id: event.id },
-          data: { status: 'pending' as any, last_error: err?.message?.slice(0, 500), next_attempt_at: nextAttempt, updated_at: new Date() },
-        });
+        await this.prisma.$executeRaw`
+          UPDATE domain_events
+          SET status = 'pending', lease_expires_at = NULL,
+              last_error = ${(err as any)?.message?.slice(0, 500)},
+              next_attempt_at = ${nextAttempt}, updated_at = ${new Date()}
+          WHERE id = ${event.id}
+        `;
         this.logger.error(`domain_event ${event.id} (${event.event_type}) failed: ${err?.message}`);
       }
     }
@@ -217,8 +233,17 @@ export class SchedulerService {
 
   /**
    * Every minute: dispatch pending Stripe transfer outbox entries.
-   * Skipped when Stripe credentials not configured.
+   *
+   * Multi-instance safety: each entry is claimed atomically with an UPDATE WHERE
+   * status='pending'. Only one instance can transition pending→processing.
+   *
+   * Stripe idempotency: idempotency_key = transfer_outbox:{id} is stable per row.
+   * Stripe deduplicates calls with the same key for 24 hours. For delayed retries
+   * beyond 24 hours, we first check the persisted stripe_transfer_id to reconcile
+   * the original transfer before creating a new one.
    */
+  private static readonly TRANSFER_LEASE_MS = 10 * 60 * 1000; // 10 min
+
   @Cron(CronExpression.EVERY_MINUTE, { name: 'dispatch-transfer-outbox' })
   async dispatchTransferOutbox(): Promise<void> {
     if (!this.stripe.enabled) return;
@@ -235,48 +260,108 @@ export class SchedulerService {
 
     let dispatched = 0;
     for (const entry of entries) {
-      try {
-        await this.prisma.transfer_outbox.update({
-          where: { id: entry.id },
-          data: { status: 'processing' as any, attempt: entry.attempt + 1, updated_at: new Date() },
-        });
+      // Atomic claim — skip if another instance already claimed it
+      const claimed = await this.prisma.$executeRaw`
+        UPDATE transfer_outbox
+        SET    status = 'processing',
+               attempt = attempt + 1,
+               lease_expires_at = ${new Date(Date.now() + SchedulerService.TRANSFER_LEASE_MS)},
+               updated_at = ${new Date()}
+        WHERE  id = ${entry.id}
+          AND  status = 'pending'
+      `;
+      if (claimed === 0) continue;
 
+      try {
         const stripeAccount = (entry.settlement_lines as any)?.stripe_account_id ?? null;
+
         if (stripeAccount) {
-          await this.stripe.createTransfer({
+          // Reconciliation: if we already have a stripe_transfer_id from a previous
+          // attempt, verify it exists at Stripe before creating another transfer.
+          // This handles crash-after-Stripe-success-before-DB-write scenarios.
+          const existingTransferId = (entry as any).stripe_transfer_id as string | null;
+          if (existingTransferId) {
+            const reconciled = await this.stripe.retrieveTransfer(existingTransferId);
+            if (reconciled) {
+              this.logger.log(`transfer_outbox ${entry.id}: reconciled existing Stripe transfer ${existingTransferId}`);
+              await this.prisma.$executeRaw`
+                UPDATE transfer_outbox SET status = 'completed', lease_expires_at = NULL, updated_at = ${new Date()} WHERE id = ${entry.id}
+              `;
+              dispatched++;
+              continue;
+            }
+          }
+
+          const result = await this.stripe.createTransfer({
             amount_cents: Number(entry.amount_cents),
             currency: 'eur',
             destination: stripeAccount,
             transfer_group: `outbox:${entry.id}`,
-            // Stable idempotency key: same outbox row + same attempt = same key.
-            // If the process crashes after Stripe accepts but before we write 'completed',
-            // the next retry uses a new attempt number and Stripe creates a new transfer.
-            // Use outbox_id alone (not attempt) if you want true at-most-once:
-            // that requires the outbox row to be locked before the Stripe call.
             idempotency_key: `transfer_outbox:${entry.id}`,
             metadata: { outbox_id: String(entry.id) },
           });
-          this.logger.log(`transfer_outbox ${entry.id}: EUR ${Number(entry.amount_cents) / 100} dispatched to ${stripeAccount}`);
+
+          // Persist the Stripe transfer ID immediately so crash recovery can reconcile
+          await this.prisma.$executeRaw`
+            UPDATE transfer_outbox
+            SET stripe_transfer_id = ${result?.transfer_id ?? null}, updated_at = ${new Date()}
+            WHERE id = ${entry.id}
+          `;
+
+          this.logger.log(`transfer_outbox ${entry.id}: EUR ${Number(entry.amount_cents) / 100} dispatched to ${stripeAccount} (${result?.transfer_id ?? 'no-id'})`);
         } else {
           this.logger.warn(`transfer_outbox ${entry.id}: no stripe_account_id — skipping transfer`);
         }
 
-        await this.prisma.transfer_outbox.update({
-          where: { id: entry.id },
-          data: { status: 'completed' as any, updated_at: new Date() },
-        });
+        await this.prisma.$executeRaw`
+          UPDATE transfer_outbox SET status = 'completed', lease_expires_at = NULL, updated_at = ${new Date()} WHERE id = ${entry.id}
+        `;
         dispatched++;
       } catch (err: any) {
         const backoffSecs = Math.min(300, 60 * Math.pow(2, entry.attempt));
         const nextAttempt = new Date(Date.now() + backoffSecs * 1000);
-        await this.prisma.transfer_outbox.update({
-          where: { id: entry.id },
-          data: { status: 'pending' as any, last_error: err?.message?.slice(0, 500), next_attempt_at: nextAttempt, updated_at: new Date() },
-        });
+        await this.prisma.$executeRaw`
+          UPDATE transfer_outbox
+          SET status = 'pending', lease_expires_at = NULL,
+              last_error = ${(err as any)?.message?.slice(0, 500)},
+              next_attempt_at = ${nextAttempt}, updated_at = ${new Date()}
+          WHERE id = ${entry.id}
+        `;
         this.logger.error(`transfer_outbox ${entry.id} failed: ${err?.message}`);
       }
     }
 
     if (dispatched > 0) this.logger.log(`Dispatched ${dispatched} transfer outbox entry/entries`);
+  }
+
+  /**
+   * Every 5 minutes: reset stale 'processing' claims whose lease has expired.
+   * This recovers from worker crashes that left entries stuck in processing.
+   */
+  @Cron('*/5 * * * *', { name: 'recover-stale-claims' })
+  async recoverStaleClaims(): Promise<void> {
+    const now = new Date();
+
+    const [domainRecovered, transferRecovered] = await Promise.all([
+      this.prisma.$executeRaw`
+        UPDATE domain_events
+        SET    status = 'pending', lease_expires_at = NULL, updated_at = ${now}
+        WHERE  status = 'processing'
+          AND  lease_expires_at IS NOT NULL
+          AND  lease_expires_at < ${now}
+      `,
+      this.prisma.$executeRaw`
+        UPDATE transfer_outbox
+        SET    status = 'pending', lease_expires_at = NULL, updated_at = ${now}
+        WHERE  status = 'processing'
+          AND  lease_expires_at IS NOT NULL
+          AND  lease_expires_at < ${now}
+      `,
+    ]);
+
+    if (Number(domainRecovered) > 0)
+      this.logger.warn(`Recovered ${Number(domainRecovered)} stale domain_event claim(s)`);
+    if (Number(transferRecovered) > 0)
+      this.logger.warn(`Recovered ${Number(transferRecovered)} stale transfer_outbox claim(s)`);
   }
 }

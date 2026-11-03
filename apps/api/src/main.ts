@@ -6,8 +6,13 @@ import {
 import fastifyCookie from '@fastify/cookie';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { assertProductionConfig } from './config-validation.service';
 
 async function bootstrap() {
+  // Validate config before allocating any resources — throws on failure so
+  // logs flush and the process exits cleanly with a non-zero code.
+  assertProductionConfig();
+
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
     new FastifyAdapter({ logger: true }),

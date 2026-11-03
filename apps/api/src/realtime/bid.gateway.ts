@@ -22,6 +22,13 @@ export interface BidPlacedEvent {
   placed_at: string;
 }
 
+export interface LotClosedEvent {
+  lotId: number;
+  winner_user_id: number | null;
+  winning_bid_cents: number | null;
+  currency: string;
+}
+
 /** Publicly broadcast shape — bidder_id deliberately omitted */
 interface BidPlacedPublic {
   lotId: number;
@@ -31,19 +38,18 @@ interface BidPlacedPublic {
   placed_at: string;
 }
 
-export interface LotClosedEvent {
-  lotId: number;
-  winner_user_id: number | null;
-  winning_bid_cents: number | null;
-  currency: string;
-}
-
 /**
- * Real-time bid gateway — emits events to lot-specific rooms.
+ * Real-time bid gateway — emits public auction events to lot-specific rooms.
  *
- * Clients subscribe to a lot room: socket.emit('subscribe-lot', { lotId: 42 })
+ * Authentication strategy:
+ *   - Public connections (no JWT): allowed for public lot event subscriptions.
+ *     Bid amounts are public information. Unauthenticated users may watch auctions.
+ *   - Authenticated connections (valid JWT): allowed everywhere.
+ *     Private channels (e.g. user-specific notifications) require authentication.
+ *
+ * Clients subscribe to a lot room:  socket.emit('subscribe-lot', { lotId: 42 })
  * They then receive:
- *   - 'bid:placed'  on every new accepted bid
+ *   - 'bid:placed'  on every new accepted bid (amount only, no bidder identity)
  *   - 'lot:closed'  when the lot is sold or unsold
  */
 @WebSocketGateway({
@@ -63,25 +69,34 @@ export class BidGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
   }
 
   handleConnection(client: Socket) {
+    // Attempt JWT verification — sets client.data.userId when valid.
+    // Unauthenticated connections are allowed for public lot subscriptions.
     const jwtSecret = process.env.JWT_SECRET;
     if (jwtSecret) {
       const token =
         (client.handshake.auth as Record<string, string>)?.token ??
         (client.handshake.headers.authorization ?? '').replace(/^Bearer\s+/i, '');
-      if (!token) {
-        this.logger.warn(`WS: unauthenticated connection from ${client.id} — disconnecting`);
-        client.disconnect(true);
-        return;
+
+      if (token) {
+        try {
+          const payload = jwt.verify(token, jwtSecret) as { sub?: number | string };
+          client.data.userId = payload.sub ? Number(payload.sub) : null;
+          client.data.authenticated = true;
+        } catch {
+          // Invalid/expired token — treat as anonymous rather than disconnecting,
+          // so public viewers with a stale token still see public bid updates.
+          this.logger.debug(`WS: invalid JWT from ${client.id} — treating as anonymous`);
+          client.data.authenticated = false;
+        }
+      } else {
+        client.data.authenticated = false;
       }
-      try {
-        jwt.verify(token, jwtSecret);
-      } catch {
-        this.logger.warn(`WS: invalid JWT from ${client.id} — disconnecting`);
-        client.disconnect(true);
-        return;
-      }
+    } else {
+      // No JWT_SECRET configured (development) — allow all
+      client.data.authenticated = true;
     }
-    this.logger.debug(`Client connected: ${client.id}`);
+
+    this.logger.debug(`Client connected: ${client.id} (authenticated=${client.data.authenticated as boolean})`);
   }
 
   handleDisconnect(client: Socket) {
@@ -90,6 +105,7 @@ export class BidGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
 
   @SubscribeMessage('subscribe-lot')
   handleSubscribeLot(@ConnectedSocket() client: Socket, @MessageBody() data: { lotId: number }) {
+    // Public lot rooms — open to all connected clients (authenticated or not)
     const room = `lot:${data.lotId}`;
     void client.join(room);
     client.emit('subscribed', { lotId: data.lotId });
@@ -103,7 +119,20 @@ export class BidGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
     client.emit('unsubscribed', { lotId: data.lotId });
   }
 
-  /** Called by AuctionService/BidService when a bid is accepted. */
+  /** Subscribe to private user-specific events. Requires authentication. */
+  @SubscribeMessage('subscribe-user')
+  handleSubscribeUser(@ConnectedSocket() client: Socket) {
+    if (!client.data.authenticated || !client.data.userId) {
+      client.emit('error', { code: 'UNAUTHORIZED', message: 'Authentication required for private subscriptions' });
+      return;
+    }
+    const room = `user:${client.data.userId as number}`;
+    void client.join(room);
+    client.emit('subscribed-user', { userId: client.data.userId });
+    this.logger.debug(`Client ${client.id} subscribed to private ${room}`);
+  }
+
+  /** Called by BidConcurrencyService when a bid is accepted. */
   emitBidPlaced(event: BidPlacedEvent): void {
     // Strip bidder_id before broadcast — bid amounts are public, identities are not
     const { bidder_id: _stripped, ...publicEvent }: { bidder_id: number } & BidPlacedPublic = event;
@@ -112,6 +141,14 @@ export class BidGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
 
   /** Called by SchedulerService.closeExpiredLots when a lot closes. */
   emitLotClosed(event: LotClosedEvent): void {
-    this.server?.to(`lot:${event.lotId}`).emit('lot:closed', event);
+    // winner_user_id is included only in the private user room notification,
+    // not in the public lot room broadcast
+    const { winner_user_id: _winnerId, ...publicEvent } = event;
+    this.server?.to(`lot:${event.lotId}`).emit('lot:closed', publicEvent);
+
+    // Notify winner privately
+    if (event.winner_user_id) {
+      this.server?.to(`user:${event.winner_user_id}`).emit('lot:won', event);
+    }
   }
 }

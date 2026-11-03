@@ -66,6 +66,16 @@ export class StripeService {
     return this.stripe.webhooks.constructEvent(payload, signature, secret);
   }
 
+  async retrieveTransfer(transferId: string): Promise<{ transfer_id: string; amount: number } | null> {
+    if (!this.stripe) return null;
+    try {
+      const transfer = await this.stripe.transfers.retrieve(transferId);
+      return { transfer_id: transfer.id, amount: transfer.amount };
+    } catch {
+      return null; // Not found or API error — treat as "does not exist"
+    }
+  }
+
   async createTransfer(params: {
     amount_cents: number;
     currency: string;

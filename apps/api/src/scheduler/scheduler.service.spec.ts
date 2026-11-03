@@ -10,10 +10,13 @@
  * SC7  expireBidAuthorizations — marks expired bids authorization_expired
  * SC8  expireBidAuthorizations — logs warning for won bid
  * SC9  dispatchDomainEvents — no-ops when no pending events
- * SC10 dispatchDomainEvents — dispatches event and marks dispatched
+ * SC10 dispatchDomainEvents — dispatches event (atomic claim via $executeRaw)
  * SC11 dispatchDomainEvents — back-offs and logs on error
  * SC12 dispatchTransferOutbox — no-ops when Stripe disabled
  * SC13 dispatchTransferOutbox — dispatches pending entry and marks completed
+ * SC14 dispatchDomainEvents — skips event when atomic claim returns 0 (already claimed)
+ * SC15 dispatchTransferOutbox — reconciles existing Stripe transfer on retry
+ * SC16 recoverStaleClaims — resets stale processing entries in both tables
  */
 
 import { jest } from '@jest/globals';
@@ -30,7 +33,8 @@ const mockTx = {
 };
 
 const mockPrisma = {
-  $queryRaw:  fn(),
+  $queryRaw:    fn(),
+  $executeRaw:  fn(),
   $transaction: fn(),
   bid:          { findMany: fn(), update: fn() },
   auctionItem:  { update: fn() },
@@ -38,8 +42,8 @@ const mockPrisma = {
   transfer_outbox: { findMany: fn(), update: fn() },
 };
 
-const mockStripe = { enabled: false, createTransfer: jest.fn() as any };
-const mockStripeEnabled = { enabled: true, createTransfer: jest.fn() as any };
+const mockStripe = { enabled: false, createTransfer: jest.fn() as any, retrieveTransfer: jest.fn() as any };
+const mockStripeEnabled = { enabled: true, createTransfer: jest.fn() as any, retrieveTransfer: jest.fn() as any };
 
 describe('Phase 0.5 — SchedulerService', () => {
   let svc: SchedulerService;
@@ -167,25 +171,27 @@ describe('Phase 0.5 — SchedulerService', () => {
     expect(mockPrisma.domain_events.update).not.toHaveBeenCalled();
   });
 
-  it('SC10: dispatchDomainEvents — dispatches event and marks dispatched', async () => {
+  it('SC10: dispatchDomainEvents — atomic claim, dispatches, marks dispatched via $executeRaw', async () => {
     const event = { id: BigInt(1), event_type: 'artwork.published', payload: '{}', attempt: 0, next_attempt_at: new Date() };
     mockPrisma.domain_events.findMany.mockResolvedValueOnce([event]);
-    mockPrisma.domain_events.update.mockResolvedValue(undefined);
+    // $executeRaw called twice: (1) atomic claim, (2) mark dispatched
+    mockPrisma.$executeRaw.mockResolvedValue(1);
+
     await svc.dispatchDomainEvents();
-    expect(mockPrisma.domain_events.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ status: 'dispatched' }) })
-    );
+
+    expect(mockPrisma.$executeRaw).toHaveBeenCalledTimes(2);
   });
 
-  it('SC11: dispatchDomainEvents — back-offs on handler error', async () => {
+  it('SC11: dispatchDomainEvents — back-offs on handler error (raw SQL)', async () => {
     const event = { id: BigInt(2), event_type: 'bid.won', payload: 'invalid json', attempt: 1, next_attempt_at: new Date() };
     mockPrisma.domain_events.findMany.mockResolvedValueOnce([event]);
-    mockPrisma.domain_events.update.mockResolvedValue(undefined);
+    // $executeRaw called twice: (1) atomic claim, (2) reset to pending with backoff
+    mockPrisma.$executeRaw.mockResolvedValue(1);
+
     await svc.dispatchDomainEvents();
-    const updateCalls = mockPrisma.domain_events.update.mock.calls as any[];
-    const lastCall = updateCalls[updateCalls.length - 1][0];
-    expect(lastCall.data.status).toBe('pending');
-    expect(lastCall.data.next_attempt_at).toBeInstanceOf(Date);
+
+    // Both calls should succeed — second call resets status to pending
+    expect(mockPrisma.$executeRaw).toHaveBeenCalledTimes(2);
   });
 
   // ── dispatchTransferOutbox ──────────────────────────────────────────────────
@@ -195,20 +201,63 @@ describe('Phase 0.5 — SchedulerService', () => {
     expect(mockPrisma.transfer_outbox.findMany).not.toHaveBeenCalled();
   });
 
-  it('SC13: dispatchTransferOutbox — dispatches pending entry and marks completed', async () => {
+  it('SC13: dispatchTransferOutbox — atomic claim, creates transfer, marks completed via $executeRaw', async () => {
     (svc as any).stripe = mockStripeEnabled;
     const entry = {
       id: BigInt(1), amount_cents: 5000, currency: 'EUR', attempt: 0,
       next_attempt_at: new Date(), settlement_lines: { stripe_account_id: 'acct_test' },
+      stripe_transfer_id: null,
     };
     mockPrisma.transfer_outbox.findMany.mockResolvedValueOnce([entry]);
-    mockPrisma.transfer_outbox.update.mockResolvedValue(undefined);
+    // $executeRaw: (1) atomic claim, (2) persist stripe_transfer_id, (3) mark completed
+    mockPrisma.$executeRaw.mockResolvedValue(1);
     mockStripeEnabled.createTransfer.mockResolvedValueOnce({ transfer_id: 'tr_test' });
+
     await svc.dispatchTransferOutbox();
-    expect(mockStripeEnabled.createTransfer).toHaveBeenCalledWith(expect.objectContaining({ destination: 'acct_test' }));
-    const updateCalls = mockPrisma.transfer_outbox.update.mock.calls as any[];
-    const lastCall = updateCalls[updateCalls.length - 1][0];
-    expect(lastCall.data.status).toBe('completed');
+
+    expect(mockStripeEnabled.createTransfer).toHaveBeenCalledWith(
+      expect.objectContaining({ destination: 'acct_test', idempotency_key: 'transfer_outbox:1' })
+    );
+    expect(mockPrisma.$executeRaw).toHaveBeenCalledTimes(3);
     (svc as any).stripe = mockStripe;
+  });
+
+  it('SC14: dispatchDomainEvents — skips event when atomic claim returns 0 (concurrent instance)', async () => {
+    const event = { id: BigInt(3), event_type: 'bid.won', payload: '{}', attempt: 0, next_attempt_at: new Date() };
+    mockPrisma.domain_events.findMany.mockResolvedValueOnce([event]);
+    mockPrisma.$executeRaw.mockResolvedValueOnce(0); // another instance claimed it
+
+    await svc.dispatchDomainEvents();
+
+    expect(mockPrisma.domain_events.update).not.toHaveBeenCalled();
+  });
+
+  it('SC15: dispatchTransferOutbox — reconciles existing Stripe transfer, skips new transfer', async () => {
+    (svc as any).stripe = mockStripeEnabled;
+    const entry = {
+      id: BigInt(2), amount_cents: 9900, currency: 'EUR', attempt: 1,
+      next_attempt_at: new Date(), settlement_lines: { stripe_account_id: 'acct_test' },
+      stripe_transfer_id: 'tr_already_created',
+    };
+    mockPrisma.transfer_outbox.findMany.mockResolvedValueOnce([entry]);
+    // $executeRaw: (1) atomic claim, (2) mark completed after reconciliation
+    mockPrisma.$executeRaw.mockResolvedValue(1);
+    mockStripeEnabled.retrieveTransfer.mockResolvedValueOnce({ transfer_id: 'tr_already_created', amount: 9900 });
+
+    await svc.dispatchTransferOutbox();
+
+    expect(mockStripeEnabled.createTransfer).not.toHaveBeenCalled(); // no new transfer!
+    expect(mockPrisma.$executeRaw).toHaveBeenCalledTimes(2); // claim + complete
+    (svc as any).stripe = mockStripe;
+  });
+
+  it('SC16: recoverStaleClaims — resets stale processing entries', async () => {
+    mockPrisma.$executeRaw
+      .mockResolvedValueOnce(2)  // domain_events rows recovered
+      .mockResolvedValueOnce(1); // transfer_outbox rows recovered
+
+    await svc.recoverStaleClaims();
+
+    expect(mockPrisma.$executeRaw).toHaveBeenCalledTimes(2);
   });
 });

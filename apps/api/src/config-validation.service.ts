@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 interface EnvRule {
   key: string;
@@ -114,33 +114,48 @@ export function validateConfig(env: NodeJS.ProcessEnv = process.env): { errors: 
 }
 
 /**
- * Runs at startup and aborts the process when required env vars are missing
- * or obviously misconfigured in production.
- *
- * In non-production environments it warns rather than throws.
+ * Validates config at bootstrap time — call from main.ts BEFORE app.listen().
+ * Throws so bootstrap can handle cleanup and exit cleanly.
+ * Do NOT call process.exit inside a NestJS lifecycle hook.
+ */
+export class ConfigValidationError extends Error {
+  constructor(public readonly failures: string[]) {
+    super(`Production configuration invalid:\n${failures.map(f => `  ✗ ${f}`).join('\n')}`);
+    this.name = 'ConfigValidationError';
+  }
+}
+
+/**
+ * Call this in bootstrap() before app.listen().
+ * In production: throws ConfigValidationError on any missing/invalid required var.
+ * In development/test: logs warnings, never throws.
+ */
+export function assertProductionConfig(env: NodeJS.ProcessEnv = process.env): void {
+  const { errors, warnings } = validateConfig(env);
+
+  // Use process.stderr/stdout directly to avoid Jest console interception in tests
+  for (const w of warnings) {
+    process.stderr.write(`[config] WARN  ${w}\n`);
+  }
+
+  if (errors.length > 0) {
+    for (const e of errors) process.stderr.write(`[config] ERROR ✗ ${e}\n`);
+    throw new ConfigValidationError(errors);
+  }
+
+  if ((env.NODE_ENV ?? 'development') === 'production') {
+    process.stdout.write('[config] INFO  All required environment variables validated ✓\n');
+  }
+}
+
+/**
+ * Thin NestJS injectable — delegates to assertProductionConfig().
+ * Kept so AppModule providers list stays clean.
  */
 @Injectable()
-export class ConfigValidationService implements OnApplicationBootstrap {
-  private readonly logger = new Logger(ConfigValidationService.name);
-
+export class ConfigValidationService {
   onApplicationBootstrap(): void {
-    const { errors, warnings } = validateConfig(process.env);
-
-    for (const w of warnings) {
-      this.logger.warn(`[config] ${w}`);
-    }
-
-    if (errors.length > 0) {
-      this.logger.error('=== FATAL: production configuration is incomplete ===');
-      for (const e of errors) {
-        this.logger.error(`  ✗ ${e}`);
-      }
-      this.logger.error('Set all required environment variables before starting in production.');
-      process.exit(1);
-    }
-
-    if ((process.env.NODE_ENV ?? 'development') === 'production') {
-      this.logger.log('[config] All required environment variables validated ✓');
-    }
+    // Validation already ran in main.ts bootstrap(). This is a no-op
+    // guard in case the service is instantiated outside the normal bootstrap path.
   }
 }
