@@ -13,9 +13,18 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NestFastifyApplication, FastifyAdapter } from '@nestjs/platform-fastify';
 import { INestApplication } from '@nestjs/common';
 import { OpsController } from './ops.controller';
+import { OpsService } from './ops.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 const mockJwtGuard = { canActivate: () => true };
+
+const mockOpsService = {
+  summary: async () => ({ data: { pending_domain_events: 0, failed_outbox: 0, open_reserves: 0 } }),
+  pendingDomainEvents: async () => ({ data: [], meta: { count: 0 } }),
+  failedOutbox: async () => ({ data: [], meta: { count: 0 } }),
+  openReserves: async () => ({ data: [], meta: { count: 0 } }),
+  retryOutboxItem: async () => ({ retried: true }),
+};
 
 describe('Phase 0.3U — OpsController', () => {
   let app: INestApplication;
@@ -23,6 +32,7 @@ describe('Phase 0.3U — OpsController', () => {
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [OpsController],
+      providers: [{ provide: OpsService, useValue: mockOpsService }],
     })
       .overrideGuard(JwtAuthGuard)
       .useValue(mockJwtGuard)

@@ -79,6 +79,8 @@ const prismaMock = {
   donation_recipients: { findMany: emptyFindMany, count: emptyCount, findFirst: async () => ({ id: BigInt(1), name: 'Test Recipient' }), create: async () => ({ id: BigInt(1), name: 'Test', legal_type: 'ngo', eligibility_basis: 'art31', deduction_bps: 0, status: 'active', created_at: new Date() }), update: async () => ({ id: BigInt(1), name: 'Test', status: 'active', updated_at: new Date() }) },
   // Impact projects
   impact_projects: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound, create: async () => ({ id: BigInt(1), title: 'T', slug: 's', sdg_number: 15, funding_target_cents: BigInt(1000), currency: 'EUR', status: 'active', created_at: new Date() }), update: async () => ({ id: BigInt(1), title: 'T', slug: 's', status: 'funded', updated_at: new Date() }) },
+  // Domain events (ops)
+  domain_events: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound, update: async () => ({ id: BigInt(1) }) },
   // Ownership transfers
   ownership_transfers: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound },
   // Reserves
