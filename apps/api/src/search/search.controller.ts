@@ -19,7 +19,7 @@ export class SearchController {
 
   @Get('artworks/:artwork')
   @ApiOperation({ summary: 'Get single artwork from search index' })
-  showArtwork(@Param('artwork') _artwork: string) {
-    return { id: 1, title: 'Stub', slug: '1', status: 'published' };
+  showArtwork(@Param('artwork') artwork: string) {
+    return this.searchService.getArtwork(artwork);
   }
 }

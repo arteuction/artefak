@@ -31,12 +31,16 @@ export class DonationRecipientController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create donation recipient (admin)' })
-  store(@Body() _body: Record<string, unknown>) { return { id: 1, created_at: new Date().toISOString() }; }
+  store(@Body() body: { name: string; legal_type?: string; eligibility_basis?: string; deduction_bps?: number }) {
+    return this.donationRecipientService.createRecipient(body);
+  }
 
   @Patch(':donationRecipient')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @HttpCode(200)
   @ApiOperation({ summary: 'Update donation recipient (admin)' })
-  update(@Param('donationRecipient') _id: string, @Body() _body: Record<string, unknown>) { return { updated_at: new Date().toISOString() }; }
+  update(@Param('donationRecipient', ParseIntPipe) id: number, @Body() body: { name?: string; legal_type?: string; deduction_bps?: number; status?: string }) {
+    return this.donationRecipientService.updateRecipient(id, body);
+  }
 }

@@ -42,4 +42,15 @@ export class SearchService {
       },
     };
   }
+
+  async getArtwork(idOrSlug: string) {
+    const where = /^\d+$/.test(idOrSlug)
+      ? { id: BigInt(idOrSlug), deleted_at: null }
+      : { slug: idOrSlug, deleted_at: null };
+
+    return this.prisma.artworks.findFirst({
+      where,
+      select: { id: true, title: true, slug: true, medium: true, year_created: true, status: true, created_at: true },
+    });
+  }
 }

@@ -5,6 +5,9 @@
  * DR2  listRecipients custom pagination â€” last_page calculation
  * DR3  getRecipient   â€” found
  * DR4  getRecipient   â€” not found: throws NotFoundException
+ * DR5  createRecipient â€” writes to donation_recipients table
+ * DR6  updateRecipient â€” found: persists changes
+ * DR7  updateRecipient â€” not found: throws NotFoundException
  */
 
 import { jest } from '@jest/globals';
@@ -20,7 +23,7 @@ const STUB_RECIPIENT = {
 
 const fn = () => jest.fn() as any;
 const mockPrisma = {
-  donation_recipients: { findMany: fn(), findFirst: fn(), count: fn() },
+  donation_recipients: { findMany: fn(), findFirst: fn(), count: fn(), create: fn(), update: fn() },
   $transaction: fn(),
 };
 
@@ -60,5 +63,33 @@ describe('Phase 0.3U â€” DonationRecipientService', () => {
   it('DR4: getRecipient â€” not found: throws NotFoundException', async () => {
     mockPrisma.donation_recipients.findFirst.mockResolvedValueOnce(null);
     await expect(svc.getRecipient(999)).rejects.toThrow(NotFoundException);
+  });
+
+  it('DR5: createRecipient — writes to donation_recipients table', async () => {
+    mockPrisma.donation_recipients.create.mockResolvedValueOnce({ ...STUB_RECIPIENT, id: BigInt(2) });
+    const result = await svc.createRecipient({ name: 'Caritas BG', legal_type: 'ngo', deduction_bps: 500 });
+    expect(mockPrisma.donation_recipients.create).toHaveBeenCalledTimes(1);
+    const arg = mockPrisma.donation_recipients.create.mock.calls[0][0] as any;
+    expect(arg.data.name).toBe('Caritas BG');
+    expect(arg.data.deduction_bps).toBe(500);
+    expect(arg.data.status).toBe('active');
+    expect(result.id).toEqual(BigInt(2));
+  });
+
+  it('DR6: updateRecipient — found: persists deduction_bps change', async () => {
+    mockPrisma.donation_recipients.findFirst.mockResolvedValueOnce(STUB_RECIPIENT);
+    const updated = { id: BigInt(1), name: 'Bulgarian Red Cross', status: 'active', updated_at: new Date() };
+    mockPrisma.donation_recipients.update.mockResolvedValueOnce(updated);
+    const result = await svc.updateRecipient(1, { deduction_bps: 2000 });
+    expect(mockPrisma.donation_recipients.update).toHaveBeenCalledTimes(1);
+    const arg = mockPrisma.donation_recipients.update.mock.calls[0][0] as any;
+    expect(arg.where.id).toEqual(BigInt(1));
+    expect(arg.data.deduction_bps).toBe(2000);
+    expect(result.status).toBe('active');
+  });
+
+  it('DR7: updateRecipient — not found: throws NotFoundException', async () => {
+    mockPrisma.donation_recipients.findFirst.mockResolvedValueOnce(null);
+    await expect(svc.updateRecipient(999, { name: 'X' })).rejects.toThrow(NotFoundException);
   });
 });

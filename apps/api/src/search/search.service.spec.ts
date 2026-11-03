@@ -4,6 +4,8 @@
  * SS1  searchArtworks empty query â€” includes all non-deleted
  * SS2  searchArtworks with query  â€” includes query in meta
  * SS3  searchArtworks pagination  â€” correct meta
+ * SS4  getArtwork by slug â€” found: returns artwork
+ * SS5  getArtwork by id â€” found: returns artwork
  */
 
 import { jest } from '@jest/globals';
@@ -14,7 +16,7 @@ import { PrismaService } from '../prisma.service';
 const fn = () => jest.fn() as any;
 
 const mockPrisma = {
-  artworks: { findMany: fn(), count: fn() },
+  artworks: { findMany: fn(), count: fn(), findFirst: fn() },
   $transaction: fn(),
 };
 
@@ -51,5 +53,24 @@ describe('Phase 0.3U â€” SearchService', () => {
     expect(result.meta.current_page).toBe(2);
     expect(result.meta.per_page).toBe(10);
     expect(result.meta.last_page).toBe(3);
+  });
+
+  it('SS4: getArtwork by slug — found: returns artwork', async () => {
+    const stub = { id: BigInt(1), title: 'Sunrise', slug: 'sunrise', medium: 'oil', year_created: 2020, status: 'published', created_at: new Date() };
+    mockPrisma.artworks.findFirst.mockResolvedValueOnce(stub);
+    const result = await svc.getArtwork('sunrise');
+    expect(mockPrisma.artworks.findFirst).toHaveBeenCalledTimes(1);
+    const call = mockPrisma.artworks.findFirst.mock.calls[0][0] as any;
+    expect(call.where).toMatchObject({ slug: 'sunrise', deleted_at: null });
+    expect(result?.slug).toBe('sunrise');
+  });
+
+  it('SS5: getArtwork by numeric id — queries by id', async () => {
+    const stub = { id: BigInt(5), title: 'Dusk', slug: 'dusk', medium: null, year_created: null, status: 'published', created_at: new Date() };
+    mockPrisma.artworks.findFirst.mockResolvedValueOnce(stub);
+    const result = await svc.getArtwork('5');
+    const call = mockPrisma.artworks.findFirst.mock.calls[0][0] as any;
+    expect(call.where).toMatchObject({ id: BigInt(5), deleted_at: null });
+    expect(result?.id).toEqual(BigInt(5));
   });
 });
