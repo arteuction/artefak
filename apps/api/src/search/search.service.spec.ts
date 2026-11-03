@@ -12,6 +12,7 @@ import { jest } from '@jest/globals';
 import { Test, TestingModule } from '@nestjs/testing';
 import { SearchService } from './search.service';
 import { PrismaService } from '../prisma.service';
+import { MeilisearchService } from './meilisearch.service';
 
 const fn = () => jest.fn() as any;
 
@@ -20,12 +21,18 @@ const mockPrisma = {
   $transaction: fn(),
 };
 
+const mockMeili = { enabled: false, searchArtworks: jest.fn() as any };
+
 describe('Phase 0.3U â€” SearchService', () => {
   let svc: SearchService;
 
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [SearchService, { provide: PrismaService, useValue: mockPrisma }],
+      providers: [
+        SearchService,
+        { provide: PrismaService, useValue: mockPrisma },
+        { provide: MeilisearchService, useValue: mockMeili },
+      ],
     }).compile();
     svc = module.get(SearchService);
   });
@@ -72,5 +79,15 @@ describe('Phase 0.3U â€” SearchService', () => {
     const call = mockPrisma.artworks.findFirst.mock.calls[0][0] as any;
     expect(call.where).toMatchObject({ id: BigInt(5), deleted_at: null });
     expect(result?.id).toEqual(BigInt(5));
+  });
+
+  it('SS6: searchArtworks — uses Meilisearch when enabled', async () => {
+    mockMeili.enabled = true;
+    mockMeili.searchArtworks.mockResolvedValueOnce({ hits: [{ id: 1, title: 'Art', slug: 'art', medium: 'oil', year_created: 2020, status: 'published' }], estimatedTotalHits: 1 });
+    const result = await svc.searchArtworks('oil', 1, 10);
+    expect(mockMeili.searchArtworks).toHaveBeenCalledWith('oil', 10, 0);
+    expect(result.data[0].title).toBe('Art');
+    expect(result.meta.total).toBe(1);
+    mockMeili.enabled = false;
   });
 });

@@ -1,11 +1,31 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { MeilisearchService } from './meilisearch.service';
 
 @Injectable()
 export class SearchService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly meili: MeilisearchService,
+  ) {}
 
   async searchArtworks(query: string, page = 1, perPage = 20) {
+    if (this.meili.enabled) {
+      const offset = (page - 1) * perPage;
+      const result = await this.meili.searchArtworks(query, perPage, offset);
+      return {
+        data: result.hits,
+        meta: {
+          current_page: page,
+          last_page: Math.max(1, Math.ceil(result.estimatedTotalHits / perPage)),
+          per_page: perPage,
+          total: result.estimatedTotalHits,
+          query,
+        },
+      };
+    }
+
+    // SQL LIKE fallback when Meilisearch is not configured
     const skip = (page - 1) * perPage;
     const where = query
       ? {
