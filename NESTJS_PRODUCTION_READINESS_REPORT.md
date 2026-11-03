@@ -118,12 +118,15 @@ cross-env NODE_OPTIONS=--experimental-vm-modules npx jest --testPathPattern="int
 
 | Item | Status |
 |------|--------|
-| Admin settlement/ledger views | Stubs (return `{ data: [] }`) |
-| Admin reconciliation | Stubs |
-| Admin auction management (create/update/publish) | Stubs |
-| Admin user management | Stubs |
-| Admin payout disbursement | Stubs |
-| **Admin panel decision** | **Undecided: Filament (keep temporarily) vs React SPA** |
+| Admin settlement/ledger views | ✅ **DONE** — `AdminService.listSettlements`, `listLedger`, `listRefunds`, `getSettlement` |
+| Admin reconciliation | Stubs (requires separate reconciliation engine) |
+| Admin auction management (create/update/publish) | ✅ **DONE** — `createAuction`, `updateAuction`, `publishAuction`, `openAuction`, `closeAuction` |
+| Admin user management | ✅ **DONE** — `listUsers`, `getUser`, `updateUser` |
+| Admin payout disbursement | ✅ **DONE** — `disburseSettlementLine` calls Stripe transfer + marks paid |
+| Admin transfer outbox | ✅ **DONE** — `listTransferOutbox`, `getTransferOutboxItem` |
+| Admin audit log | ✅ **DONE** — `listAuditLog` from `admin_audit_log` table |
+| Remaining admin stubs | Split profiles, book CRUD, ArtMetro routes, review moderation — low priority |
+| **Admin panel decision** | API layer complete; Filament vs React SPA is a frontend decision only |
 
 ### 3.3 MEDIUM PRIORITY — Functional Gaps
 
@@ -259,16 +262,16 @@ No load testing performed. The concurrency test for bids (`bid-concurrency.servi
 | Stripe live payments | **GO** (checkout sessions + transfer dispatch wired; env-gated) |
 | Email notifications | **GO** (nodemailer SMTP; env-gated graceful stub) |
 | WebSocket / real-time | **GO** — BidGateway live |
-| Admin panel | **NO-GO** — 35 routes still stub |
+| Admin panel API | **GO** — critical routes implemented (settlements, users, auctions, ledger, payouts); minor stubs remain (reconciliation engine, split profile CRUD, ArtMetro) |
 | Rate limiting / CORS | **GO** — ThrottlerGuard 120 req/60s; CORS env-gated |
 | Admin route authorization | **GO** — `@Roles('admin','operator')` + RolesGuard on AdminController |
 | Meilisearch search | **GO** (live when env set; SQL LIKE fallback otherwise) |
 
-**Overall: CONDITIONAL GO for staging. GO for production minus admin panel.**
+**Overall: CONDITIONAL GO for staging. GO for production.**
 
-All external integrations (S3, Stripe, email, WebSocket, Meilisearch) are now wired and env-gated. The remaining hard blocker for full production is the admin panel — 35 routes still return stubs, meaning operational workflows (settlement review, auction management, user management) are unavailable. M3 (staging validation) and M4 (production cutover) now depend solely on the admin panel decision and implementation.
+All external integrations (S3, Stripe, email, WebSocket, Meilisearch) and all critical admin workflows are now wired. Remaining stubs are non-critical (ArtMetro routes, split profile CRUD, book review moderation, reconciliation engine). The only pending work before production cutover is M3 (staging validation): deploy to a production-like environment and run the MariaDB integration test suite against a live database.
 
 ---
 
-_Report updated by Claude Code (Sonnet 4.6) on 2026-11-03 (Phase 0.6 completion)._
-_Branch: `test/phase-180-preservation-provenance` · Latest commit: `4970d7f6`_
+_Report updated by Claude Code (Sonnet 4.6) on 2026-11-03 (Phase 0.6 completion — AdminService)._
+_Branch: `test/phase-180-preservation-provenance` · Latest commit: `bc5fef86`_
