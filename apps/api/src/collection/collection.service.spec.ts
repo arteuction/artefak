@@ -10,6 +10,9 @@
  * CS7  updateCollection — non-owner non-admin: throws ForbiddenException
  * CS8  deleteCollection — owner: deletes and returns { deleted: true }
  * CS9  deleteCollection — non-owner: throws ForbiddenException
+ * CS10 getCollectionArtworks — queries collection_artworks scoped to collection id
+ * CS11 addArtwork — creates collection_artworks row with computed position
+ * CS12 removeArtwork — deletes row; throws NotFoundException if artwork not in collection
  */
 
 import { jest } from '@jest/globals';
@@ -96,5 +99,47 @@ describe('Phase 0.3V — CollectionService', () => {
   it('CS9: deleteCollection — non-owner: throws ForbiddenException', async () => {
     mockPrisma.collections.findFirst.mockResolvedValueOnce(STUB); // owner_id=10
     await expect(svc.deleteCollection('my-collection', 99, 'buyer')).rejects.toThrow(ForbiddenException);
+  });
+
+  it('CS10: getCollectionArtworks — queries collection_artworks scoped to collection id', async () => {
+    const artworkRow = { artworks: { id: BigInt(5), title: 'Sunrise', slug: 'sunrise', medium: 'oil', status: 'published', primary_image_key: null, year_created: 2020 }, position: 1 };
+    mockPrisma.collections.findFirst.mockResolvedValueOnce(STUB);
+    mockPrisma.collection_artworks.findMany.mockResolvedValueOnce([artworkRow]);
+    const result = await svc.getCollectionArtworks('1');
+    expect(mockPrisma.collection_artworks.findMany).toHaveBeenCalledTimes(1);
+    const arg = mockPrisma.collection_artworks.findMany.mock.calls[0][0] as any;
+    expect(arg.where.collection_id).toEqual(BigInt(1));
+    expect(result).toHaveLength(1);
+    expect(result[0].position).toBe(1);
+    expect(result[0].title).toBe('Sunrise');
+  });
+
+  it('CS11: addArtwork — creates collection_artworks row with computed position', async () => {
+    mockPrisma.collections.findFirst.mockResolvedValueOnce(STUB); // owner_id=10
+    mockPrisma.collection_artworks.aggregate.mockResolvedValueOnce({ _max: { position: 3 } });
+    mockPrisma.collection_artworks.create.mockResolvedValueOnce({ id: 1, collection_id: BigInt(1), artwork_id: BigInt(7), position: 4 });
+    const result = await svc.addArtwork('1', 10, 'buyer', 7);
+    expect(mockPrisma.collection_artworks.create).toHaveBeenCalledTimes(1);
+    const arg = mockPrisma.collection_artworks.create.mock.calls[0][0] as any;
+    expect(arg.data.artwork_id).toEqual(BigInt(7));
+    expect(arg.data.position).toBe(4);
+    expect(result.position).toBe(4);
+  });
+
+  it('CS12: removeArtwork — found: deletes row and returns { deleted: true }', async () => {
+    mockPrisma.collections.findFirst.mockResolvedValueOnce(STUB); // owner_id=10
+    mockPrisma.collection_artworks.findFirst.mockResolvedValueOnce({ id: 99, collection_id: BigInt(1), artwork_id: BigInt(7) });
+    mockPrisma.collection_artworks.delete.mockResolvedValueOnce({});
+    const result = await svc.removeArtwork('1', 10, 'buyer', 7);
+    expect(mockPrisma.collection_artworks.delete).toHaveBeenCalledTimes(1);
+    const arg = mockPrisma.collection_artworks.delete.mock.calls[0][0] as any;
+    expect(arg.where.id).toBe(99);
+    expect(result.deleted).toBe(true);
+  });
+
+  it('CS13: removeArtwork — not in collection: throws NotFoundException', async () => {
+    mockPrisma.collections.findFirst.mockResolvedValueOnce(STUB);
+    mockPrisma.collection_artworks.findFirst.mockResolvedValueOnce(null);
+    await expect(svc.removeArtwork('1', 10, 'buyer', 999)).rejects.toThrow(NotFoundException);
   });
 });
