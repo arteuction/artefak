@@ -1,12 +1,15 @@
 /**
  * Phase 0.3U — OpsController stub tests
  *
- * OP1  GET  /ops/summary            — 200
- * OP2  GET  /ops/pending-events     — 200
- * OP3  GET  /ops/failed-outbox      — 200
- * OP4  GET  /ops/consumer-lag       — 200
- * OP5  GET  /ops/fiscal-year/2026   — 200
- * OP6  POST /ops/transfer-outbox/1/retry — 200 { retried: true }
+ * OP1  GET  /ops/summary                  — 200
+ * OP2  GET  /ops/pending-events           — 200
+ * OP3  GET  /ops/failed-outbox            — 200
+ * OP4  GET  /ops/consumer-lag             — 200
+ * OP5  GET  /ops/fiscal-year/2026         — 200
+ * OP6  POST /ops/transfer-outbox/1/retry  — 200 { retried: true }
+ * OP7  GET  /ops/open-reserves            — 200
+ * OP8  GET  /ops/active-consignments      — 200
+ * OP9  GET  /ops/zkpo-report/2026         — 200
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
@@ -78,5 +81,26 @@ describe('Phase 0.3U — OpsController', () => {
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.payload);
     expect(body.retried).toBe(true);
+  });
+
+  it('OP7: GET /ops/open-reserves returns 200', async () => {
+    const res = await (app as NestFastifyApplication).inject({ method: 'GET', url: '/api/v1/ops/open-reserves' });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body).toHaveProperty('data');
+  });
+
+  it('OP8: GET /ops/active-consignments returns 200', async () => {
+    const res = await (app as NestFastifyApplication).inject({ method: 'GET', url: '/api/v1/ops/active-consignments' });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body).toHaveProperty('data');
+  });
+
+  it('OP9: GET /ops/zkpo-report/2026 returns 200', async () => {
+    const res = await (app as NestFastifyApplication).inject({ method: 'GET', url: '/api/v1/ops/zkpo-report/2026' });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body).toHaveProperty('data');
   });
 });
