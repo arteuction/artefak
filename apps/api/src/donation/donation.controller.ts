@@ -25,6 +25,12 @@ export class DonationController {
     return this.donationService.listDonations(user.id, user.role, page, perPage);
   }
 
+  @Get('tax-receipt/:year')
+  @ApiOperation({ summary: 'Get tax receipt for year' })
+  taxReceipt(@Param('year', ParseIntPipe) year: number, @CurrentUser() user: AuthenticatedUser) {
+    return this.donationService.taxReceipt(user.id, year);
+  }
+
   @Get(':donation')
   @ApiOperation({ summary: 'Get donation by ID' })
   getOne(
@@ -39,11 +45,5 @@ export class DonationController {
   @ApiOperation({ summary: 'Make a donation' })
   store(@Body() body: CreateDonationDto, @CurrentUser() user: AuthenticatedUser) {
     return this.donationService.createDonation(user.id, body);
-  }
-
-  @Get('tax-receipt/:year')
-  @ApiOperation({ summary: 'Get tax receipt for year' })
-  taxReceipt(@Param('year', ParseIntPipe) year: number, @CurrentUser() user: AuthenticatedUser) {
-    return this.donationService.taxReceipt(user.id, year);
   }
 }
