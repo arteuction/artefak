@@ -3,6 +3,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { S3Module } from './s3/s3.module';
 import { StripeModule } from './stripe/stripe.module';
+import { EmailModule } from './email/email.module';
 import { LibraryModule } from './library/library.module';
 import { AuctionModule } from './auction/auction.module';
 import { AuthModule } from './auth/auth.module';
@@ -38,7 +39,7 @@ import { PrismaService } from './prisma.service';
 @Module({
   imports: [
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
-    S3Module, StripeModule, AuthModule, LibraryModule, AuctionModule, ProfileModule, ArtworkModule, GalleryModule, ArtistModule, CollectionModule, SellNowModule, ArtLotModule, VenueModule, ExhibitionModule, DisputeModule, DonationModule, ConsignmentModule, ImpactModule, DonationRecipientModule, OwnershipTransferModule, ReserveModule, SearchModule, InstitutionModule, ArtistApplicationModule, GovernanceModule, BookCategoryModule, PayoutModule, AdminModule, SettlementModule, SchedulerModule],
+    S3Module, StripeModule, EmailModule, AuthModule, LibraryModule, AuctionModule, ProfileModule, ArtworkModule, GalleryModule, ArtistModule, CollectionModule, SellNowModule, ArtLotModule, VenueModule, ExhibitionModule, DisputeModule, DonationModule, ConsignmentModule, ImpactModule, DonationRecipientModule, OwnershipTransferModule, ReserveModule, SearchModule, InstitutionModule, ArtistApplicationModule, GovernanceModule, BookCategoryModule, PayoutModule, AdminModule, SettlementModule, SchedulerModule],
   controllers: [HealthController],
   providers: [
     AuctionService,
