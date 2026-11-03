@@ -152,13 +152,31 @@ export class ArtworkService {
 
   async getRights(idOrSlug: string) {
     const artwork = await this.getArtwork(idOrSlug);
-    return { artwork_id: artwork.id, rights_statement: null, license_url: null };
+    const row = await this.prisma.artworks.findUnique({
+      where: { id: artwork.id },
+      select: { id: true, rights_statement: true, license_spdx: true, provenance: true },
+    });
+    return {
+      artwork_id:       artwork.id,
+      rights_statement: row?.rights_statement ?? null,
+      license_spdx:     row?.license_spdx     ?? null,
+      provenance:       row?.provenance        ?? null,
+    };
   }
 
-  async updateRights(idOrSlug: string, _userId: number, role: string, dto: { rights_statement?: string; license_url?: string }) {
+  async updateRights(idOrSlug: string, _userId: number, role: string, dto: { rights_statement?: string; license_spdx?: string; provenance?: string }) {
     if (role !== 'admin' && role !== 'operator') throw new ForbiddenException('Insufficient permissions');
     const artwork = await this.getArtwork(idOrSlug);
-    return { artwork_id: artwork.id, ...dto };
+    const updated = await this.prisma.artworks.update({
+      where: { id: artwork.id },
+      data:  {
+        ...(dto.rights_statement !== undefined ? { rights_statement: dto.rights_statement } : {}),
+        ...(dto.license_spdx     !== undefined ? { license_spdx:     dto.license_spdx     } : {}),
+        ...(dto.provenance       !== undefined ? { provenance:       dto.provenance       } : {}),
+      },
+      select: { id: true, rights_statement: true, license_spdx: true, provenance: true, updated_at: true },
+    });
+    return { artwork_id: artwork.id, ...updated };
   }
 
   async getQr(idOrSlug: string) {

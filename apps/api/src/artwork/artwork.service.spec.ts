@@ -51,7 +51,7 @@ const STUB = {
 
 const fn = () => jest.fn() as any;
 const mockPrisma = {
-  artworks: { findMany: fn(), findFirst: fn(), count: fn(), create: fn(), update: fn() },
+  artworks: { findMany: fn(), findFirst: fn(), findUnique: fn(), count: fn(), create: fn(), update: fn() },
   artwork_evidence: { findMany: fn(), create: fn() },
   artwork_sdg_claims: { findMany: fn(), findFirst: fn(), create: fn(), update: fn() },
   artwork_revisions: { findMany: fn(), findFirst: fn(), create: fn(), update: fn() },
@@ -134,14 +134,27 @@ describe('Phase 0.3V — ArtworkService', () => {
     expect(result['@context']).toContain('linked.art');
   });
 
-  it('AW11: getRights — returns artwork_id and rights_statement', async () => {
+  it('AW11: getRights — reads rights_statement from DB', async () => {
     mockPrisma.artworks.findFirst.mockResolvedValueOnce(STUB);
+    mockPrisma.artworks.findUnique.mockResolvedValueOnce({
+      id: BigInt(1), rights_statement: 'CC BY 4.0', license_spdx: 'CC-BY-4.0', provenance: null,
+    });
     const result = await svc.getRights('test-artwork');
     expect(result.artwork_id).toEqual(BigInt(1));
-    expect(result.rights_statement).toBeNull();
+    expect(result.rights_statement).toBe('CC BY 4.0');
+    expect(result.license_spdx).toBe('CC-BY-4.0');
   });
 
-  it('AW12: updateRights — non-admin: throws ForbiddenException', async () => {
+  it('AW12: updateRights — admin: persists to DB', async () => {
+    mockPrisma.artworks.findFirst.mockResolvedValueOnce(STUB);
+    const updated = { id: BigInt(1), rights_statement: 'CC BY 4.0', license_spdx: 'CC-BY-4.0', provenance: null, updated_at: new Date() };
+    mockPrisma.artworks.update.mockResolvedValueOnce(updated);
+    const result = await svc.updateRights('test-artwork', 1, 'admin', { rights_statement: 'CC BY 4.0' });
+    expect(mockPrisma.artworks.update).toHaveBeenCalled();
+    expect(result.rights_statement).toBe('CC BY 4.0');
+  });
+
+  it('AW12b: updateRights — non-admin: throws ForbiddenException', async () => {
     await expect(svc.updateRights('test-artwork', 1, 'artist', {})).rejects.toThrow(ForbiddenException);
   });
 
