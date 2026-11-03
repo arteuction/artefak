@@ -112,4 +112,30 @@ describe('Phase 0.3V — GalleryService', () => {
     mockPrisma.gallery_staff.findFirst.mockResolvedValueOnce(null);
     await expect(svc.removeStaff('test-gallery', 99, 1, 'admin')).rejects.toThrow(NotFoundException);
   });
+
+  it('GS12: getGalleryProfile — returns gallery with staff', async () => {
+    mockPrisma.galleries.findUnique.mockResolvedValueOnce(STUB_GALLERY); // getGallery by slug
+    mockPrisma.galleries.findUnique.mockResolvedValueOnce({ ...STUB_GALLERY, gallery_staff: [] }); // profile
+    const result = await svc.getGalleryProfile('test-gallery');
+    expect(result).toBeTruthy();
+  });
+
+  it('GS13: updateStaff — admin: updates staff member', async () => {
+    mockPrisma.galleries.findUnique.mockResolvedValueOnce(STUB_GALLERY);
+    mockPrisma.gallery_staff.findFirst.mockResolvedValueOnce({ id: BigInt(1), gallery_id: STUB_GALLERY.id });
+    mockPrisma.gallery_staff.update.mockResolvedValueOnce({ id: BigInt(1), role: 'senior', status: 'active' });
+    const result = await svc.updateStaff('test-gallery', 1, 1, 'admin', { role: 'senior' });
+    expect(result.role).toBe('senior');
+  });
+
+  it('GS14: updateStaff — non-admin: throws ForbiddenException', async () => {
+    await expect(svc.updateStaff('test-gallery', 1, 1, 'artist', { role: 'senior' })).rejects.toThrow(ForbiddenException);
+  });
+
+  it('GS15: listGalleryLots — returns art lots for gallery', async () => {
+    mockPrisma.galleries.findUnique.mockResolvedValueOnce(STUB_GALLERY);
+    mockPrisma.art_lots.findMany.mockResolvedValueOnce([{ id: BigInt(1), status: 'active' }]);
+    const result = await svc.listGalleryLots('test-gallery');
+    expect(result).toHaveLength(1);
+  });
 });
