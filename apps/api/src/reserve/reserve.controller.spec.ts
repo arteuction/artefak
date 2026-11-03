@@ -4,6 +4,8 @@
  * RV1  GET /reserves/:id — get one (200, authenticated)
  * RV2  GET /reserves/:id — 401 without token
  * RV3  GET /reserves/999 — 404
+ * RV4  POST /reserves/:id/waive — returns { status: 'waived' }
+ * RV5  POST /reserves/:id/counter-offer — returns { status: 'counter_offered' }
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
@@ -83,5 +85,20 @@ describe('Phase 0.3P — Reserve controller', () => {
   it('RV3: GET /reserves/999 returns 404', async () => {
     const res = await app.inject({ method: 'GET', url: '/api/v1/reserves/999', headers: { authorization: `Bearer ${makeToken()}` } });
     expect(res.statusCode).toBe(404);
+  });
+
+  it('RV4: POST /reserves/:id/waive returns 200 with status waived', async () => {
+    const res = await app.inject({ method: 'POST', url: '/api/v1/reserves/1/waive', headers: { authorization: `Bearer ${makeToken()}` } });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body.status).toBe('waived');
+    expect(body).toHaveProperty('waived_at');
+  });
+
+  it('RV5: POST /reserves/:id/counter-offer returns 200 with status counter_offered', async () => {
+    const res = await app.inject({ method: 'POST', url: '/api/v1/reserves/1/counter-offer', payload: { counter_price_cents: 90000 }, headers: { authorization: `Bearer ${makeToken()}`, 'content-type': 'application/json' } });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body.status).toBe('counter_offered');
   });
 });

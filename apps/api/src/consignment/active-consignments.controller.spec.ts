@@ -3,6 +3,7 @@
  *
  * AC1  GET /active-consignments — returns paged consignments
  * AC2  GET /active-consignments?page=2&per_page=5 — respects pagination params
+ * AC3  GET /active-consignments — empty result: last_page=1, total=0
  */
 
 import { jest } from '@jest/globals';
@@ -59,5 +60,15 @@ describe('Phase 0.3V — ActiveConsignmentsController', () => {
     const body = JSON.parse(res.payload);
     expect(body.meta.current_page).toBe(2);
     expect(body.meta.per_page).toBe(5);
+  });
+
+  it('AC3: GET /active-consignments with no results — last_page=1, total=0', async () => {
+    mockPrisma.$transaction.mockResolvedValueOnce([[], 0]);
+    const res = await app.inject({ method: 'GET', url: '/active-consignments' });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body.data).toHaveLength(0);
+    expect(body.meta.last_page).toBe(1);
+    expect(body.meta.total).toBe(0);
   });
 });

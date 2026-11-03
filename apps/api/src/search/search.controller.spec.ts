@@ -1,8 +1,10 @@
 /**
  * Phase 0.3Q — Search route tests
  *
- * SR1  GET /search/artworks — returns paginated results (200)
- * SR2  GET /search/artworks?q=oil — filters by query (200)
+ * SR1  GET /search/artworks          — returns paginated results (200)
+ * SR2  GET /search/artworks?q=oil    — filters by query (200)
+ * SR3  GET /search/artworks/:id      — returns single artwork (200)
+ * SR4  GET /search/artworks/missing  — 404 when not found
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
@@ -19,6 +21,10 @@ const mockService = {
     data: query ? STUB_ARTWORKS.filter(a => a.title.toLowerCase().includes(query.toLowerCase())) : STUB_ARTWORKS,
     meta: { current_page: 1, last_page: 1, per_page: 20, total: 1, query },
   }),
+  getArtwork: async (id: string) => {
+    if (id === 'missing') { const { NotFoundException } = await import('@nestjs/common'); throw new NotFoundException(`Artwork "${id}" not found`); }
+    return STUB_ARTWORKS[0];
+  },
 };
 
 describe('Phase 0.3Q — Search controller', () => {
@@ -52,5 +58,17 @@ describe('Phase 0.3Q — Search controller', () => {
     const body = JSON.parse(res.payload);
     expect(body.meta.query).toBe('oil');
     expect(body.data.length).toBeGreaterThan(0);
+  });
+
+  it('SR3: GET /search/artworks/:id returns single artwork 200', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/v1/search/artworks/oil-painting' });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body).toHaveProperty('slug', 'oil-painting');
+  });
+
+  it('SR4: GET /search/artworks/missing returns 404', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/v1/search/artworks/missing' });
+    expect(res.statusCode).toBe(404);
   });
 });

@@ -1,9 +1,10 @@
 /**
  * Phase 0.3U — MyBooksController tests
  *
- * MB1  GET /my-books               — 200 + pagination (auth)
+ * MB1  GET /my-books                    — 200 + pagination (auth)
  * MB2  GET /my-books/:book/download-url — 200 (auth)
- * MB3  GET /my-books without token — 401
+ * MB3  GET /my-books without token      — 401
+ * MB4  GET /my-books/not-found/download-url — 404 (book not entitled)
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
@@ -37,7 +38,10 @@ const mockLibraryService = {
     data: [],
     meta: { current_page: page, last_page: 1, per_page: perPage, total: 0 },
   }),
-  bookDownloadUrl: async (_book: string, _userId: number) => ({ url: 'https://cdn.example.com/book.pdf', expires_at: new Date().toISOString() }),
+  bookDownloadUrl: async (book: string, _userId: number) => {
+    if (book === 'not-found') { const { NotFoundException } = await import('@nestjs/common'); throw new NotFoundException(`Book "${book}" not found`); }
+    return { url: 'https://cdn.example.com/book.pdf', expires_at: new Date().toISOString() };
+  },
 };
 
 describe('Phase 0.3U — MyBooksController', () => {
@@ -90,5 +94,14 @@ describe('Phase 0.3U — MyBooksController', () => {
   it('MB3: GET /my-books without token returns 401', async () => {
     const res = await (app as NestFastifyApplication).inject({ method: 'GET', url: '/api/v1/my-books' });
     expect(res.statusCode).toBe(401);
+  });
+
+  it('MB4: GET /my-books/not-found/download-url returns 404', async () => {
+    const res = await (app as NestFastifyApplication).inject({
+      method: 'GET',
+      url: '/api/v1/my-books/not-found/download-url',
+      headers: { authorization: `Bearer ${userToken}` },
+    });
+    expect(res.statusCode).toBe(404);
   });
 });
