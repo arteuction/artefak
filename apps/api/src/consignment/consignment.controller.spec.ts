@@ -1,11 +1,16 @@
 /**
  * Phase 0.3N — Consignment CRUD route tests
  *
- * CS1  GET /consignments         — list (200, authenticated)
- * CS2  GET /consignments         — 401 without token
- * CS3  GET /consignments/:id     — get one (200)
- * CS4  POST /consignments        — create (201)
- * CS5  GET /consignments/999     — 404 for missing
+ * CS1  GET /consignments                    — list (200, authenticated)
+ * CS2  GET /consignments                    — 401 without token
+ * CS3  GET /consignments/:id                — get one (200)
+ * CS4  POST /consignments                   — create (201)
+ * CS5  GET /consignments/999                — 404 for missing
+ * CS6  POST /consignments/:id/activate      — 200 transition
+ * CS7  POST /consignments/:id/approve       — 200 transition
+ * CS8  POST /consignments/:id/request-changes — 200 transition
+ * CS9  POST /consignments/:id/create-lot    — 201 creates lot
+ * CS10 POST /consignments/:id/terminate     — 200 transition
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
@@ -50,6 +55,8 @@ const mockConsignmentService = {
     return STUB_CONSIGNMENT;
   },
   createConsignment: async () => ({ id: 2, status: 'draft', commission_bps: 0 }),
+  transition: async (id: number, _userId: number, _role: string, status: string) => ({ ...STUB_CONSIGNMENT, id, status }),
+  createLot: async (id: number) => ({ id: 10, consignment_id: id, status: 'pending', created_at: new Date().toISOString() }),
 };
 
 import jwt from 'jsonwebtoken';
@@ -112,5 +119,39 @@ describe('Phase 0.3N — Consignment controller', () => {
   it('CS5: GET /consignments/999 returns 404', async () => {
     const res = await app.inject({ method: 'GET', url: '/api/v1/consignments/999', headers: { authorization: `Bearer ${makeToken()}` } });
     expect(res.statusCode).toBe(404);
+  });
+
+  it('CS6: POST /consignments/:id/activate returns 200 with active status', async () => {
+    const res = await app.inject({ method: 'POST', url: '/api/v1/consignments/1/activate', headers: { authorization: `Bearer ${makeToken('admin')}` } });
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.payload).status).toBe('active');
+  });
+
+  it('CS7: POST /consignments/:id/approve returns 200 with approved status', async () => {
+    const res = await app.inject({ method: 'POST', url: '/api/v1/consignments/1/approve', headers: { authorization: `Bearer ${makeToken('admin')}` } });
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.payload).status).toBe('approved');
+  });
+
+  it('CS8: POST /consignments/:id/request-changes returns 200', async () => {
+    const res = await app.inject({ method: 'POST', url: '/api/v1/consignments/1/request-changes', headers: { authorization: `Bearer ${makeToken('admin')}` } });
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.payload).status).toBe('pending_changes');
+  });
+
+  it('CS9: POST /consignments/:id/create-lot returns 201 with lot', async () => {
+    const res = await app.inject({
+      method: 'POST', url: '/api/v1/consignments/1/create-lot',
+      headers: { authorization: `Bearer ${makeToken('admin')}`, 'content-type': 'application/json' },
+      payload: JSON.stringify({ sale_mode: 'auction' }),
+    });
+    expect(res.statusCode).toBe(201);
+    expect(JSON.parse(res.payload)).toHaveProperty('consignment_id', 1);
+  });
+
+  it('CS10: POST /consignments/:id/terminate returns 200 with terminated status', async () => {
+    const res = await app.inject({ method: 'POST', url: '/api/v1/consignments/1/terminate', headers: { authorization: `Bearer ${makeToken('admin')}` } });
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.payload).status).toBe('terminated');
   });
 });
