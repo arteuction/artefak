@@ -1,13 +1,22 @@
 /**
- * Phase 0.3D — Artwork + art-lot public routes integration tests
+ * Phase 0.3D — Artwork public + provenance routes integration tests
  *
- * Routes covered:
- *   GET /api/v1/artworks              — paginated public list
- *   GET /api/v1/artworks/:id          — show by ID or slug
- *   GET /api/v1/artworks/not-found    — 404 path
- *   GET /api/v1/artworks/:id/lots     — art lots for an artwork
- *   AW8  POST /artworks/:id/images/approve — delegates to artworkService.approveImage
- *   AW9  GET  /artworks/:id/images/url    — delegates to artworkService.getImageUrl
+ * AW1  GET /artworks                     — paginated list
+ * AW2  GET /artworks?status=published    — filter
+ * AW3  GET /artworks?medium=painting     — filter
+ * AW4  GET /artworks/:id                 — show
+ * AW5  GET /artworks/:slug               — show by slug
+ * AW6  GET /artworks/not-found           — 404
+ * AW7  GET /artworks/:id/lots            — lots
+ * AW8  GET /artworks/:id/images/url      — image URL
+ * AW9  GET /artworks/:id/linked-art      — Linked Art JSON-LD
+ * AW10 GET /artworks/:id/edm             — Europeana EDM
+ * AW11 GET /artworks/:id/iiif/manifest   — IIIF v3
+ * AW12 GET /artworks/:id/iiif/manifest2  — IIIF v2
+ * AW13 GET /artworks/:id/qr              — QR code
+ * AW14 GET /artworks/:id/rights          — rights statement
+ * AW15 GET /artworks/:id/revisions       — revision list
+ * AW16 GET /artworks/:id/sales-history   — sales history
  */
 
 import { jest } from '@jest/globals';
@@ -57,6 +66,14 @@ const mockArtworkService = {
   listArtLots: jest.fn(async (_id: string) => [STUB_LOT]) as any,
   approveImage: jest.fn() as any,
   getImageUrl: jest.fn() as any,
+  getLinkedArt: jest.fn(async () => ({ '@context': 'https://linked.art/ns/v1/linked-art.json', type: 'HumanMadeObject' })) as any,
+  getEdm: jest.fn(async () => ({ edm: 'record', title: 'Sunset Over the Bay' })) as any,
+  getIiifManifest: jest.fn(async () => ({ '@context': 'http://iiif.io/api/presentation/3/context.json', type: 'Manifest' })) as any,
+  getIiifInfo: jest.fn(async () => ({ '@context': 'http://iiif.io/api/image/3/context.json', type: 'ImageService3' })) as any,
+  getRights: jest.fn(async () => ({ artwork_id: 1, rights_statement: 'CC BY 4.0', license_url: 'https://creativecommons.org/licenses/by/4.0/' })) as any,
+  getQr: jest.fn(async () => ({ qr_url: 'https://cdn.example.com/qr/1.png' })) as any,
+  listRevisions: jest.fn(async () => [{ id: 1, artwork_id: 1, title: 'Sunset Over the Bay', created_at: new Date('2026-01-01').toISOString() }]) as any,
+  getSalesHistory: jest.fn(async () => [{ id: 1, transfer_price_cents: 100000, channel: 'auction', transferred_at: new Date('2026-06-01').toISOString() }]) as any,
 };
 
 // ── suite ──────────────────────────────────────────────────────────────────────
@@ -131,5 +148,65 @@ describe('Phase 0.3D — Artwork controller', () => {
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.payload);
     expect(body.url).toContain('cdn.example.com');
+  });
+
+  it('AW9: GET /artworks/:id/linked-art returns Linked Art JSON-LD', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/v1/artworks/1/linked-art' });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body).toHaveProperty('@context');
+    expect(body.type).toBe('HumanMadeObject');
+  });
+
+  it('AW10: GET /artworks/:id/edm returns Europeana EDM', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/v1/artworks/1/edm' });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body).toHaveProperty('edm');
+  });
+
+  it('AW11: GET /artworks/:id/iiif/manifest returns IIIF v3 manifest', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/v1/artworks/1/iiif/manifest' });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body).toHaveProperty('@context');
+    expect(body.type).toBe('Manifest');
+  });
+
+  it('AW12: GET /artworks/:id/iiif/manifest2 returns IIIF v2 manifest', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/v1/artworks/1/iiif/manifest2' });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body.type).toBe('Manifest');
+  });
+
+  it('AW13: GET /artworks/:id/qr returns QR code URL', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/v1/artworks/1/qr' });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body).toHaveProperty('qr_url');
+  });
+
+  it('AW14: GET /artworks/:id/rights returns rights statement', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/v1/artworks/1/rights' });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body).toHaveProperty('rights_statement');
+  });
+
+  it('AW15: GET /artworks/:id/revisions returns revision list', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/v1/artworks/1/revisions' });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(Array.isArray(body)).toBe(true);
+    expect(body[0]).toHaveProperty('artwork_id');
+  });
+
+  it('AW16: GET /artworks/:id/sales-history returns sales history', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/v1/artworks/1/sales-history' });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(Array.isArray(body)).toBe(true);
+    expect(body[0]).toHaveProperty('channel');
   });
 });
