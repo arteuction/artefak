@@ -4,21 +4,48 @@
  * Tests controller routing and response shape without a real DB.
  * All DB calls are stubbed on AuctionService.
  *
- * Routes covered:
- *   GET /api/v1/auctions            — public list
- *   GET /api/v1/auctions/:id        — show by ID or slug
- *   GET /api/v1/auctions/:a/items/:i — show auction item
- *   GET /api/v1/health              — liveness probe
+ * AC1  GET  /auctions                     — list
+ * AC2  GET  /auctions?status=live         — filter
+ * AC3  GET  /auctions/:id                 — show
+ * AC4  GET  /auctions/:slug               — show by slug
+ * AC5  GET  /auctions/not-found           — 404
+ * AC6  GET  /auctions/:a/items/:i         — show item
+ * AC7  GET  /health                       — health
+ * AC8  GET  /auctions/:a/items/:i/bids    — bid history
+ * AC9  POST /auctions/:a/items/:i/max-bid — 200 inline stub (auth)
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { NestFastifyApplication } from '@nestjs/platform-fastify';
 import { FastifyAdapter } from '@nestjs/platform-fastify';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, Injectable } from '@nestjs/common';
+import { JwtModule } from '@nestjs/jwt';
+import { PassportModule } from '@nestjs/passport';
+import { PassportStrategy } from '@nestjs/passport';
+import { ExtractJwt, Strategy } from 'passport-jwt';
 
 import { AuctionController } from './auction.controller';
 import { AuctionService } from './auction.service';
 import { HealthController } from '../health.controller';
+import type { AuthenticatedUser, JwtPayload } from '../auth/auth.types';
+
+const JWT_SECRET = 'test-auction-secret';
+
+@Injectable()
+class TestJwtStrategy extends PassportStrategy(Strategy, 'jwt') {
+  constructor() {
+    super({ jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(), ignoreExpiration: false, secretOrKey: JWT_SECRET });
+  }
+  async validate(payload: JwtPayload): Promise<AuthenticatedUser> {
+    return { id: payload.sub, email: payload.email, role: payload.role as AuthenticatedUser['role'], emailVerifiedAt: null };
+  }
+}
+
+import jwt from 'jsonwebtoken';
+const { sign } = jwt;
+function makeToken(role = 'user') {
+  return sign({ sub: 1, email: 'user@example.com', role }, JWT_SECRET, { expiresIn: '1h' });
+}
 
 // ── stubs ─────────────────────────────────────────────────────────────────────
 
@@ -73,8 +100,9 @@ describe('Phase 0.3C — Auction controller', () => {
 
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
+      imports: [PassportModule, JwtModule.register({ secret: JWT_SECRET })],
       controllers: [AuctionController, HealthController],
-      providers: [{ provide: AuctionService, useValue: mockAuctionService }],
+      providers: [{ provide: AuctionService, useValue: mockAuctionService }, TestJwtStrategy],
     }).compile();
 
     app = module.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
@@ -150,5 +178,19 @@ describe('Phase 0.3C — Auction controller', () => {
     const body = JSON.parse(res.payload);
     expect(body).toMatchObject({ status: 'ok', db: 'connected' });
     expect(body).toHaveProperty('timestamp');
+  });
+
+  // ── AC9: max-bid (inline stub) ────────────────────────────────────────────
+
+  it('AC9: POST /auctions/:a/items/:i/max-bid returns 200 (inline stub)', async () => {
+    const res = await app.inject({
+      method: 'POST', url: '/api/v1/auctions/1/items/1/max-bid',
+      headers: { authorization: `Bearer ${makeToken()}`, 'content-type': 'application/json' },
+      payload: JSON.stringify({ max_amount_cents: 200000 }),
+    });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body.status).toBe('max_bid_placed');
+    expect(body.proxy_active).toBe(true);
   });
 });
