@@ -14,6 +14,8 @@
  * AU11 shipItem — updates fulfillment_status shipped
  * AU12 confirmDelivery — updates fulfillment_status delivered
  * AU13 health — db error: returns status degraded
+ * AU14 reAuthorizeItem — found: returns payment_re_authorized true
+ * AU15 reAuthorizeItem — not found: throws NotFoundException
  */
 
 import { jest } from '@jest/globals';
@@ -135,5 +137,17 @@ describe('Phase 0.3V — AuctionService', () => {
     const result = await svc.health();
     expect(result.status).toBe('degraded');
     expect(result.db).toBe('disconnected');
+  });
+
+  it('AU14: reAuthorizeItem — found: returns payment_re_authorized true', async () => {
+    mockPrisma.auctionItem.findFirst.mockResolvedValueOnce({ id: BigInt(1), status: 'sold' });
+    const result = await svc.reAuthorizeItem(1);
+    expect(result.payment_re_authorized).toBe(true);
+    expect(result.id).toBe(1);
+  });
+
+  it('AU15: reAuthorizeItem — not found: throws NotFoundException', async () => {
+    mockPrisma.auctionItem.findFirst.mockResolvedValueOnce(null);
+    await expect(svc.reAuthorizeItem(999)).rejects.toThrow(NotFoundException);
   });
 });
