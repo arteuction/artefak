@@ -12,6 +12,10 @@
  * PR9   getUserBids         â€” delegates with correct pagination
  * PR10  removeFromWatchlist â€” entry not found: throws NotFoundException
  * PR11  removeFromWatchlist â€” entry found: deletes and returns { deleted: true }
+ * PR12  getWatchlist        â€” returns watchlist entries
+ * PR13  addToWatchlist      â€” upserts and returns entry
+ * PR14  getUserCollections  â€” returns paged public collections
+ * PR15  getUserConsignments â€” returns paged consignments
  */
 
 import { jest } from '@jest/globals';
@@ -129,5 +133,34 @@ describe('Phase 0.3U â€” ProfileService', () => {
     const result = await svc.removeFromWatchlist(1, 1);
     expect(result.deleted).toBe(true);
     expect(mockPrisma.watchlist.delete).toHaveBeenCalled();
+  });
+
+  it('PR12: getWatchlist — returns watchlist entries', async () => {
+    mockPrisma.watchlist.findMany.mockResolvedValueOnce([{ id: BigInt(1), subject_type: 'artwork', subject_id: BigInt(5) }]);
+    const result = await svc.getWatchlist(10);
+    expect(result).toHaveLength(1);
+    expect(result[0].subject_type).toBe('artwork');
+  });
+
+  it('PR13: addToWatchlist — upserts and returns entry', async () => {
+    const entry = { id: BigInt(2), subject_type: 'auction', subject_id: BigInt(3), created_at: new Date() };
+    mockPrisma.watchlist.upsert.mockResolvedValueOnce(entry);
+    const result = await svc.addToWatchlist(10, 'auction', 3);
+    expect(result.subject_type).toBe('auction');
+    expect(mockPrisma.watchlist.upsert).toHaveBeenCalled();
+  });
+
+  it('PR14: getUserCollections — returns paged public collections', async () => {
+    mockPrisma.$transaction.mockResolvedValueOnce([[{ id: BigInt(1), title: 'My Coll', visibility: 'public' }], 1]);
+    const result = await svc.getUserCollections(10);
+    expect(result.data).toHaveLength(1);
+    expect(result.meta.total).toBe(1);
+  });
+
+  it('PR15: getUserConsignments — returns paged consignments', async () => {
+    mockPrisma.$transaction.mockResolvedValueOnce([[{ id: BigInt(1), status: 'active' }], 1]);
+    const result = await svc.getUserConsignments(10);
+    expect(result.data).toHaveLength(1);
+    expect(result.meta.current_page).toBe(1);
   });
 });

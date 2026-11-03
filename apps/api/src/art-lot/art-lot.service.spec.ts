@@ -109,4 +109,33 @@ describe('Phase 0.3V — ArtLotService', () => {
     const result = await svc.transition('1', 'closed', 1, 'admin');
     expect(result.status).toBe('closed');
   });
+
+  it('AL11: getProvenance — found: returns empty provenance array', async () => {
+    mockPrisma.art_lots.findFirst.mockResolvedValueOnce(STUB_LOT);
+    const result = await svc.getProvenance('1');
+    expect(Array.isArray(result)).toBe(true);
+  });
+
+  it('AL12: createSellNowOffer — creates offer with pending status', async () => {
+    mockPrisma.art_lots.findFirst.mockResolvedValueOnce(STUB_LOT);
+    const result = await svc.createSellNowOffer('1', 10, { offered_price_cents: 5000 });
+    expect(result.status).toBe('pending');
+  });
+
+  it('AL13: listSellNowOffers — admin: returns all offers', async () => {
+    mockPrisma.art_lots.findFirst.mockResolvedValueOnce(STUB_LOT);
+    mockPrisma.sell_now_offers.findMany.mockResolvedValueOnce([{ id: BigInt(1) }, { id: BigInt(2) }]);
+    const result = await svc.listSellNowOffers('1', 10, 'admin');
+    expect(result).toHaveLength(2);
+  });
+
+  it('AL14: listSellNowOffers — buyer: filters by buyer_id', async () => {
+    mockPrisma.art_lots.findFirst.mockResolvedValueOnce(STUB_LOT);
+    mockPrisma.sell_now_offers.findMany.mockResolvedValueOnce([{ id: BigInt(1) }]);
+    const result = await svc.listSellNowOffers('1', 10, 'buyer');
+    expect(mockPrisma.sell_now_offers.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ buyer_id: BigInt(10) }) })
+    );
+    expect(result).toHaveLength(1);
+  });
 });
