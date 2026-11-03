@@ -10,6 +10,13 @@
  * LS7  getEntitlement — has_access false when no entitlement
  * LS8  purchaseBook — returns pending status
  * LS9  getBookReviews — returns empty paged stub
+ * LS10 bookDownloadUrl — has entitlement: returns url
+ * LS11 bookDownloadUrl — no entitlement: throws
+ * LS12 createReview — returns pending stub
+ * LS13 checkoutSession — returns stub with null url
+ * LS14 grantAccess — returns {granted:true}
+ * LS15 unpublishBook — executes raw SQL, returns draft status
+ * LS16 publishBook — executes raw SQL, returns published status
  */
 
 import { jest } from '@jest/globals';
@@ -103,5 +110,47 @@ describe('Phase 0.3V — LibraryService', () => {
     const result = await svc.getBookReviews('art-history');
     expect(result.data).toEqual([]);
     expect(result.meta.total).toBe(0);
+  });
+
+  it('LS10: bookDownloadUrl — has entitlement: returns download url', async () => {
+    mockPrisma.book_entitlements.findFirst.mockResolvedValueOnce({ id: BigInt(1), revoked_at: null });
+    const result = await svc.bookDownloadUrl('art-history', 10);
+    expect(result.download_url).toContain('art-history');
+    expect(result.expires_at).toBeDefined();
+  });
+
+  it('LS11: bookDownloadUrl — no entitlement: throws', async () => {
+    mockPrisma.book_entitlements.findFirst.mockResolvedValueOnce(null);
+    await expect(svc.bookDownloadUrl('art-history', 10)).rejects.toThrow('No entitlement');
+  });
+
+  it('LS12: createReview — returns pending stub', async () => {
+    const result = await svc.createReview('art-history', 10, { rating: 5, comment: 'Great' });
+    expect(result.status).toBe('pending');
+  });
+
+  it('LS13: checkoutSession — returns stub with null url', async () => {
+    const result = await svc.checkoutSession('art-history', 10);
+    expect(result.checkout_url).toBeNull();
+  });
+
+  it('LS14: grantAccess — returns {granted:true}', async () => {
+    const result = await svc.grantAccess('art-history', 1, 20);
+    expect(result.granted).toBe(true);
+  });
+
+  it('LS15: unpublishBook — executes raw SQL, returns draft status', async () => {
+    mockPrisma.$executeRaw.mockResolvedValueOnce(1);
+    const result = await svc.unpublishBook('art-history');
+    expect(result.status).toBe('draft');
+    expect(result.slug).toBe('art-history');
+    expect(mockPrisma.$executeRaw).toHaveBeenCalled();
+  });
+
+  it('LS16: publishBook — executes raw SQL, returns published status', async () => {
+    mockPrisma.$executeRaw.mockResolvedValueOnce(1);
+    const result = await svc.publishBook('art-history');
+    expect(result.status).toBe('published');
+    expect(result.slug).toBe('art-history');
   });
 });

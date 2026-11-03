@@ -16,6 +16,24 @@
  * AW13 getQr — returns qr_url
  * AW14 presignImage — returns upload_url and key
  * AW15 generateDerivatives — non-admin: throws ForbiddenException
+ * AW16 listEvidence — returns evidence for artwork
+ * AW17 createEvidence — creates evidence row
+ * AW18 listSdgClaims — returns claims for artwork
+ * AW19 getEdm — returns EDM context object
+ * AW20 getIiifManifest — returns IIIF manifest stub
+ * AW21 getIiifInfo — returns IIIF image info stub
+ * AW22 listRevisions — returns revisions
+ * AW23 createRevision — creates first revision (version 1)
+ * AW24 activateRevision — admin: sets status active
+ * AW25 activateRevision — non-admin: throws ForbiddenException
+ * AW26 createSdgClaim — creates pending claim
+ * AW27 getSdgClaim — found: returns claim
+ * AW28 getSdgClaim — not found: throws NotFoundException
+ * AW29 reviewSdgClaim — admin approve: sets status approved
+ * AW30 reviewSdgClaim — non-admin: throws ForbiddenException
+ * AW31 getSalesHistory — returns empty data stub
+ * AW32 confirmImage — returns confirmed true
+ * AW33 listArtLots — returns art lots for artwork
  */
 
 import { jest } from '@jest/globals';
@@ -141,5 +159,118 @@ describe('Phase 0.3V — ArtworkService', () => {
 
   it('AW15: generateDerivatives — non-admin: throws ForbiddenException', async () => {
     await expect(svc.generateDerivatives('test-artwork', 1, 'artist')).rejects.toThrow(ForbiddenException);
+  });
+
+  it('AW16: listEvidence — returns evidence array', async () => {
+    mockPrisma.artworks.findFirst.mockResolvedValueOnce(STUB);
+    mockPrisma.artwork_evidence.findMany.mockResolvedValueOnce([{ id: BigInt(1), type: 'appraisal' }]);
+    const result = await svc.listEvidence('test-artwork');
+    expect(result).toHaveLength(1);
+  });
+
+  it('AW17: createEvidence — creates evidence row', async () => {
+    mockPrisma.artworks.findFirst.mockResolvedValueOnce(STUB);
+    const ev = { id: BigInt(1), type: 'certificate', issuer: 'MoMA', verification_status: 'pending', created_at: new Date() };
+    mockPrisma.artwork_evidence.create.mockResolvedValueOnce(ev);
+    const result = await svc.createEvidence('test-artwork', 1, { type: 'certificate', issuer: 'MoMA' });
+    expect(result.type).toBe('certificate');
+  });
+
+  it('AW18: listSdgClaims — returns claims', async () => {
+    mockPrisma.artworks.findFirst.mockResolvedValueOnce(STUB);
+    mockPrisma.artwork_sdg_claims.findMany.mockResolvedValueOnce([{ id: 1, sdg_number: 4 }]);
+    const result = await svc.listSdgClaims('test-artwork');
+    expect(result).toHaveLength(1);
+  });
+
+  it('AW19: getEdm — returns ProvidedCHO type', async () => {
+    mockPrisma.artworks.findFirst.mockResolvedValueOnce(STUB);
+    const result = await svc.getEdm('test-artwork');
+    expect(result.type).toBe('ProvidedCHO');
+  });
+
+  it('AW20: getIiifManifest — returns IIIF manifest', async () => {
+    mockPrisma.artworks.findFirst.mockResolvedValueOnce(STUB);
+    const result = await svc.getIiifManifest('test-artwork');
+    expect(result.type).toBe('Manifest');
+  });
+
+  it('AW21: getIiifInfo — returns IIIF image service', async () => {
+    mockPrisma.artworks.findFirst.mockResolvedValueOnce(STUB);
+    const result = await svc.getIiifInfo('test-artwork');
+    expect(result.type).toBe('ImageService3');
+  });
+
+  it('AW22: listRevisions — returns revisions', async () => {
+    mockPrisma.artworks.findFirst.mockResolvedValueOnce(STUB);
+    mockPrisma.artwork_revisions.findMany.mockResolvedValueOnce([{ id: BigInt(1), version: 1 }]);
+    const result = await svc.listRevisions('test-artwork');
+    expect(result).toHaveLength(1);
+  });
+
+  it('AW23: createRevision — first revision gets version 1', async () => {
+    mockPrisma.artworks.findFirst.mockResolvedValueOnce(STUB);
+    mockPrisma.artwork_revisions.findFirst.mockResolvedValueOnce(null); // no prior revision
+    mockPrisma.artwork_revisions.create.mockResolvedValueOnce({ id: BigInt(1), version: 1, status: 'draft' });
+    const result = await svc.createRevision('test-artwork', 1, { title: 'Rev title' });
+    expect(result.version).toBe(1);
+  });
+
+  it('AW24: activateRevision — admin: sets status active', async () => {
+    mockPrisma.artworks.findFirst.mockResolvedValueOnce(STUB);
+    mockPrisma.artwork_revisions.findFirst.mockResolvedValueOnce({ id: BigInt(1), artwork_id: STUB.id });
+    mockPrisma.artwork_revisions.update.mockResolvedValueOnce({ id: BigInt(1), status: 'active' });
+    const result = await svc.activateRevision('test-artwork', 1, 1, 'admin');
+    expect(result.status).toBe('active');
+  });
+
+  it('AW25: activateRevision — non-admin: throws ForbiddenException', async () => {
+    await expect(svc.activateRevision('test-artwork', 1, 1, 'artist')).rejects.toThrow(ForbiddenException);
+  });
+
+  it('AW26: createSdgClaim — creates pending claim', async () => {
+    mockPrisma.artworks.findFirst.mockResolvedValueOnce(STUB);
+    mockPrisma.artwork_sdg_claims.create.mockResolvedValueOnce({ id: 1, sdg_number: 13, status: 'pending' });
+    const result = await svc.createSdgClaim('test-artwork', 1, { sdg_number: 13, rationale: 'Climate action' });
+    expect(result.status).toBe('pending');
+  });
+
+  it('AW27: getSdgClaim — found: returns claim', async () => {
+    mockPrisma.artwork_sdg_claims.findFirst.mockResolvedValueOnce({ id: 1, sdg_number: 13 });
+    const result = await svc.getSdgClaim('test-artwork', '1');
+    expect(result.sdg_number).toBe(13);
+  });
+
+  it('AW28: getSdgClaim — not found: throws NotFoundException', async () => {
+    mockPrisma.artwork_sdg_claims.findFirst.mockResolvedValueOnce(null);
+    await expect(svc.getSdgClaim('test-artwork', '999')).rejects.toThrow(NotFoundException);
+  });
+
+  it('AW29: reviewSdgClaim — admin approve: sets status approved', async () => {
+    mockPrisma.artwork_sdg_claims.findFirst.mockResolvedValueOnce({ id: 1 });
+    mockPrisma.artwork_sdg_claims.update.mockResolvedValueOnce({ id: 1, status: 'approved' });
+    const result = await svc.reviewSdgClaim('test-artwork', '1', 1, 'admin', { approved: true });
+    expect(result.status).toBe('approved');
+  });
+
+  it('AW30: reviewSdgClaim — non-admin: throws ForbiddenException', async () => {
+    await expect(svc.reviewSdgClaim('test-artwork', '1', 1, 'artist', { approved: true })).rejects.toThrow(ForbiddenException);
+  });
+
+  it('AW31: getSalesHistory — returns empty data stub', async () => {
+    const result = await svc.getSalesHistory('test-artwork');
+    expect(result.data).toEqual([]);
+  });
+
+  it('AW32: confirmImage — returns confirmed true', async () => {
+    const result = await svc.confirmImage('test-artwork', 1, { key: 'uploads/img.jpg' });
+    expect(result.confirmed).toBe(true);
+  });
+
+  it('AW33: listArtLots — returns art lots', async () => {
+    mockPrisma.artworks.findFirst.mockResolvedValueOnce(STUB);
+    mockPrisma.art_lots.findMany.mockResolvedValueOnce([{ id: BigInt(1), status: 'active' }]);
+    const result = await svc.listArtLots('test-artwork');
+    expect(result).toHaveLength(1);
   });
 });
