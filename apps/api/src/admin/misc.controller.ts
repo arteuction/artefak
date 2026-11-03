@@ -54,12 +54,3 @@ export class SdgClaimImpactController {
   store(@Param('claim') _claim: string, @Body() _body: Record<string, unknown>) { return stub({ recorded: true }); }
 }
 
-@ApiTags('watchlist')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
-@Controller('watchlist')
-export class WatchlistController {
-  @Get() @ApiOperation({ summary: 'List watchlist items' }) index() { return empty(); }
-  @Post() @HttpCode(201) @ApiOperation({ summary: 'Add to watchlist' }) store(@Body() _body: Record<string, unknown>) { return stub(); }
-  @Delete(':type/:id') @HttpCode(200) @ApiOperation({ summary: 'Remove from watchlist' }) destroy() { return stub({ deleted: true }); }
-}

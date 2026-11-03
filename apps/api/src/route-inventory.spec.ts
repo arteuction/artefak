@@ -49,14 +49,14 @@ const prismaMock = {
   auction: { findMany: emptyFindMany, count: emptyCount, findUnique: notFound, findFirst: notFound },
   auctionItem: { findFirst: async () => ({ id: BigInt(1), auction_id: BigInt(1), status: 'sold', fulfillment_status: null }), findMany: emptyFindMany, count: emptyCount, update: async () => ({ id: BigInt(1), fulfillment_status: 'shipped', updated_at: null }) },
   bid: { findMany: emptyFindMany, count: emptyCount },
-  artworks: { findMany: emptyFindMany, count: emptyCount, findFirst: async () => ({ id: BigInt(1), title: 'Test', slug: '1', user_id: BigInt(1), status: 'published', deleted_at: null }), create: async () => ({ id: BigInt(1) }), update: async () => ({ id: BigInt(1) }) },
+  artworks: { findMany: emptyFindMany, count: emptyCount, findFirst: async () => ({ id: BigInt(1), title: 'Test', slug: '1', user_id: BigInt(1), status: 'published', deleted_at: null }), findUnique: async () => ({ id: BigInt(1), rights_statement: null, license_spdx: null, provenance: null }), create: async () => ({ id: BigInt(1) }), update: async () => ({ id: BigInt(1) }) },
   art_lots: { findMany: emptyFindMany },
   galleries: { findMany: emptyFindMany, count: emptyCount, findUnique: async () => ({ id: BigInt(1), name: 'Test Gallery', slug: '1', type: 'private', status: 'active', gallery_staff: [] }), create: async () => ({ id: BigInt(1) }), update: async () => ({ id: BigInt(1) }) },
   gallery_staff: { findMany: emptyFindMany, findFirst: notFound, create: async () => ({ id: BigInt(1) }), update: async () => ({ id: BigInt(1) }), delete: async () => ({}) },
   artist_profiles: { findMany: emptyFindMany, count: emptyCount, findUnique: notFound, findFirst: async () => ({ id: 1, display_name: 'Test Artist', slug: 'test-artist', bio: null, website: null, instagram_handle: null, status: 'active', terms_accepted_at: null, created_at: new Date() }), create: async () => ({ id: 1 }), update: async () => ({ id: 1 }) },
   collections: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound },
   collection_artworks: { findMany: emptyFindMany, aggregate: async () => ({ _max: { position: 0 } }), create: async () => ({ id: 1 }), findFirst: notFound, delete: async () => ({}) },
-  watchlist: { findMany: emptyFindMany },
+  watchlist: { findMany: emptyFindMany, upsert: async () => ({ id: BigInt(1), subject_type: 'artwork', subject_id: BigInt(1), created_at: new Date() }), findFirst: async () => ({ id: BigInt(1), user_id: BigInt(1) }), delete: async () => ({}) },
   sell_now_offers: { findMany: emptyFindMany, count: emptyCount },
   consignments: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound },
   // Library
@@ -71,9 +71,10 @@ const prismaMock = {
   disputes: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound, create: async () => ({ id: BigInt(1) }), update: async () => ({ id: BigInt(1) }) },
   dispute_escalations: { create: async () => ({ id: BigInt(1) }) },
   // Donations
-  donations: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound },
+  donations: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound, create: async () => ({ id: BigInt(1), donated_cents: BigInt(100), currency: 'EUR', type: 'donation', status: 'pending', eligibility_basis: 'voluntary', deduction_bps: 0, created_at: new Date() }) },
   // Impact
-  impact_events: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound },
+  impact_events: { findMany: emptyFindMany, count: emptyCount, findFirst: async () => ({ id: BigInt(1), sdg_number: 13, metric: 'CO2_tons', magnitude: BigInt(10), currency: 'EUR', type: 'event', created_at: new Date() }) },
+  impact_evidence: { findMany: emptyFindMany, create: async () => ({ id: BigInt(1) }) },
   // Donation recipients
   donation_recipients: { findMany: emptyFindMany, count: emptyCount, findFirst: async () => ({ id: BigInt(1), name: 'Test Recipient' }), create: async () => ({ id: BigInt(1) }), update: async () => ({ id: BigInt(1) }) },
   // Impact projects
@@ -81,7 +82,7 @@ const prismaMock = {
   // Ownership transfers
   ownership_transfers: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound },
   // Reserves
-  reserves: { findFirst: notFound },
+  reserves: { findMany: emptyFindMany, findFirst: notFound, create: async () => ({ id: BigInt(1) }), update: async () => ({ id: BigInt(1) }) },
   // Institutions
   institutions: { findMany: emptyFindMany, count: emptyCount, findFirst: notFound },
   institution_artworks: { create: async () => ({ id: 1 }) },

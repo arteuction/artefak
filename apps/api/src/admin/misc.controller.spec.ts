@@ -9,15 +9,12 @@
  * PT1  POST /partners/onboard       — 201 { onboarded: true }
  * DE1  GET  /domain-events          — 200
  * SD1  POST /sdg-claims/1/impact-events — 201 { recorded: true }
- * WL1  GET  /watchlist              — 200
- * WL2  POST /watchlist              — 201
- * WL3  DELETE /watchlist/artwork/1  — 200 { deleted: true }
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { NestFastifyApplication, FastifyAdapter } from '@nestjs/platform-fastify';
 import { INestApplication } from '@nestjs/common';
-import { EvidenceController, ApiClientController, PartnerController, DomainEventController, SdgClaimImpactController, WatchlistController } from './misc.controller';
+import { EvidenceController, ApiClientController, PartnerController, DomainEventController, SdgClaimImpactController } from './misc.controller';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 const mockJwtGuard = { canActivate: () => true };
@@ -27,7 +24,7 @@ describe('Phase 0.3U — Misc stub controllers', () => {
 
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      controllers: [EvidenceController, ApiClientController, PartnerController, DomainEventController, SdgClaimImpactController, WatchlistController],
+      controllers: [EvidenceController, ApiClientController, PartnerController, DomainEventController, SdgClaimImpactController],
     })
       .overrideGuard(JwtAuthGuard)
       .useValue(mockJwtGuard)
@@ -91,20 +88,4 @@ describe('Phase 0.3U — Misc stub controllers', () => {
     expect(body.recorded).toBe(true);
   });
 
-  it('WL1: GET /watchlist returns 200', async () => {
-    const res = await (app as NestFastifyApplication).inject({ method: 'GET', url: '/api/v1/watchlist' });
-    expect(res.statusCode).toBe(200);
-  });
-
-  it('WL2: POST /watchlist returns 201', async () => {
-    const res = await (app as NestFastifyApplication).inject({ method: 'POST', url: '/api/v1/watchlist', payload: { type: 'artwork', id: 1 } });
-    expect(res.statusCode).toBe(201);
-  });
-
-  it('WL3: DELETE /watchlist/artwork/1 returns 200', async () => {
-    const res = await (app as NestFastifyApplication).inject({ method: 'DELETE', url: '/api/v1/watchlist/artwork/1' });
-    expect(res.statusCode).toBe(200);
-    const body = JSON.parse(res.payload);
-    expect(body.deleted).toBe(true);
-  });
 });
