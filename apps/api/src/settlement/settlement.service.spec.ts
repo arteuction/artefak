@@ -13,6 +13,10 @@
  * SS10 getSettlement — not found throws NotFoundException
  * SS11 listSettlements — returns paged result
  * SS12 settle — Prisma P2002 unique violation is handled idempotently
+ * SS13 getSettlementLines — found: returns lines array
+ * SS14 getSettlementLines — empty lines + settlement not found: throws NotFoundException
+ * SS15 getLedgerEntries — queries ledger_entries by settlement_id
+ * SS16 getTransferOutbox — returns outbox rows keyed by settlement_line_id
  */
 
 import { jest } from '@jest/globals';
@@ -258,6 +262,40 @@ describe('Phase 0.5 — SettlementService', () => {
     const result = await svc.listSettlements(1, 20);
     expect(result.data).toHaveLength(1);
     expect(result.meta.total).toBe(1);
+  });
+
+  it('SS13: getSettlementLines — found: returns lines', async () => {
+    const line = { id: BigInt(1), settlement_id: BigInt(1), recipient_role: 'artist', amount_cents: BigInt(4500) };
+    mockPrisma.settlement_lines.findMany.mockResolvedValueOnce([line]);
+    const result = await svc.getSettlementLines(1);
+    expect(result).toHaveLength(1);
+    const arg = mockPrisma.settlement_lines.findMany.mock.calls[0][0] as any;
+    expect(arg.where.settlement_id).toEqual(BigInt(1));
+  });
+
+  it('SS14: getSettlementLines — empty + not found: throws NotFoundException', async () => {
+    mockPrisma.settlement_lines.findMany.mockResolvedValueOnce([]);
+    mockPrisma.settlements.findUnique.mockResolvedValueOnce(null);
+    await expect(svc.getSettlementLines(999)).rejects.toThrow(NotFoundException);
+  });
+
+  it('SS15: getLedgerEntries — queries ledger_entries by settlement_id', async () => {
+    const entry = { id: BigInt(1), settlement_id: BigInt(1), amount_cents: BigInt(4500), direction: 'credit' };
+    mockPrisma.ledger_entries.findMany.mockResolvedValueOnce([entry]);
+    const result = await svc.getLedgerEntries(1);
+    expect(result).toHaveLength(1);
+    const arg = mockPrisma.ledger_entries.findMany.mock.calls[0][0] as any;
+    expect(arg.where.settlement_id).toEqual(BigInt(1));
+  });
+
+  it('SS16: getTransferOutbox — returns outbox rows for settlement lines', async () => {
+    mockPrisma.settlement_lines.findMany.mockResolvedValueOnce([{ id: BigInt(1) }, { id: BigInt(2) }]);
+    const outbox = [{ id: BigInt(1), settlement_line_id: BigInt(1), status: 'pending' }];
+    mockPrisma.transfer_outbox.findMany.mockResolvedValueOnce(outbox);
+    const result = await svc.getTransferOutbox(1);
+    expect(result).toHaveLength(1);
+    const arg = mockPrisma.transfer_outbox.findMany.mock.calls[0][0] as any;
+    expect(arg.where.settlement_line_id.in).toEqual([BigInt(1), BigInt(2)]);
   });
 
   it('SS12: P2002 unique violation handled idempotently', async () => {
