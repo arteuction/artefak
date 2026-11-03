@@ -2,7 +2,8 @@
  * Phase 0.3U — Misc stub controllers tests
  *
  * EV1  GET  /evidence               — 200
- * EV2  POST /evidence/1/verify      — 200 { verified: true }
+ * EV2  GET  /evidence/1            — 200 (show)
+ * EV3  POST /evidence/1/verify      — 200 { verified: true }
  * AC1  GET  /api-clients            — 200
  * AC2  POST /api-clients            — 201
  * AC3  DELETE /api-clients/1        — 200 { deleted: true }
@@ -45,7 +46,12 @@ describe('Phase 0.3U — Misc stub controllers', () => {
     expect(body).toHaveProperty('data');
   });
 
-  it('EV2: POST /evidence/1/verify returns 200 with verified flag', async () => {
+  it('EV2: GET /evidence/1 returns 200 (show)', async () => {
+    const res = await (app as NestFastifyApplication).inject({ method: 'GET', url: '/api/v1/evidence/1' });
+    expect(res.statusCode).toBe(200);
+  });
+
+  it('EV3: POST /evidence/1/verify returns 200 with verified flag', async () => {
     const res = await (app as NestFastifyApplication).inject({ method: 'POST', url: '/api/v1/evidence/1/verify', payload: {} });
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.payload);
