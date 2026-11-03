@@ -5,8 +5,10 @@
  * IP2  GET /impact-projects        — list (200)
  * IP3  GET /impact-projects/:id    — get one (200)
  * IP4  GET /impact-projects/999    — 404
- * IP5  POST /impact-projects       — 201 with created project
- * IP6  PATCH /impact-projects/:id  — 200 with updated project
+ * IP5  POST /impact-projects                  — 201 with created project
+ * IP6  PATCH /impact-projects/:id             — 200 with updated project
+ * IP7  GET  /impact-projects/:id/evidence     — 200 (inline stub)
+ * IP8  POST /impact-projects/:id/evidence     — 201 (inline stub)
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
@@ -100,5 +102,23 @@ describe('Phase 0.3O — ImpactProject controller', () => {
     expect(res.statusCode).toBe(200);
     const resBody = JSON.parse(res.payload);
     expect(resBody).toHaveProperty('status', 'funded');
+  });
+
+  it('IP7: GET /impact-projects/:id/evidence returns 200 with data array (inline stub)', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/v1/impact-projects/1/evidence' });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body).toHaveProperty('data');
+    expect(Array.isArray(body.data)).toBe(true);
+  });
+
+  it('IP8: POST /impact-projects/:id/evidence returns 201 (inline stub)', async () => {
+    const res = await app.inject({
+      method: 'POST', url: '/api/v1/impact-projects/1/evidence',
+      payload: { type: 'photo', url: 'https://example.com/photo.jpg' },
+    });
+    expect(res.statusCode).toBe(201);
+    const body = JSON.parse(res.payload);
+    expect(body).toHaveProperty('id', 1);
   });
 });
