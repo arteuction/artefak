@@ -18,8 +18,8 @@ NestJS 12 + Prisma 7 has reached the point where the core domain layer (auctions
 
 | Metric | Count |
 |--------|-------|
-| Test suites | 79 passed, 6 skipped, 0 failed |
-| Tests | 707 passed, 83 skipped, 0 failed |
+| Test suites | 82 passed, 6 skipped, 0 failed |
+| Tests | 736 passed, 83 skipped, 0 failed |
 | Exit code | 0 |
 
 _Run performed from commit `2fa80a23` (2026-11-03, full background run)._
