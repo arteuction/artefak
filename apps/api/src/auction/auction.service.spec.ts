@@ -7,6 +7,13 @@
  * AU4  getAuction by slug — found
  * AU5  getAuction — not found: throws NotFoundException
  * AU6  health — db connected: returns status ok
+ * AU7  getAuctionItem — found
+ * AU8  getAuctionItem — item not found: throws NotFoundException
+ * AU9  listBidsForItem — returns bids
+ * AU10 getBidHistory — returns history
+ * AU11 shipItem — updates fulfillment_status shipped
+ * AU12 confirmDelivery — updates fulfillment_status delivered
+ * AU13 health — db error: returns status degraded
  */
 
 import { jest } from '@jest/globals';
@@ -78,5 +85,55 @@ describe('Phase 0.3V — AuctionService', () => {
     const result = await svc.health();
     expect(result.status).toBe('ok');
     expect(result.db).toBe('connected');
+  });
+
+  it('AU7: getAuctionItem — found', async () => {
+    mockPrisma.auction.findUnique.mockResolvedValueOnce(STUB_AUCTION);
+    const item = { id: 1, auction_id: 1, art_lots: null };
+    mockPrisma.auctionItem.findFirst.mockResolvedValueOnce(item);
+    const result = await svc.getAuctionItem('1', 1);
+    expect(result).toBe(item);
+  });
+
+  it('AU8: getAuctionItem — item not found: throws NotFoundException', async () => {
+    mockPrisma.auction.findUnique.mockResolvedValueOnce(STUB_AUCTION);
+    mockPrisma.auctionItem.findFirst.mockResolvedValueOnce(null);
+    await expect(svc.getAuctionItem('1', 99)).rejects.toThrow(NotFoundException);
+  });
+
+  it('AU9: listBidsForItem — returns bids', async () => {
+    mockPrisma.auction.findUnique.mockResolvedValueOnce(STUB_AUCTION);
+    mockPrisma.auctionItem.findFirst.mockResolvedValueOnce({ id: BigInt(1), auction_id: 1 });
+    mockPrisma.bid.findMany.mockResolvedValueOnce([{ id: BigInt(1), amount_cents: BigInt(5000) }]);
+    const result = await svc.listBidsForItem('1', 1);
+    expect(result).toHaveLength(1);
+  });
+
+  it('AU10: getBidHistory — returns history', async () => {
+    mockPrisma.auctionItem.findFirst.mockResolvedValueOnce({ id: BigInt(1) });
+    mockPrisma.bid.findMany.mockResolvedValueOnce([{ id: BigInt(1) }, { id: BigInt(2) }]);
+    const result = await svc.getBidHistory(1);
+    expect(result).toHaveLength(2);
+  });
+
+  it('AU11: shipItem — updates fulfillment_status shipped', async () => {
+    mockPrisma.auctionItem.findFirst.mockResolvedValueOnce({ id: BigInt(1) });
+    mockPrisma.auctionItem.update.mockResolvedValueOnce({ id: BigInt(1), fulfillment_status: 'shipped' });
+    const result = await svc.shipItem(1);
+    expect(result.fulfillment_status).toBe('shipped');
+  });
+
+  it('AU12: confirmDelivery — updates fulfillment_status delivered', async () => {
+    mockPrisma.auctionItem.findFirst.mockResolvedValueOnce({ id: BigInt(1) });
+    mockPrisma.auctionItem.update.mockResolvedValueOnce({ id: BigInt(1), fulfillment_status: 'delivered' });
+    const result = await svc.confirmDelivery(1);
+    expect(result.fulfillment_status).toBe('delivered');
+  });
+
+  it('AU13: health — db error: returns status degraded', async () => {
+    mockPrisma.$queryRaw.mockRejectedValueOnce(new Error('Connection refused'));
+    const result = await svc.health();
+    expect(result.status).toBe('degraded');
+    expect(result.db).toBe('disconnected');
   });
 });

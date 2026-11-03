@@ -11,6 +11,11 @@ export const ApiResponse = noop;
 export const ApiProperty = noop;
 export const ApiPropertyOptional = noop;
 export const ApiExtraModels = noop;
+export const ApiExcludeController = noop;
+export const ApiExcludeEndpoint = noop;
+export const ApiHeader = noop;
+export const ApiConsumes = noop;
+export const ApiProduces = noop;
 export const DocumentBuilder = class {
   setTitle() { return this; }
   setDescription() { return this; }
