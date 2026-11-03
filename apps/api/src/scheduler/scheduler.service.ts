@@ -311,8 +311,16 @@ export class SchedulerService {
 
           // If no stripe_transfer_id yet, try to find an existing transfer via
           // transfer_group (covers crash after Stripe accepted but before DB write).
+          // Verifies exact external_ref, amount, currency and destination to avoid
+          // blindly accepting any transfer in the group.
           if (!existingTransferId) {
-            const found = await this.stripe.findTransferByGroup(transferGroup);
+            const found = await this.stripe.findTransferByGroup({
+              transferGroup,
+              externalRef,
+              amountCents: Number(entry.amount_cents),
+              currency: entry.currency,
+              destination: stripeAccount,
+            });
             if (found) {
               this.logger.log(`transfer_outbox ${entry.id}: found orphaned Stripe transfer ${found.transfer_id} via transfer_group`);
               await this.prisma.$executeRaw`
