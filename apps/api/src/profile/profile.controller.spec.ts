@@ -1,9 +1,24 @@
 /**
  * Phase 0.3F — Profile controller integration tests
  *
- * Routes covered:
- *   GET /api/v1/me        — authenticated user profile (existing guard test covers 401/403)
- *   GET /api/v1/me/bids   — authenticated user bid history
+ * PF1   GET    /me                   — profile
+ * PF2   GET    /me                   — 401
+ * PF3   GET    /me/bids              — bid history
+ * PF4   GET    /me/bids              — 401
+ * PF5   GET    /me/watchlist         — watchlist
+ * PF6   POST   /me/watchlist         — add entry
+ * PF7   DELETE /me/watchlist/:id     — remove entry
+ * PF8   GET    /me/collections       — collections
+ * PF9   GET    /me/consignments      — consignments
+ * PF10  GET    /me/artworks          — own artworks
+ * PF11  GET    /me/gallery-offers    — gallery offers
+ * PF12  GET    /me/won-items         — won auction items
+ * PF13  GET    /me/artist-profile    — artist profile
+ * PF14  POST   /me/artist-profile    — create artist profile
+ * PF15  PATCH  /me/artist-profile    — update artist profile
+ * PF16  GET    /me/consents          — governance consents
+ * PF17  POST   /me/erasure-request   — GDPR erasure
+ * PF18  GET    /me/export            — GDPR data export
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
@@ -83,6 +98,8 @@ const STUB_CONSIGNMENTS = {
   meta: { current_page: 1, last_page: 1, per_page: 20, total: 1 },
 };
 
+const STUB_ARTIST_PROFILE = { id: 10, user_id: 99, display_name: 'Me Artist', slug: 'me-artist', status: 'approved', created_at: new Date('2026-01-01').toISOString() };
+
 const mockProfileService = {
   getUserBids: async () => STUB_BIDS_RESPONSE,
   getWatchlist: async () => [STUB_WATCHLIST_ENTRY],
@@ -90,6 +107,12 @@ const mockProfileService = {
   removeFromWatchlist: async () => ({ deleted: true }),
   getUserCollections: async () => STUB_COLLECTIONS_RESPONSE,
   getUserConsignments: async () => STUB_CONSIGNMENTS,
+  getMyArtworks: async () => ({ data: [], meta: { current_page: 1, last_page: 1, per_page: 20, total: 0 } }),
+  getGalleryOffers: async () => ({ data: [], meta: { current_page: 1, last_page: 1, per_page: 20, total: 0 } }),
+  getWonItems: async () => ({ data: [], meta: { current_page: 1, last_page: 1, per_page: 20, total: 0 } }),
+  getArtistProfile: async () => STUB_ARTIST_PROFILE,
+  createArtistProfile: async (uid: number, dto: object) => ({ ...STUB_ARTIST_PROFILE, ...dto }),
+  updateArtistProfile: async (_uid: number, dto: object) => ({ ...STUB_ARTIST_PROFILE, ...dto }),
 };
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -227,5 +250,81 @@ describe('Phase 0.3F — Profile controller', () => {
     expect(body).toHaveProperty('meta');
     expect(body.data[0]).toHaveProperty('artworks');
     expect(body.data[0]).toHaveProperty('galleries');
+  });
+
+  it('PF10: GET /me/artworks returns 200 with paginated artworks', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/v1/me/artworks', headers: { authorization: `Bearer ${makeToken()}` } });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body).toHaveProperty('data');
+    expect(body).toHaveProperty('meta');
+  });
+
+  it('PF11: GET /me/gallery-offers returns 200', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/v1/me/gallery-offers', headers: { authorization: `Bearer ${makeToken()}` } });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body).toHaveProperty('data');
+  });
+
+  it('PF12: GET /me/won-items returns 200', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/v1/me/won-items', headers: { authorization: `Bearer ${makeToken()}` } });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body).toHaveProperty('data');
+  });
+
+  it('PF13: GET /me/artist-profile returns 200', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/v1/me/artist-profile', headers: { authorization: `Bearer ${makeToken()}` } });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body).toHaveProperty('display_name', 'Me Artist');
+  });
+
+  it('PF14: POST /me/artist-profile creates profile (201)', async () => {
+    const res = await app.inject({
+      method: 'POST', url: '/api/v1/me/artist-profile',
+      headers: { authorization: `Bearer ${makeToken()}`, 'content-type': 'application/json' },
+      payload: JSON.stringify({ display_name: 'New Artist', slug: 'new-artist' }),
+    });
+    expect(res.statusCode).toBe(201);
+    const body = JSON.parse(res.payload);
+    expect(body).toHaveProperty('display_name', 'New Artist');
+  });
+
+  it('PF15: PATCH /me/artist-profile updates profile (200)', async () => {
+    const res = await app.inject({
+      method: 'PATCH', url: '/api/v1/me/artist-profile',
+      headers: { authorization: `Bearer ${makeToken()}`, 'content-type': 'application/json' },
+      payload: JSON.stringify({ bio: 'Updated bio' }),
+    });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body).toHaveProperty('bio', 'Updated bio');
+  });
+
+  it('PF16: GET /me/consents returns 200 with consents array', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/v1/me/consents', headers: { authorization: `Bearer ${makeToken()}` } });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(Array.isArray(body)).toBe(true);
+  });
+
+  it('PF17: POST /me/erasure-request returns 200 with status', async () => {
+    const res = await app.inject({
+      method: 'POST', url: '/api/v1/me/erasure-request',
+      headers: { authorization: `Bearer ${makeToken()}`, 'content-type': 'application/json' },
+      payload: JSON.stringify({ reason: 'I want my data deleted' }),
+    });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body).toHaveProperty('status', 'scheduled');
+  });
+
+  it('PF18: GET /me/export returns 200 with queued status', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/v1/me/export', headers: { authorization: `Bearer ${makeToken()}` } });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body).toHaveProperty('status', 'queued');
   });
 });
