@@ -17,10 +17,12 @@ import { NestFastifyApplication, FastifyAdapter } from '@nestjs/platform-fastify
 import { INestApplication } from '@nestjs/common';
 import { AdminController } from './admin.controller';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
 
 const token = 'Bearer test';
 
 const mockJwtGuard = { canActivate: () => true };
+const mockRolesGuard = { canActivate: () => true };
 
 describe('Phase 0.3U — AdminController', () => {
   let app: INestApplication;
@@ -31,6 +33,8 @@ describe('Phase 0.3U — AdminController', () => {
     })
       .overrideGuard(JwtAuthGuard)
       .useValue(mockJwtGuard)
+      .overrideGuard(RolesGuard)
+      .useValue(mockRolesGuard)
       .compile();
 
     app = module.createNestApplication<NestFastifyApplication>(new FastifyAdapter());

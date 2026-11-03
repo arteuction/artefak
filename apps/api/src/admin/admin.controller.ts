@@ -5,13 +5,16 @@
 import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, HttpCode } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
 
 const empty = () => ({ data: [], meta: { total: 0, current_page: 1, last_page: 1, per_page: 20 } });
 const stub = (extra?: object) => ({ status: 'ok', ...extra });
 
 @ApiTags('admin')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('admin', 'operator')
 @Controller('admin')
 export class AdminController {
   // Audit log
