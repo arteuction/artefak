@@ -1,9 +1,13 @@
 /**
  * Phase 0.3T — Sell-now offer mutation route tests
  *
- * SN1  POST /sell-now-offers/:id/counter — 200 counter offer
- * SN2  POST /sell-now-offers/:id/accept — 200 accept offer
- * SN3  POST /sell-now-offers/:id/reject — 200 reject offer
+ * SN1  POST /sell-now-offers/:id/counter          — 200 counter offer
+ * SN2  POST /sell-now-offers/:id/accept           — 200 accept offer
+ * SN3  POST /sell-now-offers/:id/reject           — 200 reject offer
+ * SN4  POST /sell-now-offers/:id/checkout-session — 200 checkout URL
+ * SN5  POST /sell-now-offers/:id/confirm-payment  — 200 inline stub
+ * SN6  POST /sell-now-offers/:id/confirm-delivery — 200 inline stub
+ * SN7  POST /sell-now-offers/:id/close            — 200 inline stub
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
@@ -103,5 +107,35 @@ describe('Phase 0.3T — Sell-now offer mutations controller', () => {
     const body = JSON.parse(res.payload);
     expect(body.checkout_url).toBeDefined();
     expect(body.session_id).toBeDefined();
+  });
+
+  it('SN5: POST /sell-now-offers/:id/confirm-payment returns 200', async () => {
+    const res = await app.inject({
+      method: 'POST', url: '/api/v1/sell-now-offers/1/confirm-payment',
+      headers: { authorization: `Bearer ${makeToken()}` },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body.status).toBe('payment_confirmed');
+  });
+
+  it('SN6: POST /sell-now-offers/:id/confirm-delivery returns 200', async () => {
+    const res = await app.inject({
+      method: 'POST', url: '/api/v1/sell-now-offers/1/confirm-delivery',
+      headers: { authorization: `Bearer ${makeToken()}` },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body.status).toBe('delivery_confirmed');
+  });
+
+  it('SN7: POST /sell-now-offers/:id/close returns 200', async () => {
+    const res = await app.inject({
+      method: 'POST', url: '/api/v1/sell-now-offers/1/close',
+      headers: { authorization: `Bearer ${makeToken()}` },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body.status).toBe('closed');
   });
 });

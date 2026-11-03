@@ -1,10 +1,11 @@
 /**
  * Phase 0.3S — Auction-items sub-route tests
  *
- * AI1  GET  /auction-items/:item/bid-history — 200 public
- * AI2  POST /auction-items/:item/re-authorize — 200 auth
- * AI3  POST /auction-items/:item/ship — 200 auth
+ * AI1  GET  /auction-items/:item/bid-history     — 200 public
+ * AI2  POST /auction-items/:item/re-authorize    — 200 auth
+ * AI3  POST /auction-items/:item/ship            — 200 auth
  * AI4  POST /auction-items/:item/confirm-delivery — 200 auth
+ * AI5  POST /auction-items/:item/checkout-session — 201 winner creates checkout URL
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
@@ -37,6 +38,11 @@ const mockService = {
   reAuthorizeItem: async (id: number) => ({ id, payment_re_authorized: true }),
   shipItem: async (id: number) => ({ id, fulfillment_status: 'shipped', updated_at: null }),
   confirmDelivery: async (id: number) => ({ id, fulfillment_status: 'delivered', updated_at: null }),
+  createCheckoutSession: async (_itemId: number, _userId: number, _body: Record<string, unknown>) => ({
+    checkout_url: 'https://checkout.stripe.com/test/cs_test123',
+    amount_cents: 25000,
+    currency: 'eur',
+  }),
 };
 
 import jwt from 'jsonwebtoken';
@@ -98,5 +104,18 @@ describe('Phase 0.3S — Auction items controller', () => {
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.payload);
     expect(body.fulfillment_status).toBe('delivered');
+  });
+
+  it('AI5: POST /auction-items/:item/checkout-session returns 201 with checkout_url', async () => {
+    const res = await app.inject({
+      method: 'POST', url: '/api/v1/auction-items/1/checkout-session',
+      payload: { success_url: 'https://example.com/success', cancel_url: 'https://example.com/cancel' },
+      headers: { authorization: `Bearer ${makeToken('buyer')}`, 'content-type': 'application/json' },
+    });
+    expect(res.statusCode).toBe(201);
+    const body = JSON.parse(res.payload);
+    expect(body).toHaveProperty('checkout_url');
+    expect(body).toHaveProperty('amount_cents', 25000);
+    expect(body).toHaveProperty('currency', 'eur');
   });
 });
