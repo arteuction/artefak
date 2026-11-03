@@ -253,8 +253,17 @@ export class ArtworkService {
     });
   }
 
-  async getSalesHistory(_artworkIdOrSlug: string) {
-    return { data: [] };
+  async getSalesHistory(artworkIdOrSlug: string) {
+    const artwork = await this.getArtwork(artworkIdOrSlug);
+    const data = await this.prisma.ownership_transfers.findMany({
+      where: { art_lots: { artwork_id: artwork.id } },
+      select: {
+        id: true, transfer_price_cents: true, currency: true, channel: true,
+        transferred_at: true, created_at: true,
+      },
+      orderBy: [{ transferred_at: 'desc' }],
+    });
+    return { data };
   }
 
   async presignImage(_artworkIdOrSlug: string, _userId: number, dto: { filename: string; content_type: string }) {

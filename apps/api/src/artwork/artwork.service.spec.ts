@@ -31,7 +31,7 @@
  * AW28 getSdgClaim — not found: throws NotFoundException
  * AW29 reviewSdgClaim — admin approve: sets status approved
  * AW30 reviewSdgClaim — non-admin: throws ForbiddenException
- * AW31 getSalesHistory — returns empty data stub
+ * AW31 getSalesHistory — queries ownership_transfers via art_lots relation
  * AW32 confirmImage — returns confirmed true
  * AW33 listArtLots — returns art lots for artwork
  */
@@ -56,6 +56,7 @@ const mockPrisma = {
   artwork_sdg_claims: { findMany: fn(), findFirst: fn(), create: fn(), update: fn() },
   artwork_revisions: { findMany: fn(), findFirst: fn(), create: fn(), update: fn() },
   art_lots: { findMany: fn() },
+  ownership_transfers: { findMany: fn() },
   $transaction: fn(),
 };
 
@@ -270,9 +271,15 @@ describe('Phase 0.3V — ArtworkService', () => {
     await expect(svc.reviewSdgClaim('test-artwork', '1', 1, 'artist', { approved: true })).rejects.toThrow(ForbiddenException);
   });
 
-  it('AW31: getSalesHistory — returns empty data stub', async () => {
+  it('AW31: getSalesHistory — queries ownership_transfers via art_lots', async () => {
+    mockPrisma.artworks.findFirst.mockResolvedValueOnce(STUB);
+    const transfer = { id: BigInt(1), transfer_price_cents: BigInt(100000), currency: 'EUR', channel: 'auction', transferred_at: new Date(), created_at: new Date() };
+    mockPrisma.ownership_transfers.findMany.mockResolvedValueOnce([transfer]);
     const result = await svc.getSalesHistory('test-artwork');
-    expect(result.data).toEqual([]);
+    expect(mockPrisma.ownership_transfers.findMany).toHaveBeenCalledTimes(1);
+    const arg = mockPrisma.ownership_transfers.findMany.mock.calls[0][0] as any;
+    expect(arg.where.art_lots.artwork_id).toEqual(BigInt(1));
+    expect(result.data).toHaveLength(1);
   });
 
   it('AW32: confirmImage — returns confirmed true', async () => {
