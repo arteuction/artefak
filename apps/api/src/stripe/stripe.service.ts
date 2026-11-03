@@ -71,19 +71,27 @@ export class StripeService {
     currency: string;
     destination: string;
     transfer_group?: string;
+    /** Stable key for at-most-once delivery — required in production */
+    idempotency_key?: string;
     metadata?: Record<string, string>;
   }): Promise<{ transfer_id: string } | null> {
     if (!this.stripe) {
       this.logger.warn('Stripe not configured — skipping transfer');
       return null;
     }
-    const transfer = await this.stripe.transfers.create({
-      amount: params.amount_cents,
-      currency: params.currency.toLowerCase(),
-      destination: params.destination,
-      transfer_group: params.transfer_group,
-      metadata: params.metadata,
-    });
+    const requestOptions = params.idempotency_key
+      ? { idempotencyKey: params.idempotency_key }
+      : undefined;
+    const transfer = await this.stripe.transfers.create(
+      {
+        amount: params.amount_cents,
+        currency: params.currency.toLowerCase(),
+        destination: params.destination,
+        transfer_group: params.transfer_group,
+        metadata: params.metadata,
+      },
+      requestOptions,
+    );
     return { transfer_id: transfer.id };
   }
 }

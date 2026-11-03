@@ -48,7 +48,9 @@ describe('Phase 0.3U — BidGateway', () => {
     gateway.emitBidPlaced(event);
 
     expect(mockServer.to).toHaveBeenCalledWith('lot:42');
-    expect(mockEmit).toHaveBeenCalledWith('bid:placed', event);
+    // bidder_id is stripped before broadcast — public shape only
+    const { bidder_id: _stripped, ...publicEvent } = event;
+    expect(mockEmit).toHaveBeenCalledWith('bid:placed', publicEvent);
   });
 
   it('BG2: emitLotClosed — sends lot:closed to lot room', () => {

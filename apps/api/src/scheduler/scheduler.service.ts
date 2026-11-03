@@ -248,6 +248,12 @@ export class SchedulerService {
             currency: 'eur',
             destination: stripeAccount,
             transfer_group: `outbox:${entry.id}`,
+            // Stable idempotency key: same outbox row + same attempt = same key.
+            // If the process crashes after Stripe accepts but before we write 'completed',
+            // the next retry uses a new attempt number and Stripe creates a new transfer.
+            // Use outbox_id alone (not attempt) if you want true at-most-once:
+            // that requires the outbox row to be locked before the Stripe call.
+            idempotency_key: `transfer_outbox:${entry.id}`,
             metadata: { outbox_id: String(entry.id) },
           });
           this.logger.log(`transfer_outbox ${entry.id}: EUR ${Number(entry.amount_cents) / 100} dispatched to ${stripeAccount}`);

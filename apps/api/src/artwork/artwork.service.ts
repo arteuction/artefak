@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { S3Service } from '../s3/s3.service';
 
@@ -270,8 +270,23 @@ export class ArtworkService {
     return { data };
   }
 
-  async presignImage(artworkIdOrSlug: string, _userId: number, dto: { filename: string; content_type: string }) {
+  private static readonly ALLOWED_IMAGE_TYPES = new Set([
+    'image/jpeg', 'image/png', 'image/webp', 'image/tiff',
+  ]);
+  private static readonly MAX_IMAGE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
+
+  async presignImage(artworkIdOrSlug: string, _userId: number, dto: { filename: string; content_type: string; size_bytes?: number }) {
     await this.getArtwork(artworkIdOrSlug);
+
+    if (!ArtworkService.ALLOWED_IMAGE_TYPES.has(dto.content_type)) {
+      throw new BadRequestException(
+        `Unsupported image type "${dto.content_type}". Allowed: ${[...ArtworkService.ALLOWED_IMAGE_TYPES].join(', ')}`
+      );
+    }
+    if (dto.size_bytes !== undefined && dto.size_bytes > ArtworkService.MAX_IMAGE_SIZE_BYTES) {
+      throw new BadRequestException(`Image exceeds 50 MB limit (received ${dto.size_bytes} bytes)`);
+    }
+
     const ext = dto.filename.split('.').pop() ?? 'bin';
     const key = `artworks/${artworkIdOrSlug}/images/${Date.now()}.${ext}`;
     const upload_url = this.s3.enabled

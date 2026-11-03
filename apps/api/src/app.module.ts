@@ -36,6 +36,7 @@ import { GatewayModule } from './realtime/gateway.module';
 import { HealthController } from './health.controller';
 import { AuctionService } from './auction/auction.service';
 import { PrismaService } from './prisma.service';
+import { ConfigValidationService } from './config-validation.service';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { PrismaService } from './prisma.service';
   providers: [
     AuctionService,
     PrismaService,
+    ConfigValidationService,
     { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
