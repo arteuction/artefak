@@ -5,6 +5,8 @@
  * IP2  GET /impact-projects        — list (200)
  * IP3  GET /impact-projects/:id    — get one (200)
  * IP4  GET /impact-projects/999    — 404
+ * IP5  POST /impact-projects       — 201 with created project
+ * IP6  PATCH /impact-projects/:id  — 200 with updated project
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
@@ -12,6 +14,9 @@ import { NestFastifyApplication, FastifyAdapter } from '@nestjs/platform-fastify
 import { NotFoundException } from '@nestjs/common';
 import { ImpactProjectController } from './impact-project.controller';
 import { ImpactProjectService } from './impact-project.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+
+const mockJwtGuard = { canActivate: () => true };
 
 const STUB_PROJECT = {
   id: 1, title: 'Forest Restoration Fund', slug: 'forest-restoration',
@@ -30,6 +35,8 @@ const mockImpactProjectService = {
     if (id === '999') throw new NotFoundException(`ImpactProject "${id}" not found`);
     return STUB_PROJECT;
   },
+  createProject: async (dto: any) => ({ ...STUB_PROJECT, ...dto }),
+  updateProject: async (_id: string, dto: any) => ({ ...STUB_PROJECT, ...dto, updated_at: new Date().toISOString() }),
 };
 
 describe('Phase 0.3O — ImpactProject controller', () => {
@@ -39,7 +46,10 @@ describe('Phase 0.3O — ImpactProject controller', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ImpactProjectController],
       providers: [{ provide: ImpactProjectService, useValue: mockImpactProjectService }],
-    }).compile();
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue(mockJwtGuard)
+      .compile();
 
     app = module.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
     app.setGlobalPrefix('api/v1');
@@ -75,5 +85,20 @@ describe('Phase 0.3O — ImpactProject controller', () => {
   it('IP4: GET /impact-projects/999 returns 404', async () => {
     const res = await app.inject({ method: 'GET', url: '/api/v1/impact-projects/999' });
     expect(res.statusCode).toBe(404);
+  });
+
+  it('IP5: POST /impact-projects returns 201 with created project', async () => {
+    const body = { title: 'New Project', slug: 'new-project', sdg_number: 13, funding_target_cents: 500000 };
+    const res = await app.inject({ method: 'POST', url: '/api/v1/impact-projects', payload: body });
+    expect(res.statusCode).toBe(201);
+    const resBody = JSON.parse(res.payload);
+    expect(resBody).toHaveProperty('slug', 'new-project');
+  });
+
+  it('IP6: PATCH /impact-projects/1 returns 200 with updated project', async () => {
+    const res = await app.inject({ method: 'PATCH', url: '/api/v1/impact-projects/1', payload: { status: 'funded' } });
+    expect(res.statusCode).toBe(200);
+    const resBody = JSON.parse(res.payload);
+    expect(resBody).toHaveProperty('status', 'funded');
   });
 });
