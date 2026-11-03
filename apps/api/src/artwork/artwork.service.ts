@@ -289,9 +289,24 @@ export class ArtworkService {
     return { confirmed: true, updated_at: new Date().toISOString() };
   }
 
-  async generateDerivatives(_artworkIdOrSlug: string, _userId: number, role: string) {
+  async generateDerivatives(artworkIdOrSlug: string, _userId: number, role: string) {
     if (role !== 'admin' && role !== 'operator') throw new ForbiddenException();
-    // Enqueuing derivatives via BullMQ is a future M2 task; for now mark the artwork as processing
+    const artwork = await this.getArtwork(artworkIdOrSlug);
+    if (!artwork) throw new NotFoundException(`Artwork not found: ${artworkIdOrSlug}`);
+
+    await this.prisma.domain_events.create({
+      data: {
+        event_type: 'artwork.derivatives_requested',
+        aggregate_type: 'artwork',
+        aggregate_id: artwork.id,
+        idempotency_key: `artwork.derivatives_requested:${String(artwork.id)}:${Date.now()}`,
+        payload: JSON.stringify({ artwork_id: Number(artwork.id), slug: artwork.slug }),
+        status: 'pending' as any,
+        attempt: 0,
+        next_attempt_at: new Date(),
+      },
+    });
+
     return { queued: true };
   }
 

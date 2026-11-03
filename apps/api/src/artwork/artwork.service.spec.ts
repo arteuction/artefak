@@ -58,6 +58,7 @@ const mockPrisma = {
   artwork_revisions: { findMany: fn(), findFirst: fn(), create: fn(), update: fn() },
   art_lots: { findMany: fn() },
   ownership_transfers: { findMany: fn() },
+  domain_events: { create: fn() },
   $transaction: fn(),
 };
 
@@ -183,6 +184,18 @@ describe('Phase 0.3V — ArtworkService', () => {
 
   it('AW15: generateDerivatives — non-admin: throws ForbiddenException', async () => {
     await expect(svc.generateDerivatives('test-artwork', 1, 'artist')).rejects.toThrow(ForbiddenException);
+  });
+
+  it('AW15b: generateDerivatives — admin: queues domain event and returns queued:true', async () => {
+    mockPrisma.artworks.findFirst.mockResolvedValueOnce(STUB);
+    mockPrisma.domain_events.create.mockResolvedValueOnce({ id: BigInt(1) });
+    const result = await svc.generateDerivatives('test-artwork', 1, 'admin');
+    expect(result).toEqual({ queued: true });
+    expect(mockPrisma.domain_events.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ event_type: 'artwork.derivatives_requested' }),
+      }),
+    );
   });
 
   it('AW16: listEvidence — returns evidence array', async () => {

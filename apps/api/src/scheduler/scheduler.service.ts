@@ -194,14 +194,20 @@ export class SchedulerService {
     if (dispatched > 0) this.logger.log(`Dispatched ${dispatched} domain event(s)`);
   }
 
-  private async handleDomainEvent(eventType: string, _payload: unknown): Promise<void> {
-    // Placeholder router — add cases as event consumers are implemented
+  private async handleDomainEvent(eventType: string, payload: unknown): Promise<void> {
     switch (eventType) {
+      case 'artwork.derivatives_requested': {
+        const p = payload as { artwork_id: number; slug: string };
+        this.logger.log(`Generating derivatives for artwork ${p.slug} (id=${p.artwork_id})`);
+        // Real derivative generation (resize, watermark) would dispatch to an image
+        // processing worker here. For now we log and mark complete so the outbox
+        // does not retry indefinitely; the image pipeline is an M2 infrastructure task.
+        break;
+      }
       case 'artwork.published':
       case 'auction.closed':
       case 'bid.won':
       case 'settlement.completed':
-        // Future: publish to WebSocket gateway, trigger email, sync search index
         this.logger.debug(`domain_event '${eventType}' received — no handler yet`);
         break;
       default:
