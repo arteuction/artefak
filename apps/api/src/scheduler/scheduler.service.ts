@@ -241,9 +241,19 @@ export class SchedulerService {
           data: { status: 'processing' as any, attempt: entry.attempt + 1, updated_at: new Date() },
         });
 
-        // TODO: call stripe.transfers.create once StripeService exposes it
-        // For now mark done and log (wire up when Stripe Connect is configured)
-        this.logger.log(`transfer_outbox ${entry.id}: EUR ${entry.amount_cents / 100} to account ${(entry.settlement_lines as any)?.stripe_account_id ?? 'unknown'} (pending Stripe Connect setup)`);
+        const stripeAccount = (entry.settlement_lines as any)?.stripe_account_id ?? null;
+        if (stripeAccount) {
+          await this.stripe.createTransfer({
+            amount_cents: Number(entry.amount_cents),
+            currency: 'eur',
+            destination: stripeAccount,
+            transfer_group: `outbox:${entry.id}`,
+            metadata: { outbox_id: String(entry.id) },
+          });
+          this.logger.log(`transfer_outbox ${entry.id}: EUR ${Number(entry.amount_cents) / 100} dispatched to ${stripeAccount}`);
+        } else {
+          this.logger.warn(`transfer_outbox ${entry.id}: no stripe_account_id — skipping transfer`);
+        }
 
         await this.prisma.transfer_outbox.update({
           where: { id: entry.id },

@@ -38,8 +38,8 @@ const mockPrisma = {
   transfer_outbox: { findMany: fn(), update: fn() },
 };
 
-const mockStripe = { enabled: false };
-const mockStripeEnabled = { enabled: true };
+const mockStripe = { enabled: false, createTransfer: jest.fn() as any };
+const mockStripeEnabled = { enabled: true, createTransfer: jest.fn() as any };
 
 describe('Phase 0.5 — SchedulerService', () => {
   let svc: SchedulerService;
@@ -203,7 +203,9 @@ describe('Phase 0.5 — SchedulerService', () => {
     };
     mockPrisma.transfer_outbox.findMany.mockResolvedValueOnce([entry]);
     mockPrisma.transfer_outbox.update.mockResolvedValue(undefined);
+    mockStripeEnabled.createTransfer.mockResolvedValueOnce({ transfer_id: 'tr_test' });
     await svc.dispatchTransferOutbox();
+    expect(mockStripeEnabled.createTransfer).toHaveBeenCalledWith(expect.objectContaining({ destination: 'acct_test' }));
     const updateCalls = mockPrisma.transfer_outbox.update.mock.calls as any[];
     const lastCall = updateCalls[updateCalls.length - 1][0];
     expect(lastCall.data.status).toBe('completed');

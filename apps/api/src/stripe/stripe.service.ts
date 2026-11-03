@@ -65,4 +65,25 @@ export class StripeService {
     if (!this.stripe) throw new Error('Stripe not configured');
     return this.stripe.webhooks.constructEvent(payload, signature, secret);
   }
+
+  async createTransfer(params: {
+    amount_cents: number;
+    currency: string;
+    destination: string;
+    transfer_group?: string;
+    metadata?: Record<string, string>;
+  }): Promise<{ transfer_id: string } | null> {
+    if (!this.stripe) {
+      this.logger.warn('Stripe not configured — skipping transfer');
+      return null;
+    }
+    const transfer = await this.stripe.transfers.create({
+      amount: params.amount_cents,
+      currency: params.currency.toLowerCase(),
+      destination: params.destination,
+      transfer_group: params.transfer_group,
+      metadata: params.metadata,
+    });
+    return { transfer_id: transfer.id };
+  }
 }
