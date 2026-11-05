@@ -359,4 +359,28 @@ describe('Phase 0.3V — ArtworkService', () => {
     const result = await svc.listArtLots('test-artwork');
     expect(result).toHaveLength(1);
   });
+
+  it('AW34: submitArtwork — non-owner non-admin: throws ForbiddenException', async () => {
+    mockPrisma.artworks.findFirst.mockResolvedValueOnce(STUB); // owner_id=10
+    await expect(svc.submitArtwork('test-artwork', 99, 'buyer')).rejects.toThrow(ForbiddenException);
+    expect(mockPrisma.artworks.update).not.toHaveBeenCalled();
+  });
+
+  it('AW35: activateRevision — revision not found: throws NotFoundException', async () => {
+    mockPrisma.artworks.findFirst.mockResolvedValueOnce(STUB);
+    mockPrisma.artwork_revisions.findFirst.mockResolvedValueOnce(null);
+    await expect(svc.activateRevision('test-artwork', 999, 1, 'admin')).rejects.toThrow(NotFoundException);
+    expect(mockPrisma.artwork_revisions.update).not.toHaveBeenCalled();
+  });
+
+  it('AW36: reviewSdgClaim — claim not found: throws NotFoundException', async () => {
+    mockPrisma.artwork_sdg_claims.findFirst.mockResolvedValueOnce(null);
+    await expect(svc.reviewSdgClaim('test-artwork', '999', 1, 'admin', { approved: true })).rejects.toThrow(NotFoundException);
+    expect(mockPrisma.artwork_sdg_claims.update).not.toHaveBeenCalled();
+  });
+
+  it('AW37: getImageUrl — image active but key missing: throws NotFoundException', async () => {
+    mockPrisma.artworks.findFirst.mockResolvedValueOnce({ ...STUB, primary_image_status: 'active', primary_image_key: null });
+    await expect(svc.getImageUrl('test-artwork')).rejects.toThrow(NotFoundException);
+  });
 });
