@@ -10,6 +10,7 @@
  * AA7  createApplication — profile found: creates draft
  * AA8  reviewApplication — approve: sets status approved
  * AA9  reviewApplication — reject: sets status rejected
+ * AA10 reviewApplication — not found: throws NotFoundException
  */
 
 import { jest } from '@jest/globals';
@@ -98,5 +99,11 @@ describe('Phase 0.3V — ArtistApplicationService', () => {
     mockPrisma.artist_applications.update.mockResolvedValueOnce({ ...STUB_APP, status: 'rejected' });
     const result = await svc.reviewApplication(1, 1, 'rejected', 'Insufficient work');
     expect(result.status).toBe('rejected');
+  });
+
+  it('AA10: reviewApplication — not found: throws NotFoundException', async () => {
+    mockPrisma.artist_applications.findFirst.mockResolvedValueOnce(null);
+    await expect(svc.reviewApplication(999, 1, 'approved', 'notes')).rejects.toThrow(NotFoundException);
+    expect(mockPrisma.artist_applications.update).not.toHaveBeenCalled();
   });
 });
