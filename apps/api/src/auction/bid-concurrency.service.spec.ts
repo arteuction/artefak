@@ -8,6 +8,8 @@
  * BC5  placeBid — first bid above starting: accepted
  * BC6  placeBid — second bid outbids first and creates new accepted bid
  * BC7  placeBid — deadlock error is converted to BidRejected
+ * BC8  placeBid — write conflict error is converted to BidRejected
+ * BC9  placeBid — non-serialization DB error rethrows as-is
  */
 
 import { jest } from '@jest/globals';
@@ -131,5 +133,21 @@ describe('Phase 0.3V — BidConcurrencyService', () => {
     mockPrisma.$transaction.mockRejectedValueOnce(new Error('deadlock found when trying to get lock'));
     await expect(svc.placeBid({ auctionItemId: 1, bidderId: 1, amountCents: BigInt(5000) }))
       .rejects.toThrow(BidRejected);
+  });
+
+  it('BC8: placeBid — write conflict error converts to BidRejected', async () => {
+    mockPrisma.$transaction.mockRejectedValueOnce(new Error('write conflict in transaction'));
+    await expect(svc.placeBid({ auctionItemId: 1, bidderId: 1, amountCents: BigInt(5000) }))
+      .rejects.toThrow(BidRejected);
+  });
+
+  it('BC9: placeBid — non-serialization error rethrows as-is', async () => {
+    const dbErr = new Error('connection reset by peer');
+    mockPrisma.$transaction.mockRejectedValueOnce(dbErr);
+    await expect(svc.placeBid({ auctionItemId: 1, bidderId: 1, amountCents: BigInt(5000) }))
+      .rejects.toThrow('connection reset by peer');
+    // must NOT be wrapped in BidRejected
+    await expect(svc.placeBid({ auctionItemId: 1, bidderId: 1, amountCents: BigInt(5000) }).catch(e => e))
+      .resolves.not.toBeInstanceOf(BidRejected);
   });
 });
