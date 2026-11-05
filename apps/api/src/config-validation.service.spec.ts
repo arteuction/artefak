@@ -91,4 +91,9 @@ describe('assertProductionConfig', () => {
   it('CV14 — does not throw in development even with missing vars', () => {
     expect(() => assertProductionConfig({ NODE_ENV: 'development' })).not.toThrow();
   });
+
+  it('CV15 — error when CORS_ORIGINS is empty string in production', () => {
+    const { errors } = validateConfig({ ...VALID_PROD, CORS_ORIGINS: '' });
+    expect(errors.some(e => e.includes('CORS_ORIGINS'))).toBe(true);
+  });
 });
