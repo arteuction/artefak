@@ -16,6 +16,7 @@
  * WH13 checkout.session.completed — auction item not found or wrong status: no-op
  * WH14 charge.refunded — skips already-recorded refund (per-refund idempotency)
  * WH15 checkout.session.completed — sell-now offer not found: no-op
+ * WH16 payment_intent.payment_failed — logs and returns without DB writes
  */
 
 import { jest } from '@jest/globals';
@@ -373,6 +374,23 @@ describe('Phase 0.5 — WebhookHandlerService', () => {
 
     expect(mockSettlementService.settle).not.toHaveBeenCalled();
     expect(mockPrisma.sell_now_offers.update).not.toHaveBeenCalled();
+  });
+
+  it('WH16: payment_intent.payment_failed — no DB writes, resolves cleanly', async () => {
+    const payload = {
+      type: 'payment_intent.payment_failed', id: 'evt_16',
+      data: { object: { id: 'pi_failed_001' } },
+    };
+    mockPrisma.webhook_events.findUnique.mockResolvedValueOnce({
+      ...RECV_EVENT, payload: JSON.stringify(payload),
+    });
+    mockPrisma.webhook_events.update.mockResolvedValue(undefined);
+
+    await svc.processWebhookEvent(1);
+
+    // Only the two lifecycle updates (processing → processed) — no domain DB calls
+    expect(mockPrisma.webhook_events.update).toHaveBeenCalledTimes(2);
+    expect(mockSettlementService.settle).not.toHaveBeenCalled();
   });
 
   it('WH11: resets status to received on error', async () => {

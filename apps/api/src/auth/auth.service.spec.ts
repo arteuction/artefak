@@ -15,12 +15,15 @@
  * AS12 sendVerificationEmail — unverified: returns token
  * AS13 verifyEmail — invalid token: throws BadRequestException
  * AS14 verifyEmail — valid token: returns { verified: true }
+ * AS15 sendVerificationEmail — user not found: throws NotFoundException
+ * AS16 rotateRefreshToken — user deleted after rotation: throws UnauthorizedException
+ * AS17 verifyEmail — expired token: throws BadRequestException
  */
 
 import { jest } from '@jest/globals';
 import { Test, TestingModule } from '@nestjs/testing';
 import {
-  UnauthorizedException, ConflictException, ForbiddenException, BadRequestException,
+  UnauthorizedException, ConflictException, ForbiddenException, BadRequestException, NotFoundException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -150,5 +153,24 @@ describe('Phase 0.3V — AuthService', () => {
     mockPrisma.$executeRaw.mockResolvedValue(1);
     const result = await svc.verifyEmail('valid-token');
     expect(result.verified).toBe(true);
+  });
+
+  it('AS15: sendVerificationEmail — user not found: throws NotFoundException', async () => {
+    mockPrisma.user.findUnique.mockResolvedValueOnce(null);
+    await expect(svc.sendVerificationEmail(999)).rejects.toThrow(NotFoundException);
+  });
+
+  it('AS16: rotateRefreshToken — user deleted after token rotation: throws UnauthorizedException', async () => {
+    mockPrisma.$queryRaw.mockResolvedValueOnce([{
+      id: 1, user_id: 1, revoked_at: null, expires_at: new Date(Date.now() + 60_000),
+    }]);
+    mockPrisma.$executeRaw.mockResolvedValueOnce(1); // revoke used token
+    mockPrisma.user.findUnique.mockResolvedValueOnce(null); // user gone
+    await expect(svc.rotateRefreshToken(1, 'valid-token')).rejects.toThrow(UnauthorizedException);
+  });
+
+  it('AS17: verifyEmail — expired token: throws BadRequestException', async () => {
+    mockPrisma.$queryRaw.mockResolvedValueOnce([{ user_id: 1, expires_at: new Date(Date.now() - 60_000) }]);
+    await expect(svc.verifyEmail('expired-token')).rejects.toThrow(BadRequestException);
   });
 });
