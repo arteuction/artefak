@@ -14,6 +14,8 @@
  * WH11 processWebhookEvent — resets status to received on error
  * WH12 checkout.session.completed — auction item path: settles + marks paid
  * WH13 checkout.session.completed — auction item not found or wrong status: no-op
+ * WH14 charge.refunded — skips already-recorded refund (per-refund idempotency)
+ * WH15 checkout.session.completed — sell-now offer not found: no-op
  */
 
 import { jest } from '@jest/globals';
@@ -329,6 +331,48 @@ describe('Phase 0.5 — WebhookHandlerService', () => {
 
     expect(mockSettlementService.settle).not.toHaveBeenCalled();
     expect(mockPrisma.auctionItem.update).not.toHaveBeenCalled();
+  });
+
+  it('WH14: charge.refunded — skips already-recorded refund (idempotency)', async () => {
+    const payload = {
+      type: 'charge.refunded', id: 'evt_14',
+      data: { object: {
+        id: 'ch_3', payment_intent: 'pi_settled2', amount_captured: 10000,
+        refunds: { data: [{ id: 're_dupe', amount: 500, currency: 'eur', status: 'succeeded', reason: null }] },
+      }},
+    };
+    mockPrisma.webhook_events.findUnique.mockResolvedValueOnce({
+      ...RECV_EVENT, payload: JSON.stringify(payload),
+    });
+    mockPrisma.webhook_events.update.mockResolvedValue(undefined);
+    mockPrisma.settlements.findUnique.mockResolvedValueOnce({ id: BigInt(2) });
+    mockPrisma.refunds.findUnique.mockResolvedValueOnce({ id: BigInt(99) }); // already exists
+
+    await svc.processWebhookEvent(1);
+
+    expect(mockPrisma.refunds.create).not.toHaveBeenCalled();
+    expect(mockPrisma.ledger_entries.create).not.toHaveBeenCalled();
+  });
+
+  it('WH15: checkout.session.completed — sell-now offer not found: no-op', async () => {
+    const payload = {
+      type: 'checkout.session.completed',
+      id: 'evt_15',
+      data: { object: {
+        id: 'cs_ghost', payment_intent: 'pi_ghost',
+        metadata: { sell_now_offer_id: '99' },
+      }},
+    };
+    mockPrisma.webhook_events.findUnique.mockResolvedValueOnce({
+      ...RECV_EVENT, payload: JSON.stringify(payload),
+    });
+    mockPrisma.webhook_events.update.mockResolvedValue(undefined);
+    mockPrisma.sell_now_offers.findFirst.mockResolvedValueOnce(null);
+
+    await svc.processWebhookEvent(1);
+
+    expect(mockSettlementService.settle).not.toHaveBeenCalled();
+    expect(mockPrisma.sell_now_offers.update).not.toHaveBeenCalled();
   });
 
   it('WH11: resets status to received on error', async () => {
