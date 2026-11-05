@@ -30,6 +30,9 @@
  * AS27 openAuction — found: sets status open
  * AS28 listSettlementLines — returns paged result
  * AS29 disburseSettlementLine — unpaid without Stripe: marks paid and returns disbursed:true
+ * AS30 updateAuction — not found: throws NotFoundException
+ * AS31 openAuction — not found: throws NotFoundException
+ * AS32 closeAuction — not found: throws NotFoundException
  */
 
 import { jest } from '@jest/globals';
@@ -261,5 +264,23 @@ describe('Phase 0.6 — AdminService', () => {
     expect(mockPrisma.settlement_lines.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ status: 'paid' }) })
     );
+  });
+
+  it('AS30: updateAuction — not found: throws NotFoundException', async () => {
+    mockPrisma.auction.findUnique.mockResolvedValueOnce(null);
+    await expect(svc.updateAuction(999, { title: 'X' })).rejects.toThrow(NotFoundException);
+    expect(mockPrisma.auction.update).not.toHaveBeenCalled();
+  });
+
+  it('AS31: openAuction — not found: throws NotFoundException', async () => {
+    mockPrisma.auction.findUnique.mockResolvedValueOnce(null);
+    await expect(svc.openAuction(999)).rejects.toThrow(NotFoundException);
+    expect(mockPrisma.auction.update).not.toHaveBeenCalled();
+  });
+
+  it('AS32: closeAuction — not found: throws NotFoundException', async () => {
+    mockPrisma.auction.findUnique.mockResolvedValueOnce(null);
+    await expect(svc.closeAuction(999)).rejects.toThrow(NotFoundException);
+    expect(mockPrisma.auction.update).not.toHaveBeenCalled();
   });
 });
