@@ -17,6 +17,7 @@
  * LS14 grantAccess — returns {granted:true}
  * LS15 unpublishBook — executes raw SQL, returns draft status
  * LS16 publishBook — executes raw SQL, returns published status
+ * LS17 checkoutSession — book not found or not published: throws Error
  */
 
 import { jest } from '@jest/globals';
@@ -165,5 +166,10 @@ describe('Phase 0.3V — LibraryService', () => {
     const result = await svc.publishBook('art-history');
     expect(result.status).toBe('published');
     expect(result.slug).toBe('art-history');
+  });
+
+  it('LS17: checkoutSession — book not found or not published: throws Error', async () => {
+    mockPrisma.book.findFirst.mockResolvedValueOnce(null);
+    await expect(svc.checkoutSession('missing-book', 1)).rejects.toThrow('not found or not published');
   });
 });
