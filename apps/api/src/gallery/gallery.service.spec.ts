@@ -12,8 +12,14 @@
  * GS9  listStaff — delegates to prisma.findMany
  * GS10 addStaff — non-admin: throws ForbiddenException
  * GS11 removeStaff — not found: throws NotFoundException
+ * GS12 getGalleryProfile — returns gallery with staff
+ * GS13 updateStaff — admin: updates staff member
+ * GS14 updateStaff — non-admin: throws ForbiddenException
+ * GS15 listGalleryLots — returns art lots for gallery
  * GS16 addStaff — admin: creates gallery_staff row with correct gallery_id
  * GS17 removeStaff — found: deletes row and returns { deleted: true }
+ * GS18 removeStaff — non-admin: throws ForbiddenException
+ * GS19 updateStaff — staff not found: throws NotFoundException
  */
 
 import { jest } from '@jest/globals';
@@ -162,5 +168,17 @@ describe('Phase 0.3V — GalleryService', () => {
     const arg = mockPrisma.gallery_staff.delete.mock.calls[0][0] as any;
     expect(arg.where.id).toEqual(BigInt(5));
     expect(result.deleted).toBe(true);
+  });
+
+  it('GS18: removeStaff — non-admin: throws ForbiddenException', async () => {
+    await expect(svc.removeStaff('test-gallery', 20, 1, 'buyer')).rejects.toThrow(ForbiddenException);
+    expect(mockPrisma.gallery_staff.delete).not.toHaveBeenCalled();
+  });
+
+  it('GS19: updateStaff — staff not found: throws NotFoundException', async () => {
+    mockPrisma.galleries.findUnique.mockResolvedValueOnce(STUB_GALLERY);
+    mockPrisma.gallery_staff.findFirst.mockResolvedValueOnce(null);
+    await expect(svc.updateStaff('test-gallery', 999, 1, 'admin', { role: 'curator' })).rejects.toThrow(NotFoundException);
+    expect(mockPrisma.gallery_staff.update).not.toHaveBeenCalled();
   });
 });
