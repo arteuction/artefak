@@ -14,6 +14,8 @@
  * DS11 attachEvidence — non-admin: throws ForbiddenException
  * DS12 attachEvidence — admin: creates dispute_escalations row
  * DS13 attachEvidence — admin, dispute not found: throws NotFoundException
+ * DS14 assignDispute — admin, dispute not found: throws NotFoundException
+ * DS15 resolveDispute — admin, dispute not found: throws NotFoundException
  */
 
 import { jest } from '@jest/globals';
@@ -126,5 +128,17 @@ describe('Phase 0.3V — DisputeService', () => {
     mockPrisma.disputes.findFirst.mockResolvedValueOnce(null);
     await expect(svc.attachEvidence(999, 10, 'admin', { reason: 'x' })).rejects.toThrow(NotFoundException);
     expect(mockPrisma.dispute_escalations.create).not.toHaveBeenCalled();
+  });
+
+  it('DS14: assignDispute — admin, dispute not found: throws NotFoundException', async () => {
+    mockPrisma.disputes.findFirst.mockResolvedValueOnce(null);
+    await expect(svc.assignDispute(999, 10, 'admin', 5)).rejects.toThrow(NotFoundException);
+    expect(mockPrisma.disputes.update).not.toHaveBeenCalled();
+  });
+
+  it('DS15: resolveDispute — admin, dispute not found: throws NotFoundException', async () => {
+    mockPrisma.disputes.findFirst.mockResolvedValueOnce(null);
+    await expect(svc.resolveDispute(999, 10, 'admin', { resolution: 'resolved' })).rejects.toThrow(NotFoundException);
+    expect(mockPrisma.disputes.update).not.toHaveBeenCalled();
   });
 });
