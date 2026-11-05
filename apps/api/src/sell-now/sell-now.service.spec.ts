@@ -11,6 +11,11 @@
  * SN8  rejectOffer — found: sets status to rejected
  * SN9  getOffer — found: returns offer
  * SN10 getOffer — not found: throws NotFoundException
+ * SN11 checkoutSession — accepted offer: returns checkout_url
+ * SN12 checkoutSession — offer not found: throws NotFoundException
+ * SN13 counterOffer — zero counter price: throws BadRequestException
+ * SN14 acceptOffer — not found: throws NotFoundException
+ * SN15 rejectOffer — not found: throws NotFoundException
  */
 
 import { jest } from '@jest/globals';
@@ -137,5 +142,19 @@ describe('Phase 0.3V — SellNowService', () => {
   it('SN12: checkoutSession — offer not found: throws NotFoundException', async () => {
     mockPrisma.sell_now_offers.findFirst.mockResolvedValueOnce(null);
     await expect(svc.checkoutSession(999, 10)).rejects.toThrow(NotFoundException);
+  });
+
+  it('SN13: counterOffer — zero counter price: throws BadRequestException', async () => {
+    await expect(svc.counterOffer(1, 1, 0)).rejects.toThrow(BadRequestException);
+  });
+
+  it('SN14: acceptOffer — not found: throws NotFoundException', async () => {
+    mockPrisma.sell_now_offers.findFirst.mockResolvedValueOnce(null);
+    await expect(svc.acceptOffer(999, 1)).rejects.toThrow(NotFoundException);
+  });
+
+  it('SN15: rejectOffer — not found: throws NotFoundException', async () => {
+    mockPrisma.sell_now_offers.findFirst.mockResolvedValueOnce(null);
+    await expect(svc.rejectOffer(999, 1)).rejects.toThrow(NotFoundException);
   });
 });
