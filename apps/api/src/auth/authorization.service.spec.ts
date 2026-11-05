@@ -28,6 +28,8 @@
  * AZ22  disputeView         â€” dispute opener: true, staff: true, other: false
  * AZ23  bookReviewDelete    â€” moderator: true, reviewer own pending: true, reviewer approved: false
  * AZ24  galleryUpdate       â€” staff: true, gallery admin: true, non-member: false
+ * AZ25  sellNowOfferCounter â€” not found: throws NotFoundException
+ * AZ26  sellNowOfferActOnOffer â€” not found: throws NotFoundException
  */
 
 import { jest } from '@jest/globals';
@@ -332,5 +334,15 @@ describe('Phase 0.3U â€” AuthorizationService', () => {
   it('AZ24c: galleryUpdate â€” non-member: false', async () => {
     mockPrisma.gallery_staff.findFirst.mockResolvedValueOnce(null);
     await expect(svc.galleryUpdate(buyer, 1)).resolves.toBe(false);
+  });
+
+  it('AZ25: sellNowOfferCounter â€” offer not found: throws NotFoundException', async () => {
+    mockPrisma.sell_now_offers.findUnique.mockResolvedValueOnce(null);
+    await expect(svc.sellNowOfferCounter(buyer, 999)).rejects.toThrow(NotFoundException);
+  });
+
+  it('AZ26: sellNowOfferActOnOffer â€” offer not found: throws NotFoundException', async () => {
+    mockPrisma.sell_now_offers.findUnique.mockResolvedValueOnce(null);
+    await expect(svc.sellNowOfferActOnOffer(buyer, 999)).rejects.toThrow(NotFoundException);
   });
 });
