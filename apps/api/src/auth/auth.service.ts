@@ -16,6 +16,16 @@ import { AuthenticatedUser, JwtPayload, TokenPair, UserRole } from './auth.types
 const ACCESS_TOKEN_TTL  = 15 * 60;         // 15 minutes
 const REFRESH_TOKEN_TTL = 30 * 24 * 3600;  // 30 days
 
+/**
+ * PHP's password_hash() produces $2y$ prefixed bcrypt hashes.
+ * Node's bcrypt library only accepts $2b$ and silently returns false for $2y$.
+ * This shim normalises the prefix in memory — the stored hash is never modified.
+ * Reference: https://github.com/kelektiv/node.bcrypt.js#readme (compatibility notes)
+ */
+function normalizeBcryptHash(hash: string): string {
+  return hash.startsWith('$2y$') ? '$2b$' + hash.slice(4) : hash;
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -38,7 +48,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const valid = await bcrypt.compare(password, user.password);
+    const valid = await bcrypt.compare(password, normalizeBcryptHash(user.password));
     if (!valid) {
       throw new UnauthorizedException('Invalid credentials');
     }

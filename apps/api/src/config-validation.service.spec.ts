@@ -96,4 +96,10 @@ describe('assertProductionConfig', () => {
     const { errors } = validateConfig({ ...VALID_PROD, CORS_ORIGINS: '' });
     expect(errors.some(e => e.includes('CORS_ORIGINS'))).toBe(true);
   });
+
+  it('CV16 — warning (not error) when APP_URL is missing in production', () => {
+    const { errors, warnings } = validateConfig({ ...VALID_PROD, APP_URL: undefined });
+    expect(errors.filter(e => e.includes('APP_URL'))).toHaveLength(0);
+    expect(warnings.some(w => w.includes('APP_URL'))).toBe(true);
+  });
 });

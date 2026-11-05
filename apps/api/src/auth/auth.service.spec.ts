@@ -18,6 +18,9 @@
  * AS15 sendVerificationEmail — user not found: throws NotFoundException
  * AS16 rotateRefreshToken — user deleted after rotation: throws UnauthorizedException
  * AS17 verifyEmail — expired token: throws BadRequestException
+ * AS18 validateCredentials — PHP $2y$ hash: authenticates correctly (bcrypt normalization)
+ * AS19 validateCredentials — PHP $2y$ hash wrong password: throws UnauthorizedException
+ * AS20 validateCredentials — standard $2b$ hash: still authenticates correctly
  */
 
 import { jest } from '@jest/globals';
@@ -172,5 +175,30 @@ describe('Phase 0.3V — AuthService', () => {
   it('AS17: verifyEmail — expired token: throws BadRequestException', async () => {
     mockPrisma.$queryRaw.mockResolvedValueOnce([{ user_id: 1, expires_at: new Date(Date.now() - 60_000) }]);
     await expect(svc.verifyEmail('expired-token')).rejects.toThrow(BadRequestException);
+  });
+
+  // PHP bcrypt compatibility — $2y$ prefix normalization
+  // PHP's password_hash() produces $2y$ hashes; Node bcrypt requires $2b$.
+  // normalizeBcryptHash() must rewrite the prefix in memory without touching the DB.
+  it('AS18: validateCredentials — PHP $2y$ hash: authenticates correctly', async () => {
+    // Simulate a hash as PHP would store it: take a valid $2b$ hash and swap prefix
+    const phpStyleHash = '$2y$' + HASH.slice(4);
+    mockPrisma.user.findUnique.mockResolvedValueOnce({ ...STUB_USER, password: phpStyleHash });
+    mockPrisma.$executeRaw.mockResolvedValueOnce(1);
+    const result = await svc.validateCredentials('user@test.com', 'password123');
+    expect(result.email).toBe('user@test.com');
+  });
+
+  it('AS19: validateCredentials — PHP $2y$ hash wrong password: throws UnauthorizedException', async () => {
+    const phpStyleHash = '$2y$' + HASH.slice(4);
+    mockPrisma.user.findUnique.mockResolvedValueOnce({ ...STUB_USER, password: phpStyleHash });
+    await expect(svc.validateCredentials('user@test.com', 'wrongpassword')).rejects.toThrow(UnauthorizedException);
+  });
+
+  it('AS20: validateCredentials — standard $2b$ hash: authenticates correctly', async () => {
+    mockPrisma.user.findUnique.mockResolvedValueOnce({ ...STUB_USER, password: HASH });
+    mockPrisma.$executeRaw.mockResolvedValueOnce(1);
+    const result = await svc.validateCredentials('user@test.com', 'password123');
+    expect(result.email).toBe('user@test.com');
   });
 });

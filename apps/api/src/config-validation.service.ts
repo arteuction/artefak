@@ -108,6 +108,8 @@ export function validateConfig(env: NodeJS.ProcessEnv = process.env): { errors: 
       warnings.push('MAIL_HOST is not set — email notifications will be silently dropped');
     if (!env.MEILISEARCH_HOST)
       warnings.push('MEILISEARCH_HOST is not set — search will fall back to SQL LIKE queries');
+    if (!env.APP_URL)
+      warnings.push('APP_URL is not set — Stripe redirect URLs will use the hardcoded fallback https://arteuction.com');
   }
 
   return { errors, warnings };
