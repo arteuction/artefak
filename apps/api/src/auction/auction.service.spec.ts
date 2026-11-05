@@ -18,7 +18,13 @@
  * AU15 reAuthorizeItem — not found: throws NotFoundException
  * AU16 createCheckoutSession — item not found: throws NotFoundException
  * AU17 createCheckoutSession — item not 'won': throws ForbiddenException
- * AU18 createCheckoutSession — winner initiates: returns checkout_url + amount
+ * AU18 createCheckoutSession — winner initiates: returns checkout_url
+ * AU19 listBidsForItem — item not found: throws NotFoundException
+ * AU20 getBidHistory — item not found: throws NotFoundException
+ * AU21 shipItem — item not found: throws NotFoundException
+ * AU22 confirmDelivery — item not found: throws NotFoundException
+ * AU23 createCheckoutSession — wrong user (not winner): throws ForbiddenException
+ * AU24 createCheckoutSession — winning bid missing: throws NotFoundException
  */
 
 import { jest } from '@jest/globals';
@@ -185,5 +191,43 @@ describe('Phase 0.3V — AuctionService', () => {
     expect(result.checkout_url).toBe('https://checkout.stripe.com/test');
     expect(result.amount_cents).toBe(25000);
     expect(result.currency).toBe('eur');
+  });
+
+  it('AU19: listBidsForItem — item not found: throws NotFoundException', async () => {
+    mockPrisma.auction.findUnique.mockResolvedValueOnce(STUB_AUCTION);
+    mockPrisma.auctionItem.findFirst.mockResolvedValueOnce(null);
+    await expect(svc.listBidsForItem('1', 999)).rejects.toThrow(NotFoundException);
+  });
+
+  it('AU20: getBidHistory — item not found: throws NotFoundException', async () => {
+    mockPrisma.auctionItem.findFirst.mockResolvedValueOnce(null);
+    await expect(svc.getBidHistory(999)).rejects.toThrow(NotFoundException);
+  });
+
+  it('AU21: shipItem — item not found: throws NotFoundException', async () => {
+    mockPrisma.auctionItem.findFirst.mockResolvedValueOnce(null);
+    await expect(svc.shipItem(999)).rejects.toThrow(NotFoundException);
+  });
+
+  it('AU22: confirmDelivery — item not found: throws NotFoundException', async () => {
+    mockPrisma.auctionItem.findFirst.mockResolvedValueOnce(null);
+    await expect(svc.confirmDelivery(999)).rejects.toThrow(NotFoundException);
+  });
+
+  it('AU23: createCheckoutSession — wrong user (not winner): throws ForbiddenException', async () => {
+    const { ForbiddenException } = await import('@nestjs/common');
+    mockPrisma.$queryRaw.mockResolvedValueOnce([{
+      item_id: 1, item_status: 'won', winner_user_id: 5, winning_bid_id: 1, bid_amount: 25000, artwork_title: 'Test',
+    }]);
+    await expect(svc.createCheckoutSession(1, 99, { success_url: 's', cancel_url: 'c' }))
+      .rejects.toThrow(ForbiddenException);
+  });
+
+  it('AU24: createCheckoutSession — winning bid missing: throws NotFoundException', async () => {
+    mockPrisma.$queryRaw.mockResolvedValueOnce([{
+      item_id: 1, item_status: 'won', winner_user_id: 1, winning_bid_id: null, bid_amount: null, artwork_title: 'Test',
+    }]);
+    await expect(svc.createCheckoutSession(1, 1, { success_url: 's', cancel_url: 'c' }))
+      .rejects.toThrow(NotFoundException);
   });
 });

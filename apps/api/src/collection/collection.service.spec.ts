@@ -12,7 +12,14 @@
  * CS9  deleteCollection — non-owner: throws ForbiddenException
  * CS10 getCollectionArtworks — queries collection_artworks scoped to collection id
  * CS11 addArtwork — creates collection_artworks row with computed position
- * CS12 removeArtwork — deletes row; throws NotFoundException if artwork not in collection
+ * CS12 removeArtwork — found: deletes row and returns { deleted: true }
+ * CS13 removeArtwork — artwork not in collection: throws NotFoundException
+ * CS14 updateCollection — collection not found: throws NotFoundException
+ * CS15 deleteCollection — collection not found: throws NotFoundException
+ * CS16 addArtwork — collection not found: throws NotFoundException
+ * CS17 addArtwork — non-owner: throws ForbiddenException
+ * CS18 removeArtwork — collection not found: throws NotFoundException
+ * CS19 removeArtwork — non-owner: throws ForbiddenException
  */
 
 import { jest } from '@jest/globals';
@@ -141,5 +148,35 @@ describe('Phase 0.3V — CollectionService', () => {
     mockPrisma.collections.findFirst.mockResolvedValueOnce(STUB);
     mockPrisma.collection_artworks.findFirst.mockResolvedValueOnce(null);
     await expect(svc.removeArtwork('1', 10, 'buyer', 999)).rejects.toThrow(NotFoundException);
+  });
+
+  it('CS14: updateCollection — collection not found: throws NotFoundException', async () => {
+    mockPrisma.collections.findFirst.mockResolvedValueOnce(null);
+    await expect(svc.updateCollection('missing', 10, 'buyer', { title: 'X' })).rejects.toThrow(NotFoundException);
+  });
+
+  it('CS15: deleteCollection — collection not found: throws NotFoundException', async () => {
+    mockPrisma.collections.findFirst.mockResolvedValueOnce(null);
+    await expect(svc.deleteCollection('missing', 10, 'buyer')).rejects.toThrow(NotFoundException);
+  });
+
+  it('CS16: addArtwork — collection not found: throws NotFoundException', async () => {
+    mockPrisma.collections.findFirst.mockResolvedValueOnce(null);
+    await expect(svc.addArtwork('missing', 10, 'buyer', 7)).rejects.toThrow(NotFoundException);
+  });
+
+  it('CS17: addArtwork — non-owner non-admin: throws ForbiddenException', async () => {
+    mockPrisma.collections.findFirst.mockResolvedValueOnce(STUB); // owner_id=10
+    await expect(svc.addArtwork('1', 99, 'buyer', 7)).rejects.toThrow(ForbiddenException);
+  });
+
+  it('CS18: removeArtwork — collection not found: throws NotFoundException', async () => {
+    mockPrisma.collections.findFirst.mockResolvedValueOnce(null);
+    await expect(svc.removeArtwork('missing', 10, 'buyer', 7)).rejects.toThrow(NotFoundException);
+  });
+
+  it('CS19: removeArtwork — non-owner non-admin: throws ForbiddenException', async () => {
+    mockPrisma.collections.findFirst.mockResolvedValueOnce(STUB); // owner_id=10
+    await expect(svc.removeArtwork('1', 99, 'buyer', 7)).rejects.toThrow(ForbiddenException);
   });
 });
