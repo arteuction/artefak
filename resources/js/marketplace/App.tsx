@@ -13,6 +13,7 @@ import ArtworkCreatePage from './pages/artist/ArtworkCreatePage';
 import ArtworkEditPage from './pages/artist/ArtworkEditPage';
 import OfferListPage from './pages/buyer/OfferListPage';
 import ConsignmentListPage from './pages/gallery/ConsignmentListPage';
+import LibraryHomePage from './pages/library/LibraryHomePage';
 import PublicationListPage from './pages/library/PublicationListPage';
 import PublicationDetailPage from './pages/library/PublicationDetailPage';
 import VenueListPage from './pages/metro/VenueListPage';
@@ -42,7 +43,8 @@ export default function App() {
                     <Route path="dashboard/artworks/new" element={<ArtworkCreatePage />} />
                     <Route path="dashboard/artworks/:slug/edit" element={<ArtworkEditPage />} />
                     <Route path="offers" element={<OfferListPage />} />
-                    <Route path="library" element={<PublicationListPage />} />
+                    <Route path="library" element={<LibraryHomePage />} />
+                    <Route path="library/books" element={<PublicationListPage />} />
                     <Route path="library/:slug" element={<PublicationDetailPage />} />
                     <Route path="metro" element={<VenueListPage />} />
                     <Route path="metro/:slug" element={<VenueDetailPage />} />

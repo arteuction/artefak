@@ -1,0 +1,2376 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model User {
+  id                                                          BigInt                    @id @default(autoincrement()) @db.UnsignedBigInt
+  name                                                        String                    @db.VarChar(255)
+  email                                                       String                    @unique(map: "users_email_unique") @db.VarChar(255)
+  role                                                        users_role                @default(buyer)
+  email_verified_at                                           DateTime?                 @db.Timestamp(0)
+  password                                                    String                    @db.VarChar(255)
+  remember_token                                              String?                   @db.VarChar(100)
+  created_at                                                  DateTime?                 @db.Timestamp(0)
+  updated_at                                                  DateTime?                 @updatedAt @db.Timestamp(0)
+  admin_audit_log                                             admin_audit_log[]
+  api_clients                                                 api_clients[]
+  art_lots                                                    art_lots[]
+  artist_applications                                         artist_applications[]
+  artist_profiles_artist_profiles_reviewed_byTousers          artist_profiles[]         @relation("artist_profiles_reviewed_byTousers")
+  artist_profiles_artist_profiles_user_idTousers              artist_profiles?          @relation("artist_profiles_user_idTousers")
+  artmetro_artifact_scans                                     artmetro_artifact_scans[]
+  artmetro_visits                                             artmetro_visits[]
+  artwork_revisions                                           artwork_revisions[]
+  artwork_sdg_claims                                          artwork_sdg_claims[]
+  artworks                                                    artworks[]
+  auction_fulfillments                                        auction_fulfillments[]
+  auction_items                                               AuctionItem[]
+  bids                                                        Bid[]
+  bookAuthors                                                 BookAuthor[]              @relation("BookAuthors")
+  book_entitlements                                           book_entitlements[]
+  book_files                                                  book_files[]
+  book_purchases                                              book_purchases[]
+  ownedBooks                                                  Book[]                    @relation("BookOwner")
+  books_books_reviewed_byTousers                              Book[]                    @relation("books_reviewed_byTousers")
+  collections                                                 collections[]
+  condition_reports                                           condition_reports[]
+  consignments_consignments_consignor_idTousers               consignments[]            @relation("consignments_consignor_idTousers")
+  consignments_consignments_owner_idTousers                   consignments[]            @relation("consignments_owner_idTousers")
+  dispute_escalations_dispute_escalations_assigned_toTousers  dispute_escalations[]     @relation("dispute_escalations_assigned_toTousers")
+  dispute_escalations_dispute_escalations_escalated_byTousers dispute_escalations[]     @relation("dispute_escalations_escalated_byTousers")
+  donations                                                   donations[]
+  gallery_staff_gallery_staff_invited_byTousers               gallery_staff[]           @relation("gallery_staff_invited_byTousers")
+  gallery_staff_gallery_staff_user_idTousers                  gallery_staff[]           @relation("gallery_staff_user_idTousers")
+  impact_evidence                                             impact_evidence[]
+  max_bids                                                    max_bids[]
+  notification_records                                        notification_records[]
+  ownership_transfers_ownership_transfers_from_user_idTousers ownership_transfers[]     @relation("ownership_transfers_from_user_idTousers")
+  ownership_transfers_ownership_transfers_to_user_idTousers   ownership_transfers[]     @relation("ownership_transfers_to_user_idTousers")
+  reserves                                                    reserves[]
+  sell_now_offers                                             sell_now_offers[]
+  settlement_lines                                            settlement_lines[]
+  user_consents                                               user_consents[]
+  watchlist                                                   watchlist[]
+
+  @@map("users")
+}
+
+model Book {
+  id                             BigInt              @id @default(autoincrement()) @db.UnsignedBigInt
+  owner_id                       BigInt              @db.UnsignedBigInt
+  title                          String              @db.VarChar(255)
+  slug                           String              @unique(map: "books_slug_unique") @db.VarChar(255)
+  description                    String?             @db.Text
+  short_description              String?             @db.Text
+  isbn                           String?             @db.VarChar(20)
+  publisher                      String?             @db.VarChar(200)
+  language                       String?             @db.VarChar(10)
+  edition                        String?             @db.VarChar(50)
+  page_count                     Int?                @db.UnsignedSmallInt
+  publication_year               Int?                @db.Year
+  country_origin                 String?             @db.VarChar(60)
+  price_cents                    Int                 @default(0) @db.UnsignedInt
+  currency                       String              @default("EUR") @db.Char(3)
+  is_free                        Boolean             @default(false)
+  preview_pages                  Int                 @default(0) @db.UnsignedSmallInt
+  status                         books_status        @default(draft)
+  reviewed_by                    BigInt?             @db.UnsignedBigInt
+  reviewed_at                    DateTime?           @db.Timestamp(0)
+  review_note                    String?             @db.Text
+  is_featured                    Boolean             @default(false)
+  current_file_version           BigInt?             @db.UnsignedBigInt
+  created_at                     DateTime?           @db.Timestamp(0)
+  updated_at                     DateTime?           @updatedAt @db.Timestamp(0)
+  deleted_at                     DateTime?           @db.Timestamp(0)
+  authors                        BookAuthor[]
+  book_entitlements              book_entitlements[]
+  book_files                     book_files[]
+  book_purchases                 book_purchases[]
+  owner                          User                @relation("BookOwner", fields: [owner_id], references: [id], onUpdate: Restrict, map: "books_owner_id_foreign")
+  users_books_reviewed_byTousers User?               @relation("books_reviewed_byTousers", fields: [reviewed_by], references: [id], onUpdate: Restrict, map: "books_reviewed_by_foreign")
+
+  @@index([isbn], map: "books_isbn_index")
+  @@index([owner_id], map: "books_owner_id_index")
+  @@index([reviewed_by], map: "books_reviewed_by_foreign")
+  @@index([status, is_featured], map: "books_status_is_featured_index")
+  @@map("books")
+}
+
+model BookAuthor {
+  id         BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  book_id    BigInt    @db.UnsignedBigInt
+  author_id  BigInt    @db.UnsignedBigInt
+  share_bps  Int       @db.UnsignedSmallInt
+  sort_order Int       @default(0) @db.UnsignedTinyInt
+  created_at DateTime? @db.Timestamp(0)
+  updated_at DateTime? @updatedAt @db.Timestamp(0)
+  author     User      @relation("BookAuthors", fields: [author_id], references: [id], onUpdate: Restrict, map: "book_authors_author_id_foreign")
+  book       Book      @relation(fields: [book_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "book_authors_book_id_foreign")
+
+  @@unique([book_id, author_id], map: "book_authors_book_id_author_id_unique")
+  @@index([author_id], map: "book_authors_author_id_foreign")
+  @@index([book_id], map: "book_authors_book_id_index")
+  @@map("book_authors")
+}
+
+model Auction {
+  id               BigInt            @id @default(autoincrement()) @db.UnsignedBigInt
+  title            String            @db.VarChar(255)
+  slug             String            @unique(map: "auctions_slug_unique") @db.VarChar(255)
+  venue_id         BigInt?           @db.UnsignedBigInt
+  ruleset_id       BigInt?           @db.UnsignedBigInt
+  starts_at        DateTime          @db.Timestamp(0)
+  ends_at          DateTime          @db.Timestamp(0)
+  status           auctions_status   @default(draft)
+  currency         String            @default("EUR") @db.VarChar(3)
+  description      String?           @db.Text
+  created_at       DateTime?         @db.Timestamp(0)
+  updated_at       DateTime?         @updatedAt @db.Timestamp(0)
+  items            AuctionItem[]
+  auction_rulesets auction_rulesets? @relation(fields: [ruleset_id], references: [id], onUpdate: Restrict, map: "auctions_ruleset_id_foreign")
+  venues           venues?           @relation(fields: [venue_id], references: [id], onUpdate: Restrict, map: "auctions_venue_id_foreign")
+  exhibitions      exhibitions[]
+
+  @@index([ruleset_id], map: "auctions_ruleset_id_foreign")
+  @@index([status, starts_at], map: "auctions_status_starts_at_index")
+  @@index([venue_id], map: "auctions_venue_id_foreign")
+  @@map("auctions")
+}
+
+model AuctionItem {
+  id                                      BigInt                           @id @default(autoincrement()) @db.UnsignedBigInt
+  auction_id                              BigInt                           @db.UnsignedBigInt
+  art_lot_id                              BigInt                           @db.UnsignedBigInt
+  lot_number                              Int                              @db.UnsignedSmallInt
+  bid_increment_cents                     BigInt?                          @db.UnsignedBigInt
+  status                                  auction_items_status             @default(pending)
+  winning_bid_id                          BigInt?                          @db.UnsignedBigInt
+  winner_user_id                          BigInt?                          @db.UnsignedBigInt
+  payment_deadline                        DateTime?                        @db.Timestamp(0)
+  fulfillment_status                      auction_items_fulfillment_status @default(none)
+  created_at                              DateTime?                        @db.Timestamp(0)
+  updated_at                              DateTime?                        @updatedAt @db.Timestamp(0)
+  auction_fulfillments                    auction_fulfillments?
+  art_lots                                art_lots                         @relation(fields: [art_lot_id], references: [id], onUpdate: Restrict, map: "auction_items_art_lot_id_foreign")
+  auction                                 Auction                          @relation(fields: [auction_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "auction_items_auction_id_foreign")
+  users                                   User?                            @relation(fields: [winner_user_id], references: [id], onUpdate: Restrict, map: "auction_items_winner_user_id_foreign")
+  bids_auction_items_winning_bid_idTobids Bid?                             @relation("auction_items_winning_bid_idTobids", fields: [winning_bid_id], references: [id], onUpdate: Restrict, map: "auction_items_winning_bid_id_foreign")
+  bids                                    Bid[]
+  donations                               donations[]
+  impact_events                           impact_events[]
+  max_bids                                max_bids[]
+  ownership_transfers                     ownership_transfers[]
+  reserves                                reserves?
+
+  @@unique([auction_id, art_lot_id], map: "auction_items_auction_id_art_lot_id_unique")
+  @@unique([auction_id, lot_number], map: "auction_items_auction_id_lot_number_unique")
+  @@index([art_lot_id], map: "auction_items_art_lot_id_index")
+  @@index([fulfillment_status], map: "auction_items_fulfillment_status_index")
+  @@index([status], map: "auction_items_status_index")
+  @@index([winner_user_id], map: "auction_items_winner_user_id_foreign")
+  @@index([winning_bid_id], map: "auction_items_winning_bid_id_index")
+  @@map("auction_items")
+}
+
+model Bid {
+  id                                               BigInt               @id @default(autoincrement()) @db.UnsignedBigInt
+  auction_item_id                                  BigInt               @db.UnsignedBigInt
+  user_id                                          BigInt               @db.UnsignedBigInt
+  amount_cents                                     BigInt               @db.UnsignedBigInt
+  status                                           bids_status          @default(pending)
+  stripe_payment_intent_id                         String?              @db.VarChar(100)
+  authorization_expires_at                         DateTime?            @db.Timestamp(0)
+  payment_status                                   bids_payment_status?
+  ip_address                                       String?              @db.VarChar(45)
+  bid_type                                         bids_bid_type        @default(live)
+  max_bid_id                                       BigInt?              @db.UnsignedBigInt
+  created_at                                       DateTime?            @db.Timestamp(0)
+  updated_at                                       DateTime?            @updatedAt @db.Timestamp(0)
+  auction_items_auction_items_winning_bid_idTobids AuctionItem[]        @relation("auction_items_winning_bid_idTobids")
+  auction_item                                     AuctionItem          @relation(fields: [auction_item_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "bids_auction_item_id_foreign")
+  max_bids                                         max_bids?            @relation(fields: [max_bid_id], references: [id], onUpdate: Restrict, map: "bids_max_bid_id_foreign")
+  user                                             User                 @relation(fields: [user_id], references: [id], onUpdate: Restrict, map: "bids_user_id_foreign")
+
+  @@index([auction_item_id, amount_cents], map: "bids_auction_item_id_amount_cents_index")
+  @@index([authorization_expires_at, payment_status], map: "bids_auth_expires_payment_status_index")
+  @@index([max_bid_id], map: "bids_max_bid_id_foreign")
+  @@index([stripe_payment_intent_id], map: "bids_stripe_payment_intent_id_index")
+  @@index([user_id, status], map: "bids_user_id_status_index")
+  @@map("bids")
+}
+
+model activity_log {
+  id                BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  log_name          String?   @db.VarChar(255)
+  description       String    @db.Text
+  subject_type      String?   @db.VarChar(255)
+  subject_id        BigInt?   @db.UnsignedBigInt
+  event             String?   @db.VarChar(255)
+  causer_type       String?   @db.VarChar(255)
+  causer_id         BigInt?   @db.UnsignedBigInt
+  attribute_changes String?   @db.LongText
+  properties        String?   @db.LongText
+  created_at        DateTime? @db.Timestamp(0)
+  updated_at        DateTime? @db.Timestamp(0)
+
+  @@index([log_name], map: "activity_log_log_name_index")
+  @@index([causer_type, causer_id], map: "causer")
+  @@index([subject_type, subject_id], map: "subject")
+}
+
+model admin_audit_log {
+  id           BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  actor_id     BigInt   @db.UnsignedBigInt
+  subject_type String   @db.VarChar(255)
+  subject_id   BigInt   @db.UnsignedBigInt
+  action       String   @db.VarChar(80)
+  payload      String?  @db.LongText
+  created_at   DateTime @default(now()) @db.Timestamp(0)
+  users        User     @relation(fields: [actor_id], references: [id], onUpdate: Restrict, map: "admin_audit_log_actor_id_foreign")
+
+  @@index([action], map: "admin_audit_log_action_index")
+  @@index([actor_id, created_at], map: "admin_audit_log_actor_id_created_at_index")
+  @@index([subject_type, subject_id], map: "admin_audit_log_subject_type_subject_id_index")
+}
+
+model api_clients {
+  id                    BigInt        @id @default(autoincrement()) @db.UnsignedBigInt
+  name                  String        @db.VarChar(255)
+  key_hash              String        @unique(map: "api_clients_key_hash_unique") @db.VarChar(64)
+  key_prefix            String        @db.VarChar(12)
+  user_id               BigInt?       @db.UnsignedBigInt
+  institution_id        BigInt?       @db.UnsignedBigInt
+  scopes                String        @default("[]") @db.LongText
+  rate_limit_per_minute Int?          @db.UnsignedSmallInt
+  is_active             Boolean       @default(true)
+  last_used_at          DateTime?     @db.Timestamp(0)
+  expires_at            DateTime?     @db.Timestamp(0)
+  deleted_at            DateTime?     @db.Timestamp(0)
+  created_at            DateTime?     @db.Timestamp(0)
+  updated_at            DateTime?     @db.Timestamp(0)
+  institutions          institutions? @relation(fields: [institution_id], references: [id], onUpdate: Restrict, map: "api_clients_institution_id_foreign")
+  users                 User?         @relation(fields: [user_id], references: [id], onUpdate: Restrict, map: "api_clients_user_id_foreign")
+
+  @@index([institution_id], map: "api_clients_institution_id_foreign")
+  @@index([is_active], map: "api_clients_is_active_index")
+  @@index([user_id], map: "api_clients_user_id_foreign")
+}
+
+model art_lots {
+  id                  BigInt                @id @default(autoincrement()) @db.UnsignedBigInt
+  artwork_id          BigInt                @db.UnsignedBigInt
+  consignor_id        BigInt?               @db.UnsignedBigInt
+  gallery_id          BigInt?               @db.UnsignedBigInt
+  consignment_id      BigInt?               @db.UnsignedBigInt
+  artwork_revision_id BigInt?               @db.UnsignedBigInt
+  sale_mode           art_lots_sale_mode    @default(auction)
+  status              art_lots_status       @default(draft)
+  reserve_price_cents BigInt?               @db.UnsignedBigInt
+  starting_bid_cents  BigInt?               @db.UnsignedBigInt
+  buy_now_price_cents BigInt?               @db.UnsignedBigInt
+  buy_now_expires_at  DateTime?             @db.Timestamp(0)
+  currency            String                @default("EUR") @db.Char(3)
+  split_profile_key   String                @default("social_pilot_45_45_10") @db.VarChar(64)
+  estimate_low_cents  BigInt?               @db.UnsignedBigInt
+  estimate_high_cents BigInt?               @db.UnsignedBigInt
+  published_at        DateTime?             @db.Timestamp(0)
+  closed_at           DateTime?             @db.Timestamp(0)
+  created_at          DateTime?             @db.Timestamp(0)
+  updated_at          DateTime?             @db.Timestamp(0)
+  artworks            artworks              @relation(fields: [artwork_id], references: [id], onUpdate: Restrict, map: "art_lots_artwork_id_foreign")
+  artwork_revisions   artwork_revisions?    @relation(fields: [artwork_revision_id], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "art_lots_artwork_revision_id_foreign")
+  consignments        consignments?         @relation(fields: [consignment_id], references: [id], onUpdate: Restrict, map: "art_lots_consignment_id_foreign")
+  users               User?                 @relation(fields: [consignor_id], references: [id], onUpdate: Restrict, map: "art_lots_consignor_id_foreign")
+  galleries           galleries?            @relation(fields: [gallery_id], references: [id], onUpdate: Restrict, map: "art_lots_gallery_id_foreign")
+  artmetro_artifacts  artmetro_artifacts[]
+  auction_items       AuctionItem[]
+  donations           donations[]
+  impact_events       impact_events[]
+  ownership_transfers ownership_transfers[]
+  sell_now_offers     sell_now_offers[]
+
+  @@index([artwork_id, status], map: "art_lots_artwork_id_status_index")
+  @@index([artwork_revision_id], map: "art_lots_artwork_revision_id_foreign")
+  @@index([consignment_id], map: "art_lots_consignment_id_foreign")
+  @@index([consignor_id], map: "art_lots_consignor_id_foreign")
+  @@index([gallery_id], map: "art_lots_gallery_id_foreign")
+  @@index([sale_mode], map: "art_lots_sale_mode_index")
+}
+
+model artist_applications {
+  id                BigInt                     @id @default(autoincrement()) @db.UnsignedBigInt
+  artist_profile_id BigInt                     @db.UnsignedBigInt
+  status            artist_applications_status @default(draft)
+  id_document_path  String?                    @db.VarChar(500)
+  portfolio_url     String?                    @db.VarChar(500)
+  motivation        String?                    @db.Text
+  reviewed_by       BigInt?                    @db.UnsignedBigInt
+  reviewed_at       DateTime?                  @db.Timestamp(0)
+  review_note       String?                    @db.Text
+  version           Int                        @default(1) @db.UnsignedSmallInt
+  created_at        DateTime?                  @db.Timestamp(0)
+  updated_at        DateTime?                  @db.Timestamp(0)
+  artist_profiles   artist_profiles            @relation(fields: [artist_profile_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "artist_applications_artist_profile_id_foreign")
+  users             User?                      @relation(fields: [reviewed_by], references: [id], onUpdate: Restrict, map: "artist_applications_reviewed_by_foreign")
+
+  @@index([artist_profile_id, status], map: "artist_applications_artist_profile_id_status_index")
+  @@index([reviewed_by], map: "artist_applications_reviewed_by_foreign")
+  @@index([status], map: "artist_applications_status_index")
+}
+
+model artist_profiles {
+  id                                       BigInt                 @id @default(autoincrement()) @db.UnsignedBigInt
+  user_id                                  BigInt                 @unique(map: "artist_profiles_user_id_unique") @db.UnsignedBigInt
+  display_name                             String                 @db.VarChar(255)
+  slug                                     String                 @unique(map: "artist_profiles_slug_unique") @db.VarChar(255)
+  bio                                      String?                @db.Text
+  website                                  String?                @db.VarChar(500)
+  instagram_handle                         String?                @db.VarChar(60)
+  status                                   artist_profiles_status @default(pending)
+  reviewed_by                              BigInt?                @db.UnsignedBigInt
+  reviewed_at                              DateTime?              @db.Timestamp(0)
+  review_note                              String?                @db.Text
+  terms_accepted_at                        DateTime?              @db.Timestamp(0)
+  terms_version                            String?                @db.VarChar(20)
+  created_at                               DateTime?              @db.Timestamp(0)
+  updated_at                               DateTime?              @db.Timestamp(0)
+  deleted_at                               DateTime?              @db.Timestamp(0)
+  artist_applications                      artist_applications[]
+  users_artist_profiles_reviewed_byTousers User?                  @relation("artist_profiles_reviewed_byTousers", fields: [reviewed_by], references: [id], onUpdate: Restrict, map: "artist_profiles_reviewed_by_foreign")
+  users_artist_profiles_user_idTousers     User                   @relation("artist_profiles_user_idTousers", fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "artist_profiles_user_id_foreign")
+
+  @@index([reviewed_by], map: "artist_profiles_reviewed_by_foreign")
+  @@index([status], map: "artist_profiles_status_index")
+}
+
+model artmetro_artifact_scans {
+  id                 BigInt             @id @default(autoincrement()) @db.UnsignedBigInt
+  artifact_id        BigInt             @db.UnsignedBigInt
+  user_id            BigInt?            @db.UnsignedBigInt
+  referrer           String?            @db.VarChar(500)
+  campaign           String?            @db.VarChar(120)
+  locale             String?            @db.VarChar(10)
+  ip_address         String?            @db.VarChar(45)
+  user_agent         String?            @db.VarChar(500)
+  scanned_at         DateTime           @default(now()) @db.Timestamp(0)
+  artmetro_artifacts artmetro_artifacts @relation(fields: [artifact_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "artmetro_artifact_scans_artifact_id_foreign")
+  users              User?              @relation(fields: [user_id], references: [id], onUpdate: Restrict, map: "artmetro_artifact_scans_user_id_foreign")
+
+  @@index([artifact_id, scanned_at], map: "artmetro_artifact_scans_artifact_id_scanned_at_index")
+  @@index([campaign, scanned_at], map: "artmetro_artifact_scans_campaign_scanned_at_index")
+  @@index([user_id], map: "artmetro_artifact_scans_user_id_foreign")
+}
+
+model artmetro_artifacts {
+  id                      BigInt                    @id @default(autoincrement()) @db.UnsignedBigInt
+  exhibition_id           BigInt                    @db.UnsignedBigInt
+  sellable_type           String?                   @db.VarChar(255)
+  sellable_id             BigInt?                   @db.UnsignedBigInt
+  art_lot_id              BigInt?                   @db.UnsignedBigInt
+  title                   String                    @db.VarChar(255)
+  description             String?                   @db.Text
+  ar_model_url            String?                   @db.VarChar(500)
+  qr_token                String                    @unique(map: "artmetro_artifacts_qr_token_unique") @db.VarChar(64)
+  qr_version              Int                       @default(1) @db.UnsignedTinyInt
+  is_active               Boolean                   @default(true)
+  sort_order              Int                       @default(0) @db.UnsignedSmallInt
+  deleted_at              DateTime?                 @db.Timestamp(0)
+  created_at              DateTime?                 @db.Timestamp(0)
+  updated_at              DateTime?                 @db.Timestamp(0)
+  artmetro_artifact_scans artmetro_artifact_scans[]
+  art_lots                art_lots?                 @relation(fields: [art_lot_id], references: [id], onUpdate: Restrict, map: "artmetro_artifacts_art_lot_id_foreign")
+  exhibitions             exhibitions               @relation(fields: [exhibition_id], references: [id], onUpdate: Restrict, map: "artmetro_artifacts_exhibition_id_foreign")
+  artmetro_visits         artmetro_visits[]
+
+  @@index([art_lot_id], map: "artmetro_artifacts_art_lot_id_foreign")
+  @@index([exhibition_id, is_active, sort_order], map: "artmetro_artifacts_exhibition_id_is_active_sort_order_index")
+  @@index([sellable_type, sellable_id], map: "artmetro_artifacts_sellable_index")
+}
+
+model artmetro_exhibition_sdg {
+  exhibition_id BigInt      @db.UnsignedBigInt
+  sdg_number    Int         @db.UnsignedTinyInt
+  exhibitions   exhibitions @relation(fields: [exhibition_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "artmetro_exhibition_sdg_exhibition_id_foreign")
+
+  @@id([exhibition_id, sdg_number])
+}
+
+model artmetro_route_stops {
+  id              BigInt          @id @default(autoincrement()) @db.UnsignedBigInt
+  route_id        BigInt          @db.UnsignedBigInt
+  venue_id        BigInt          @db.UnsignedBigInt
+  sort_order      Int             @default(0) @db.UnsignedSmallInt
+  notes           String?         @db.Text
+  created_at      DateTime?       @db.Timestamp(0)
+  updated_at      DateTime?       @db.Timestamp(0)
+  artmetro_routes artmetro_routes @relation(fields: [route_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "artmetro_route_stops_route_id_foreign")
+  venues          venues          @relation(fields: [venue_id], references: [id], onUpdate: Restrict, map: "artmetro_route_stops_venue_id_foreign")
+
+  @@unique([route_id, venue_id], map: "artmetro_route_stops_route_id_venue_id_unique")
+  @@index([route_id, sort_order], map: "artmetro_route_stops_route_id_sort_order_index")
+  @@index([venue_id], map: "artmetro_route_stops_venue_id_foreign")
+}
+
+model artmetro_routes {
+  id                   BigInt                     @id @default(autoincrement()) @db.UnsignedBigInt
+  title                String                     @db.VarChar(255)
+  slug                 String                     @unique(map: "artmetro_routes_slug_unique") @db.VarChar(255)
+  description          String?                    @db.Text
+  difficulty           artmetro_routes_difficulty @default(easy)
+  walking_distance_km  Decimal?                   @db.Decimal(5, 2)
+  accessible           Boolean                    @default(false)
+  is_published         Boolean                    @default(false)
+  created_at           DateTime?                  @db.Timestamp(0)
+  updated_at           DateTime?                  @db.Timestamp(0)
+  artmetro_route_stops artmetro_route_stops[]
+
+  @@index([is_published, difficulty], map: "artmetro_routes_is_published_difficulty_index")
+}
+
+model artmetro_visits {
+  id                   BigInt             @id @default(autoincrement()) @db.UnsignedBigInt
+  artifact_id          BigInt             @db.UnsignedBigInt
+  user_id              BigInt?            @db.UnsignedBigInt
+  time_on_page_seconds Int                @default(0) @db.UnsignedSmallInt
+  video_watched        Boolean            @default(false)
+  ar_launched          Boolean            @default(false)
+  bid_clicked          Boolean            @default(false)
+  session_id           String?            @db.VarChar(64)
+  visited_at           DateTime           @default(now()) @db.Timestamp(0)
+  artmetro_artifacts   artmetro_artifacts @relation(fields: [artifact_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "artmetro_visits_artifact_id_foreign")
+  users                User?              @relation(fields: [user_id], references: [id], onUpdate: Restrict, map: "artmetro_visits_user_id_foreign")
+
+  @@index([artifact_id, visited_at], map: "artmetro_visits_artifact_id_visited_at_index")
+  @@index([session_id], map: "artmetro_visits_session_id_index")
+  @@index([user_id], map: "artmetro_visits_user_id_foreign")
+}
+
+model artwork_evidence {
+  id                  BigInt                               @id @default(autoincrement()) @db.UnsignedBigInt
+  artwork_id          BigInt                               @db.UnsignedBigInt
+  type                artwork_evidence_type
+  issuer              String?                              @db.VarChar(200)
+  issued_at           DateTime?                            @db.Date
+  document_path       String?                              @db.VarChar(500)
+  verification_status artwork_evidence_verification_status @default(pending)
+  visibility          artwork_evidence_visibility          @default(restricted)
+  notes               String?                              @db.Text
+  created_at          DateTime?                            @db.Timestamp(0)
+  updated_at          DateTime?                            @db.Timestamp(0)
+  artworks            artworks                             @relation(fields: [artwork_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "artwork_evidence_artwork_id_foreign")
+
+  @@index([artwork_id, type], map: "artwork_evidence_artwork_id_type_index")
+  @@index([artwork_id, visibility], map: "artwork_evidence_artwork_id_visibility_index")
+}
+
+model artwork_revisions {
+  id               BigInt                   @id @default(autoincrement()) @db.UnsignedBigInt
+  artwork_id       BigInt                   @db.UnsignedBigInt
+  version          Int                      @db.UnsignedSmallInt
+  title            String                   @db.VarChar(255)
+  year_created     Int?                     @db.UnsignedSmallInt
+  medium           String?                  @db.VarChar(200)
+  dimensions_notes String?                  @db.VarChar(200)
+  description      String?                  @db.Text
+  edition_info     String?                  @db.VarChar(100)
+  revised_by       BigInt                   @db.UnsignedBigInt
+  reason           artwork_revisions_reason @default(initial)
+  status           artwork_revisions_status @default(draft)
+  effective_from   DateTime?                @db.Timestamp(0)
+  created_at       DateTime?                @db.Timestamp(0)
+  updated_at       DateTime?                @db.Timestamp(0)
+  art_lots         art_lots[]
+  artworks         artworks                 @relation(fields: [artwork_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "artwork_revisions_artwork_id_foreign")
+  users            User                     @relation(fields: [revised_by], references: [id], onUpdate: Restrict, map: "artwork_revisions_revised_by_foreign")
+
+  @@unique([artwork_id, version], map: "artwork_revisions_artwork_id_version_unique")
+  @@index([artwork_id, status], map: "artwork_revisions_artwork_id_status_index")
+  @@index([revised_by], map: "artwork_revisions_revised_by_foreign")
+}
+
+model artwork_sdg_claims {
+  id            BigInt                    @id @default(autoincrement()) @db.UnsignedBigInt
+  artwork_id    BigInt                    @db.UnsignedBigInt
+  sdg_number    Int                       @db.UnsignedTinyInt
+  rationale     String                    @db.Text
+  evidence      String?                   @db.Text
+  status        artwork_sdg_claims_status @default(pending)
+  reviewed_by   BigInt?                   @db.UnsignedBigInt
+  reviewed_at   DateTime?                 @db.Timestamp(0)
+  review_note   String?                   @db.Text
+  created_at    DateTime?                 @db.Timestamp(0)
+  updated_at    DateTime?                 @db.Timestamp(0)
+  artworks      artworks                  @relation(fields: [artwork_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "artwork_sdg_claims_artwork_id_foreign")
+  users         User?                     @relation(fields: [reviewed_by], references: [id], onUpdate: Restrict, map: "artwork_sdg_claims_reviewed_by_foreign")
+  impact_events impact_events[]
+
+  @@unique([artwork_id, sdg_number], map: "artwork_sdg_claims_artwork_id_sdg_number_unique")
+  @@index([artwork_id, status], map: "artwork_sdg_claims_artwork_id_status_index")
+  @@index([reviewed_by], map: "artwork_sdg_claims_reviewed_by_foreign")
+  @@index([status], map: "artwork_sdg_claims_status_index")
+}
+
+model artworks {
+  id                   BigInt                         @id @default(autoincrement()) @db.UnsignedBigInt
+  user_id              BigInt                         @db.UnsignedBigInt
+  title                String                         @db.VarChar(255)
+  slug                 String                         @unique(map: "artworks_slug_unique") @db.VarChar(255)
+  medium               artworks_medium                @default(painting)
+  dimensions           String?                        @db.VarChar(255)
+  year_created         Int?                           @db.Year
+  description          String?                        @db.Text
+  provenance           String?                        @db.VarChar(255)
+  license_spdx         String?                        @db.VarChar(100)
+  resale_royalty_bps   Int?                           @db.UnsignedSmallInt
+  rights_statement     String?                        @db.VarChar(512)
+  is_original          Boolean                        @default(true)
+  edition_number       Int?                           @db.UnsignedSmallInt
+  edition_total        Int?                           @db.UnsignedSmallInt
+  ar_model_url         String?                        @db.VarChar(500)
+  primary_image_key    String?                        @db.VarChar(500)
+  primary_image_status artworks_primary_image_status?
+  image_derivatives    String?                        @db.LongText
+  status               artworks_status                @default(draft)
+  created_at           DateTime?                      @db.Timestamp(0)
+  updated_at           DateTime?                      @db.Timestamp(0)
+  deleted_at           DateTime?                      @db.Timestamp(0)
+  art_lots             art_lots[]
+  artwork_evidence     artwork_evidence[]
+  artwork_revisions    artwork_revisions[]
+  artwork_sdg_claims   artwork_sdg_claims[]
+  users                User                           @relation(fields: [user_id], references: [id], onUpdate: Restrict, map: "artworks_user_id_foreign")
+  collection_artworks  collection_artworks[]
+  condition_reports    condition_reports[]
+  consignments         consignments[]
+  institution_artworks institution_artworks[]
+
+  @@index([user_id, status], map: "artworks_user_id_status_index")
+  @@fulltext([title, description], map: "artworks_fulltext")
+}
+
+model auction_fulfillments {
+  id                   BigInt      @id @default(autoincrement()) @db.UnsignedBigInt
+  auction_item_id      BigInt      @unique(map: "auction_fulfillments_auction_item_id_unique") @db.UnsignedBigInt
+  winner_user_id       BigInt      @db.UnsignedBigInt
+  shipping_name        String      @db.VarChar(200)
+  shipping_line1       String      @db.VarChar(255)
+  shipping_line2       String?     @db.VarChar(255)
+  shipping_city        String      @db.VarChar(100)
+  shipping_postal_code String      @db.VarChar(20)
+  shipping_country     String      @db.Char(2)
+  carrier              String?     @db.VarChar(100)
+  tracking_number      String?     @db.VarChar(200)
+  shipped_at           DateTime?   @db.Timestamp(0)
+  delivered_at         DateTime?   @db.Timestamp(0)
+  notes                String?     @db.Text
+  created_at           DateTime?   @db.Timestamp(0)
+  updated_at           DateTime?   @db.Timestamp(0)
+  auction_items        AuctionItem @relation(fields: [auction_item_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "auction_fulfillments_auction_item_id_foreign")
+  users                User        @relation(fields: [winner_user_id], references: [id], onUpdate: Restrict, map: "auction_fulfillments_winner_user_id_foreign")
+
+  @@index([winner_user_id], map: "auction_fulfillments_winner_user_id_foreign")
+}
+
+model auction_rulesets {
+  id                          BigInt                          @id @default(autoincrement()) @db.UnsignedBigInt
+  name                        String                          @db.VarChar(255)
+  default_bid_increment_cents BigInt                          @default(1000) @db.UnsignedBigInt
+  anti_sniping_seconds        Int                             @default(120) @db.UnsignedSmallInt
+  extension_seconds           Int                             @default(120) @db.UnsignedSmallInt
+  proxy_bid_enabled           Boolean                         @default(false)
+  reserve_enabled             Boolean                         @default(true)
+  counter_offer_enabled       Boolean                         @default(false)
+  seller_approval_required    Boolean                         @default(false)
+  tie_policy                  auction_rulesets_tie_policy     @default(first_wins)
+  max_bid_policy              auction_rulesets_max_bid_policy @default(disabled)
+  created_at                  DateTime?                       @db.Timestamp(0)
+  updated_at                  DateTime?                       @db.Timestamp(0)
+  auctions                    Auction[]
+}
+
+model book_entitlements {
+  id               BigInt                   @id @default(autoincrement()) @db.UnsignedBigInt
+  user_id          BigInt                   @db.UnsignedBigInt
+  book_id          BigInt                   @db.UnsignedBigInt
+  book_purchase_id BigInt?                  @db.UnsignedBigInt
+  source           book_entitlements_source @default(paid)
+  file_version     Int?                     @db.UnsignedSmallInt
+  granted_at       DateTime                 @default(now()) @db.Timestamp(0)
+  revoked_at       DateTime?                @db.Timestamp(0)
+  books            Book                     @relation(fields: [book_id], references: [id], onUpdate: Restrict, map: "book_entitlements_book_id_foreign")
+  book_purchases   book_purchases?          @relation(fields: [book_purchase_id], references: [id], onUpdate: Restrict, map: "book_entitlements_book_purchase_id_foreign")
+  users            User                     @relation(fields: [user_id], references: [id], onUpdate: Restrict, map: "book_entitlements_user_id_foreign")
+
+  @@unique([user_id, book_id, source], map: "book_entitlements_user_id_book_id_source_unique")
+  @@index([book_id, source], map: "book_entitlements_book_id_source_index")
+  @@index([book_purchase_id], map: "book_entitlements_book_purchase_id_foreign")
+  @@index([user_id, book_id, revoked_at], map: "book_entitlements_user_id_book_id_revoked_at_index")
+}
+
+model book_files {
+  id          BigInt            @id @default(autoincrement()) @db.UnsignedBigInt
+  book_id     BigInt            @db.UnsignedBigInt
+  uploaded_by BigInt            @db.UnsignedBigInt
+  version     Int               @default(1) @db.UnsignedSmallInt
+  disk        String            @default("s3") @db.VarChar(20)
+  path        String            @db.VarChar(500)
+  filename    String            @db.VarChar(255)
+  mime        String            @db.VarChar(100)
+  size_bytes  BigInt            @db.UnsignedBigInt
+  sha256      String            @db.Char(64)
+  type        book_files_type   @default(full)
+  status      book_files_status @default(processing)
+  created_at  DateTime          @default(now()) @db.Timestamp(0)
+  books       Book              @relation(fields: [book_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "book_files_book_id_foreign")
+  users       User              @relation(fields: [uploaded_by], references: [id], onUpdate: Restrict, map: "book_files_uploaded_by_foreign")
+
+  @@unique([book_id, type, version], map: "book_files_book_id_type_version_unique")
+  @@index([book_id, type, status], map: "book_files_book_id_type_status_index")
+  @@index([sha256], map: "book_files_sha256_index")
+  @@index([uploaded_by], map: "book_files_uploaded_by_foreign")
+}
+
+model book_purchases {
+  id                         BigInt                @id @default(autoincrement()) @db.UnsignedBigInt
+  buyer_id                   BigInt                @db.UnsignedBigInt
+  book_id                    BigInt                @db.UnsignedBigInt
+  status                     book_purchases_status @default(pending)
+  price_cents                Int                   @db.UnsignedInt
+  currency                   String                @default("EUR") @db.Char(3)
+  gross_cents                Int                   @db.UnsignedInt
+  tax_cents                  Int                   @default(0) @db.UnsignedInt
+  fee_cents                  Int                   @default(0) @db.UnsignedInt
+  split_base_cents           Int                   @db.UnsignedInt
+  profile_key                String                @db.VarChar(60)
+  profile_version            Int                   @db.UnsignedSmallInt
+  author_bps                 Int                   @db.UnsignedSmallInt
+  fund_bps                   Int                   @db.UnsignedSmallInt
+  ops_bps                    Int                   @db.UnsignedSmallInt
+  stripe_checkout_session_id String?               @unique(map: "book_purchases_stripe_checkout_session_id_unique") @db.VarChar(100)
+  stripe_payment_intent_id   String?               @unique(map: "book_purchases_stripe_payment_intent_id_unique") @db.VarChar(100)
+  idempotency_key            String                @unique(map: "book_purchases_idempotency_key_unique") @db.VarChar(100)
+  paid_at                    DateTime?             @db.Timestamp(0)
+  created_at                 DateTime?             @db.Timestamp(0)
+  updated_at                 DateTime?             @db.Timestamp(0)
+  refunded_cents             Int                   @default(0) @db.UnsignedInt
+  book_entitlements          book_entitlements[]
+  books                      Book                  @relation(fields: [book_id], references: [id], onUpdate: Restrict, map: "book_purchases_book_id_foreign")
+  users                      User                  @relation(fields: [buyer_id], references: [id], onUpdate: Restrict, map: "book_purchases_buyer_id_foreign")
+
+  @@index([book_id, status], map: "book_purchases_book_id_status_index")
+  @@index([buyer_id, book_id], map: "book_purchases_buyer_id_book_id_index")
+  @@index([status], map: "book_purchases_status_index")
+}
+
+model cache {
+  key        String @id @db.VarChar(255)
+  value      String @db.MediumText
+  expiration BigInt
+
+  @@index([expiration], map: "cache_expiration_index")
+}
+
+model cache_locks {
+  key        String @id @db.VarChar(255)
+  owner      String @db.VarChar(255)
+  expiration BigInt
+
+  @@index([expiration], map: "cache_locks_expiration_index")
+}
+
+model collection_artworks {
+  id            BigInt      @id @default(autoincrement()) @db.UnsignedBigInt
+  collection_id BigInt      @db.UnsignedBigInt
+  artwork_id    BigInt      @db.UnsignedBigInt
+  position      Int         @default(0) @db.UnsignedSmallInt
+  note          String?     @db.Text
+  created_at    DateTime?   @db.Timestamp(0)
+  updated_at    DateTime?   @db.Timestamp(0)
+  artworks      artworks    @relation(fields: [artwork_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "collection_artworks_artwork_id_foreign")
+  collections   collections @relation(fields: [collection_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "collection_artworks_collection_id_foreign")
+
+  @@unique([collection_id, artwork_id], map: "collection_artworks_unique")
+  @@index([artwork_id], map: "collection_artworks_artwork_id_foreign")
+  @@index([collection_id], map: "collection_artworks_collection_id_index")
+}
+
+model collections {
+  id                  BigInt                @id @default(autoincrement()) @db.UnsignedBigInt
+  owner_id            BigInt                @db.UnsignedBigInt
+  title               String                @db.VarChar(200)
+  slug                String                @unique(map: "collections_slug_unique") @db.VarChar(220)
+  description         String?               @db.Text
+  cover_image_url     String?               @db.VarChar(500)
+  visibility          String                @default("private") @db.VarChar(20)
+  created_at          DateTime?             @db.Timestamp(0)
+  updated_at          DateTime?             @db.Timestamp(0)
+  collection_artworks collection_artworks[]
+  users               User                  @relation(fields: [owner_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "collections_owner_id_foreign")
+
+  @@index([owner_id, visibility], map: "collections_owner_id_visibility_index")
+}
+
+model condition_reports {
+  id                    BigInt                              @id @default(autoincrement()) @db.UnsignedBigInt
+  artwork_id            BigInt                              @db.UnsignedBigInt
+  inspector_id          BigInt?                             @db.UnsignedBigInt
+  version               Int                                 @default(1) @db.UnsignedSmallInt
+  surface               condition_reports_surface           @default(excellent)
+  frame                 condition_reports_frame             @default(none)
+  signature_status      condition_reports_signature_status  @default(not_present)
+  certificate_available Boolean                             @default(false)
+  provenance_status     condition_reports_provenance_status @default(unknown)
+  restoration           condition_reports_restoration       @default(none)
+  notes                 String?                             @db.Text
+  status                condition_reports_status            @default(draft)
+  valid_at              DateTime?                           @db.Timestamp(0)
+  created_at            DateTime?                           @db.Timestamp(0)
+  updated_at            DateTime?                           @db.Timestamp(0)
+  artworks              artworks                            @relation(fields: [artwork_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "condition_reports_artwork_id_foreign")
+  users                 User?                               @relation(fields: [inspector_id], references: [id], onUpdate: Restrict, map: "condition_reports_inspector_id_foreign")
+
+  @@unique([artwork_id, version], map: "condition_reports_artwork_id_version_unique")
+  @@index([artwork_id, status], map: "condition_reports_artwork_id_status_index")
+  @@index([inspector_id], map: "condition_reports_inspector_id_foreign")
+}
+
+model connected_account_payouts {
+  id                BigInt                           @id @default(autoincrement()) @db.UnsignedBigInt
+  stripe_payout_id  String                           @unique(map: "connected_account_payouts_stripe_payout_id_unique") @db.VarChar(64)
+  stripe_account_id String                           @db.VarChar(64)
+  stripe_event_id   String                           @db.VarChar(64)
+  amount_cents      BigInt                           @db.UnsignedBigInt
+  currency          String                           @db.Char(3)
+  status            connected_account_payouts_status
+  failure_code      String?                          @db.VarChar(64)
+  failure_message   String?                          @db.Text
+  arrival_date      DateTime?                        @db.Timestamp(0)
+  created_at        DateTime?                        @db.Timestamp(0)
+  updated_at        DateTime?                        @db.Timestamp(0)
+
+  @@index([stripe_account_id], map: "connected_account_payouts_stripe_account_id_index")
+  @@index([stripe_event_id], map: "connected_account_payouts_stripe_event_id_index")
+}
+
+model consignments {
+  id                                     BigInt              @id @default(autoincrement()) @db.UnsignedBigInt
+  artwork_id                             BigInt              @db.UnsignedBigInt
+  owner_id                               BigInt              @db.UnsignedBigInt
+  consignor_id                           BigInt              @db.UnsignedBigInt
+  gallery_id                             BigInt?             @db.UnsignedBigInt
+  commission_bps                         Int                 @default(0) @db.UnsignedSmallInt
+  status                                 consignments_status @default(draft)
+  starts_at                              DateTime?           @db.Timestamp(0)
+  ends_at                                DateTime?           @db.Timestamp(0)
+  notes                                  String?             @db.Text
+  created_at                             DateTime?           @db.Timestamp(0)
+  updated_at                             DateTime?           @db.Timestamp(0)
+  art_lots                               art_lots[]
+  artworks                               artworks            @relation(fields: [artwork_id], references: [id], onUpdate: Restrict, map: "consignments_artwork_id_foreign")
+  users_consignments_consignor_idTousers User                @relation("consignments_consignor_idTousers", fields: [consignor_id], references: [id], onUpdate: Restrict, map: "consignments_consignor_id_foreign")
+  galleries                              galleries?          @relation(fields: [gallery_id], references: [id], onUpdate: Restrict, map: "consignments_gallery_id_foreign")
+  users_consignments_owner_idTousers     User                @relation("consignments_owner_idTousers", fields: [owner_id], references: [id], onUpdate: Restrict, map: "consignments_owner_id_foreign")
+
+  @@index([artwork_id, status], map: "consignments_artwork_id_status_index")
+  @@index([consignor_id], map: "consignments_consignor_id_index")
+  @@index([gallery_id], map: "consignments_gallery_id_foreign")
+  @@index([owner_id, status], map: "consignments_owner_id_status_index")
+}
+
+model consumer_inbox {
+  id              BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  consumer        String    @db.VarChar(60)
+  domain_event_id BigInt    @db.UnsignedBigInt
+  event_type      String    @db.VarChar(100)
+  processed_at    DateTime  @db.Timestamp(0)
+  result          String?   @db.Text
+  created_at      DateTime? @db.Timestamp(0)
+  updated_at      DateTime? @db.Timestamp(0)
+
+  @@unique([consumer, domain_event_id], map: "inbox_consumer_event_unique")
+  @@index([consumer], map: "consumer_inbox_consumer_index")
+  @@index([domain_event_id], map: "consumer_inbox_domain_event_id_index")
+}
+
+model dispute_escalations {
+  id                                            BigInt                      @id @default(autoincrement()) @db.UnsignedBigInt
+  dispute_id                                    BigInt                      @db.UnsignedBigInt
+  escalated_by                                  BigInt                      @db.UnsignedBigInt
+  assigned_to                                   BigInt?                     @db.UnsignedBigInt
+  level                                         Int                         @default(1) @db.UnsignedTinyInt
+  reason                                        String?                     @db.Text
+  outcome                                       dispute_escalations_outcome @default(pending)
+  outcome_notes                                 String?                     @db.Text
+  resolved_at                                   DateTime?                   @db.Timestamp(0)
+  created_at                                    DateTime?                   @db.Timestamp(0)
+  updated_at                                    DateTime?                   @db.Timestamp(0)
+  users_dispute_escalations_assigned_toTousers  User?                       @relation("dispute_escalations_assigned_toTousers", fields: [assigned_to], references: [id], onUpdate: Restrict, map: "dispute_escalations_assigned_to_foreign")
+  disputes                                      disputes                    @relation(fields: [dispute_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "dispute_escalations_dispute_id_foreign")
+  users_dispute_escalations_escalated_byTousers User                        @relation("dispute_escalations_escalated_byTousers", fields: [escalated_by], references: [id], onUpdate: Restrict, map: "dispute_escalations_escalated_by_foreign")
+
+  @@index([assigned_to], map: "dispute_escalations_assigned_to_foreign")
+  @@index([dispute_id, outcome], map: "dispute_escalations_dispute_id_outcome_index")
+  @@index([escalated_by], map: "dispute_escalations_escalated_by_foreign")
+}
+
+model dispute_evidence {
+  id            BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  dispute_id    BigInt    @db.UnsignedBigInt
+  submitted_by  BigInt    @db.UnsignedBigInt
+  type          String    @db.VarChar(30)
+  document_path String?   @db.VarChar(500)
+  notes         String?   @db.Text
+  created_at    DateTime? @db.Timestamp(0)
+  updated_at    DateTime? @db.Timestamp(0)
+
+  @@index([dispute_id], map: "dispute_evidence_dispute_id_index")
+}
+
+model disputes {
+  id                    BigInt                @id @default(autoincrement()) @db.UnsignedBigInt
+  type                  String                @db.VarChar(40)
+  description           String                @db.Text
+  opened_by             BigInt                @db.UnsignedBigInt
+  art_lot_id            BigInt?               @db.UnsignedBigInt
+  auction_item_id       BigInt?               @db.UnsignedBigInt
+  sell_now_offer_id     BigInt?               @db.UnsignedBigInt
+  ownership_transfer_id BigInt?               @db.UnsignedBigInt
+  assigned_to           BigInt?               @db.UnsignedBigInt
+  status                String                @default("open") @db.VarChar(20)
+  resolution            String?               @db.Text
+  resolved_at           DateTime?             @db.Timestamp(0)
+  resolved_by           BigInt?               @db.UnsignedBigInt
+  created_at            DateTime?             @db.Timestamp(0)
+  updated_at            DateTime?             @db.Timestamp(0)
+  dispute_escalations   dispute_escalations[]
+
+  @@index([art_lot_id], map: "disputes_art_lot_id_index")
+  @@index([assigned_to], map: "disputes_assigned_to_index")
+  @@index([auction_item_id], map: "disputes_auction_item_id_index")
+  @@index([opened_by], map: "disputes_opened_by_index")
+  @@index([status], map: "disputes_status_index")
+}
+
+model domain_events {
+  id                    BigInt               @id @default(autoincrement()) @db.UnsignedBigInt
+  aggregate_type        String               @db.VarChar(100)
+  aggregate_id          BigInt               @db.UnsignedBigInt
+  event_type            String               @db.VarChar(100)
+  event_version         Int                  @default(1) @db.UnsignedTinyInt
+  payload               String               @db.LongText
+  idempotency_key       String               @unique(map: "domain_events_idempotency_key_unique") @db.VarChar(100)
+  status                domain_events_status @default(pending)
+  attempt               Int                  @default(0) @db.UnsignedTinyInt
+  last_error            String?              @db.Text
+  next_attempt_at       DateTime?            @db.Timestamp(0)
+  processing_started_at DateTime?            @db.Timestamp(0)
+  lease_expires_at      DateTime?            @db.DateTime
+  dispatched_at         DateTime?            @db.Timestamp(0)
+  created_at            DateTime?            @db.Timestamp(0)
+  updated_at            DateTime?            @db.Timestamp(0)
+
+  @@index([aggregate_type, aggregate_id], map: "de_aggregate_idx")
+  @@index([status, next_attempt_at], map: "de_dispatch_queue_idx")
+  @@index([status, lease_expires_at], map: "de_lease_recovery_idx")
+  @@index([event_type], map: "domain_events_event_type_index")
+}
+
+model donation_recipients {
+  id                BigInt                                @id @default(autoincrement()) @db.UnsignedBigInt
+  name              String                                @db.VarChar(255)
+  eik               String                                @unique(map: "donation_recipients_eik_unique") @db.VarChar(20)
+  legal_type        donation_recipients_legal_type
+  eligibility_basis donation_recipients_eligibility_basis
+  deduction_bps     Int                                   @db.UnsignedSmallInt
+  stripe_account_id String?                               @db.VarChar(100)
+  status            donation_recipients_status            @default(active)
+  created_at        DateTime?                             @db.Timestamp(0)
+  updated_at        DateTime?                             @db.Timestamp(0)
+  donations         donations[]
+
+  @@index([status, eligibility_basis], map: "donation_recipients_status_eligibility_basis_index")
+}
+
+model donations {
+  id                    BigInt              @id @default(autoincrement()) @db.UnsignedBigInt
+  donation_recipient_id BigInt              @db.UnsignedBigInt
+  impact_project_id     BigInt?             @db.UnsignedBigInt
+  donor_id              BigInt              @db.UnsignedBigInt
+  art_lot_id            BigInt?             @db.UnsignedBigInt
+  auction_item_id       BigInt?             @db.UnsignedBigInt
+  sell_now_offer_id     BigInt?             @db.UnsignedBigInt
+  donated_cents         BigInt              @db.UnsignedBigInt
+  currency              String              @default("EUR") @db.Char(3)
+  eligibility_basis     String              @db.VarChar(60)
+  deduction_bps         Int                 @db.UnsignedSmallInt
+  max_deductible_cents  BigInt              @db.UnsignedBigInt
+  type                  donations_type      @default(donation)
+  status                donations_status    @default(pending)
+  reverses_donation_id  BigInt?             @db.UnsignedBigInt
+  idempotency_key       String              @unique(map: "donations_idempotency_key_unique") @db.VarChar(100)
+  created_at            DateTime?           @db.Timestamp(0)
+  updated_at            DateTime?           @db.Timestamp(0)
+  art_lots              art_lots?           @relation(fields: [art_lot_id], references: [id], onUpdate: Restrict, map: "donations_art_lot_id_foreign")
+  auction_items         AuctionItem?        @relation(fields: [auction_item_id], references: [id], onUpdate: Restrict, map: "donations_auction_item_id_foreign")
+  donation_recipients   donation_recipients @relation(fields: [donation_recipient_id], references: [id], onUpdate: Restrict, map: "donations_donation_recipient_id_foreign")
+  users                 User                @relation(fields: [donor_id], references: [id], onUpdate: Restrict, map: "donations_donor_id_foreign")
+  impact_projects       impact_projects?    @relation(fields: [impact_project_id], references: [id], onUpdate: Restrict, map: "donations_impact_project_id_foreign")
+  donations             donations?          @relation("donationsTodonations", fields: [reverses_donation_id], references: [id], onUpdate: Restrict, map: "donations_reverses_donation_id_foreign")
+  other_donations       donations[]         @relation("donationsTodonations")
+  sell_now_offers       sell_now_offers?    @relation(fields: [sell_now_offer_id], references: [id], onUpdate: Restrict, map: "donations_sell_now_offer_id_foreign")
+  impact_events         impact_events[]
+
+  @@index([art_lot_id, status], map: "donations_art_lot_id_status_index")
+  @@index([auction_item_id], map: "donations_auction_item_id_foreign")
+  @@index([donation_recipient_id, status], map: "donations_donation_recipient_id_status_index")
+  @@index([donor_id, status], map: "donations_donor_id_status_index")
+  @@index([impact_project_id], map: "donations_impact_project_id_index")
+  @@index([reverses_donation_id], map: "donations_reverses_donation_id_foreign")
+  @@index([sell_now_offer_id], map: "donations_sell_now_offer_id_foreign")
+}
+
+model donor_fiscal_years {
+  id                             BigInt                               @id @default(autoincrement()) @db.UnsignedBigInt
+  donor_id                       BigInt                               @db.UnsignedBigInt
+  fiscal_year                    Int                                  @db.SmallInt
+  eligibility_basis              String                               @db.VarChar(60)
+  aggregate_donated_cents        BigInt                               @default(0) @db.UnsignedBigInt
+  aggregate_max_deductible_cents BigInt                               @default(0) @db.UnsignedBigInt
+  donation_count                 Int                                  @default(0) @db.UnsignedInt
+  positive_profit_cents          BigInt?                              @db.UnsignedBigInt
+  profit_ceiling_cents           BigInt?                              @db.UnsignedBigInt
+  recognized_deductible_cents    BigInt?                              @db.UnsignedBigInt
+  assessment_status              donor_fiscal_years_assessment_status @default(pending)
+  assessed_at                    DateTime?                            @db.Timestamp(0)
+  reviewed_at                    DateTime?                            @db.Timestamp(0)
+  reviewed_by_note               String?                              @db.VarChar(500)
+  documentation_status           String                               @default("incomplete") @db.VarChar(20)
+  documentation_submitted_at     DateTime?                            @db.Timestamp(0)
+  created_at                     DateTime?                            @db.Timestamp(0)
+  updated_at                     DateTime?                            @db.Timestamp(0)
+
+  @@unique([donor_id, fiscal_year, eligibility_basis], map: "donor_fy_basis_unique")
+  @@index([donor_id], map: "donor_fiscal_years_donor_id_index")
+  @@index([fiscal_year], map: "donor_fiscal_years_fiscal_year_index")
+}
+
+model evidence {
+  id                  BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  subject_type        String    @db.VarChar(255)
+  subject_id          BigInt    @db.UnsignedBigInt
+  type                String    @db.VarChar(30)
+  subtype             String?   @db.VarChar(60)
+  document_path       String?   @db.VarChar(500)
+  document_mime       String?   @db.VarChar(100)
+  issuer              String?   @db.VarChar(200)
+  issued_at           DateTime? @db.Date
+  verification_status String    @default("pending") @db.VarChar(20)
+  verified_at         DateTime? @db.Timestamp(0)
+  verified_by         BigInt?   @db.UnsignedBigInt
+  impact_project_id   BigInt?   @db.UnsignedBigInt
+  notes               String?   @db.Text
+  created_at          DateTime? @db.Timestamp(0)
+  updated_at          DateTime? @db.Timestamp(0)
+
+  @@index([impact_project_id], map: "evidence_impact_project_id_index")
+  @@index([subject_type, subject_id], map: "evidence_subject_type_subject_id_index")
+  @@index([type], map: "evidence_type_index")
+  @@index([verification_status], map: "evidence_verification_status_index")
+}
+
+model exhibitions {
+  id                      BigInt                    @id @default(autoincrement()) @db.UnsignedBigInt
+  title                   String                    @db.VarChar(255)
+  slug                    String                    @unique(map: "exhibitions_slug_unique") @db.VarChar(255)
+  venue_id                BigInt                    @db.UnsignedBigInt
+  auction_id              BigInt?                   @db.UnsignedBigInt
+  starts_at               DateTime                  @db.Timestamp(0)
+  ends_at                 DateTime                  @db.Timestamp(0)
+  description             String?                   @db.Text
+  is_active               Boolean                   @default(true)
+  created_at              DateTime?                 @db.Timestamp(0)
+  updated_at              DateTime?                 @db.Timestamp(0)
+  artmetro_artifacts      artmetro_artifacts[]
+  artmetro_exhibition_sdg artmetro_exhibition_sdg[]
+  auctions                Auction?                  @relation(fields: [auction_id], references: [id], onUpdate: Restrict, map: "exhibitions_auction_id_foreign")
+  venues                  venues                    @relation(fields: [venue_id], references: [id], onUpdate: Restrict, map: "exhibitions_venue_id_foreign")
+  metro_stop_displays     metro_stop_displays[]
+
+  @@index([auction_id], map: "exhibitions_auction_id_index")
+  @@index([venue_id, starts_at, ends_at], map: "exhibitions_venue_id_starts_at_ends_at_index")
+}
+
+model failed_jobs {
+  id         BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  uuid       String   @unique(map: "failed_jobs_uuid_unique") @db.VarChar(255)
+  connection String   @db.VarChar(255)
+  queue      String   @db.VarChar(255)
+  payload    String   @db.LongText
+  exception  String   @db.LongText
+  failed_at  DateTime @default(now()) @db.Timestamp(0)
+
+  @@index([connection, queue, failed_at], map: "failed_jobs_connection_queue_failed_at_index")
+}
+
+model galleries {
+  id                BigInt            @id @default(autoincrement()) @db.UnsignedBigInt
+  name              String            @db.VarChar(255)
+  slug              String            @unique(map: "galleries_slug_unique") @db.VarChar(255)
+  type              galleries_type    @default(private)
+  venue_id          BigInt?           @db.UnsignedBigInt
+  website           String?           @db.VarChar(255)
+  contact_email     String?           @db.VarChar(255)
+  legal_name        String?           @db.VarChar(255)
+  eik               String?           @db.VarChar(20)
+  stripe_account_id String?           @db.VarChar(100)
+  status            galleries_status  @default(active)
+  created_at        DateTime?         @db.Timestamp(0)
+  updated_at        DateTime?         @db.Timestamp(0)
+  art_lots          art_lots[]
+  consignments      consignments[]
+  venues            venues?           @relation(fields: [venue_id], references: [id], onUpdate: Restrict, map: "galleries_venue_id_foreign")
+  gallery_staff     gallery_staff[]
+  sell_now_offers   sell_now_offers[]
+
+  @@index([status, type], map: "galleries_status_type_index")
+  @@index([venue_id], map: "galleries_venue_id_foreign")
+}
+
+model gallery_staff {
+  id                                    BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  gallery_id                            BigInt    @db.UnsignedBigInt
+  user_id                               BigInt    @db.UnsignedBigInt
+  role                                  String    @db.VarChar(30)
+  status                                String    @default("active") @db.VarChar(20)
+  invited_at                            DateTime? @db.Timestamp(0)
+  accepted_at                           DateTime? @db.Timestamp(0)
+  invited_by                            BigInt?   @db.UnsignedBigInt
+  created_at                            DateTime? @db.Timestamp(0)
+  updated_at                            DateTime? @db.Timestamp(0)
+  galleries                             galleries @relation(fields: [gallery_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "gallery_staff_gallery_id_foreign")
+  users_gallery_staff_invited_byTousers User?     @relation("gallery_staff_invited_byTousers", fields: [invited_by], references: [id], onUpdate: Restrict, map: "gallery_staff_invited_by_foreign")
+  users_gallery_staff_user_idTousers    User      @relation("gallery_staff_user_idTousers", fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "gallery_staff_user_id_foreign")
+
+  @@unique([gallery_id, user_id, role], map: "gallery_staff_role_unique")
+  @@index([gallery_id, status], map: "gallery_staff_gallery_id_status_index")
+  @@index([invited_by], map: "gallery_staff_invited_by_foreign")
+  @@index([user_id, status], map: "gallery_staff_user_id_status_index")
+}
+
+model geo_localities {
+  id                  BigInt             @id @default(autoincrement()) @db.UnsignedBigInt
+  geo_municipality_id BigInt             @db.UnsignedBigInt
+  name                String             @db.VarChar(255)
+  slug                String             @unique(map: "geo_localities_slug_unique") @db.VarChar(255)
+  ekatte              String             @unique(map: "geo_localities_ekatte_unique") @db.VarChar(10)
+  type                String             @default("village") @db.VarChar(20)
+  latitude            Decimal?           @db.Decimal(10, 7)
+  longitude           Decimal?           @db.Decimal(10, 7)
+  created_at          DateTime?          @db.Timestamp(0)
+  updated_at          DateTime?          @db.Timestamp(0)
+  geo_municipalities  geo_municipalities @relation(fields: [geo_municipality_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "geo_localities_geo_municipality_id_foreign")
+  metro_stops         metro_stops[]
+  venues              venues[]
+
+  @@index([geo_municipality_id], map: "geo_localities_geo_municipality_id_index")
+  @@index([latitude, longitude], map: "geo_localities_lat_lng_index")
+}
+
+model geo_municipalities {
+  id             BigInt           @id @default(autoincrement()) @db.UnsignedBigInt
+  geo_region_id  BigInt           @db.UnsignedBigInt
+  name           String           @db.VarChar(255)
+  slug           String           @unique(map: "geo_municipalities_slug_unique") @db.VarChar(255)
+  code           String           @unique(map: "geo_municipalities_code_unique") @db.VarChar(10)
+  latitude       Decimal?         @db.Decimal(10, 7)
+  longitude      Decimal?         @db.Decimal(10, 7)
+  created_at     DateTime?        @db.Timestamp(0)
+  updated_at     DateTime?        @db.Timestamp(0)
+  geo_localities geo_localities[]
+  geo_regions    geo_regions      @relation(fields: [geo_region_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "geo_municipalities_geo_region_id_foreign")
+
+  @@index([geo_region_id], map: "geo_municipalities_geo_region_id_index")
+}
+
+model geo_regions {
+  id                 BigInt               @id @default(autoincrement()) @db.UnsignedBigInt
+  name               String               @db.VarChar(255)
+  slug               String               @unique(map: "geo_regions_slug_unique") @db.VarChar(255)
+  code               String               @unique(map: "geo_regions_code_unique") @db.VarChar(10)
+  latitude           Decimal?             @db.Decimal(10, 7)
+  longitude          Decimal?             @db.Decimal(10, 7)
+  created_at         DateTime?            @db.Timestamp(0)
+  updated_at         DateTime?            @db.Timestamp(0)
+  geo_municipalities geo_municipalities[]
+}
+
+model governance_policies {
+  id             BigInt                   @id @default(autoincrement()) @db.UnsignedBigInt
+  type           governance_policies_type
+  version        String                   @db.VarChar(20)
+  effective_from DateTime                 @db.Date
+  content_url    String?                  @db.Text
+  content_text   String?                  @db.LongText
+  is_active      Boolean                  @default(false)
+  created_at     DateTime?                @db.Timestamp(0)
+  updated_at     DateTime?                @db.Timestamp(0)
+  user_consents  user_consents[]
+
+  @@unique([type, version], map: "governance_policies_type_version_unique")
+  @@index([type, is_active], map: "governance_policies_type_is_active_index")
+}
+
+model impact_events {
+  id                       BigInt               @id @default(autoincrement()) @db.UnsignedBigInt
+  artwork_sdg_claim_id     BigInt               @db.UnsignedBigInt
+  sdg_number               Int                  @db.UnsignedTinyInt
+  metric                   impact_events_metric
+  magnitude                BigInt               @db.UnsignedBigInt
+  currency                 String               @default("EUR") @db.Char(3)
+  type                     impact_events_type   @default(event)
+  art_lot_id               BigInt?              @db.UnsignedBigInt
+  donation_id              BigInt?              @db.UnsignedBigInt
+  auction_item_id          BigInt?              @db.UnsignedBigInt
+  sell_now_offer_id        BigInt?              @db.UnsignedBigInt
+  reverses_impact_event_id BigInt?              @db.UnsignedBigInt
+  idempotency_key          String               @unique(map: "impact_events_idempotency_key_unique") @db.VarChar(100)
+  note                     String?              @db.Text
+  created_at               DateTime?            @db.Timestamp(0)
+  updated_at               DateTime?            @db.Timestamp(0)
+  art_lots                 art_lots?            @relation(fields: [art_lot_id], references: [id], onUpdate: Restrict, map: "impact_events_art_lot_id_foreign")
+  artwork_sdg_claims       artwork_sdg_claims   @relation(fields: [artwork_sdg_claim_id], references: [id], onUpdate: Restrict, map: "impact_events_artwork_sdg_claim_id_foreign")
+  auction_items            AuctionItem?         @relation(fields: [auction_item_id], references: [id], onUpdate: Restrict, map: "impact_events_auction_item_id_foreign")
+  donations                donations?           @relation(fields: [donation_id], references: [id], onUpdate: Restrict, map: "impact_events_donation_id_foreign")
+  impact_events            impact_events?       @relation("impact_eventsToimpact_events", fields: [reverses_impact_event_id], references: [id], onUpdate: Restrict, map: "impact_events_reverses_impact_event_id_foreign")
+  other_impact_events      impact_events[]      @relation("impact_eventsToimpact_events")
+  sell_now_offers          sell_now_offers?     @relation(fields: [sell_now_offer_id], references: [id], onUpdate: Restrict, map: "impact_events_sell_now_offer_id_foreign")
+  impact_evidence          impact_evidence[]
+
+  @@index([art_lot_id], map: "impact_events_art_lot_id_foreign")
+  @@index([artwork_sdg_claim_id, type], map: "impact_events_artwork_sdg_claim_id_type_index")
+  @@index([auction_item_id], map: "impact_events_auction_item_id_foreign")
+  @@index([donation_id], map: "impact_events_donation_id_foreign")
+  @@index([reverses_impact_event_id], map: "impact_events_reverses_impact_event_id_foreign")
+  @@index([sdg_number, metric], map: "impact_events_sdg_number_metric_index")
+  @@index([sell_now_offer_id], map: "impact_events_sell_now_offer_id_foreign")
+}
+
+model impact_evidence {
+  id              BigInt               @id @default(autoincrement()) @db.UnsignedBigInt
+  impact_event_id BigInt               @db.UnsignedBigInt
+  uploaded_by     BigInt               @db.UnsignedBigInt
+  type            impact_evidence_type
+  url             String               @db.VarChar(1024)
+  description     String?              @db.VarChar(512)
+  deleted_at      DateTime?            @db.Timestamp(0)
+  created_at      DateTime?            @db.Timestamp(0)
+  updated_at      DateTime?            @db.Timestamp(0)
+  impact_events   impact_events        @relation(fields: [impact_event_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "impact_evidence_impact_event_id_foreign")
+  users           User                 @relation(fields: [uploaded_by], references: [id], onUpdate: Restrict, map: "impact_evidence_uploaded_by_foreign")
+
+  @@index([impact_event_id], map: "impact_evidence_impact_event_id_index")
+  @@index([uploaded_by], map: "impact_evidence_uploaded_by_foreign")
+}
+
+model impact_project_partners {
+  id                BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  impact_project_id BigInt    @db.UnsignedBigInt
+  organization_name String    @db.VarChar(200)
+  organization_type String?   @db.VarChar(60)
+  role              String    @db.VarChar(30)
+  url               String?   @db.VarChar(500)
+  started_on        DateTime? @db.Date
+  ended_on          DateTime? @db.Date
+  status            String    @default("active") @db.VarChar(20)
+  created_at        DateTime? @db.Timestamp(0)
+  updated_at        DateTime? @db.Timestamp(0)
+
+  @@index([impact_project_id], map: "impact_project_partners_impact_project_id_index")
+  @@index([organization_name], map: "impact_project_partners_organization_name_index")
+}
+
+model impact_projects {
+  id                   BigInt      @id @default(autoincrement()) @db.UnsignedBigInt
+  title                String      @db.VarChar(200)
+  slug                 String      @unique(map: "impact_projects_slug_unique") @db.VarChar(200)
+  description          String?     @db.Text
+  sdg_number           Int?        @db.UnsignedTinyInt
+  funding_target_cents BigInt?     @db.UnsignedBigInt
+  funding_actual_cents BigInt      @default(0) @db.UnsignedBigInt
+  currency             String      @default("EUR") @db.VarChar(3)
+  status               String      @default("planned") @db.VarChar(20)
+  starts_on            DateTime?   @db.Date
+  ends_on              DateTime?   @db.Date
+  partners             String?     @db.LongText
+  created_at           DateTime?   @db.Timestamp(0)
+  updated_at           DateTime?   @db.Timestamp(0)
+  donations            donations[]
+
+  @@index([sdg_number], map: "impact_projects_sdg_number_index")
+  @@index([status], map: "impact_projects_status_index")
+}
+
+model institution_artworks {
+  id             BigInt                            @id @default(autoincrement()) @db.UnsignedBigInt
+  institution_id BigInt                            @db.UnsignedBigInt
+  artwork_id     BigInt                            @db.UnsignedBigInt
+  relationship   institution_artworks_relationship @default(loan)
+  start_date     DateTime?                         @db.Date
+  end_date       DateTime?                         @db.Date
+  notes          String?                           @db.Text
+  created_at     DateTime?                         @db.Timestamp(0)
+  updated_at     DateTime?                         @db.Timestamp(0)
+  artworks       artworks                          @relation(fields: [artwork_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "institution_artworks_artwork_id_foreign")
+  institutions   institutions                      @relation(fields: [institution_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "institution_artworks_institution_id_foreign")
+
+  @@unique([institution_id, artwork_id, relationship, start_date], map: "inst_aw_rel_unique")
+  @@index([artwork_id], map: "institution_artworks_artwork_id_foreign")
+}
+
+model institutions {
+  id                    BigInt                 @id @default(autoincrement()) @db.UnsignedBigInt
+  name                  String                 @db.VarChar(255)
+  slug                  String                 @unique(map: "institutions_slug_unique") @db.VarChar(100)
+  type                  institutions_type      @default(other)
+  country_code          String?                @db.VarChar(2)
+  website_url           String?                @db.VarChar(512)
+  api_endpoint          String?                @db.VarChar(512)
+  europeana_provider_id String?                @unique(map: "institutions_europeana_provider_id_unique") @db.VarChar(255)
+  contact_email         String?                @db.VarChar(255)
+  is_active             Boolean                @default(true)
+  deleted_at            DateTime?              @db.Timestamp(0)
+  created_at            DateTime?              @db.Timestamp(0)
+  updated_at            DateTime?              @db.Timestamp(0)
+  api_clients           api_clients[]
+  institution_artworks  institution_artworks[]
+
+  @@index([is_active], map: "institutions_is_active_index")
+  @@index([type], map: "institutions_type_index")
+}
+
+model job_batches {
+  id             String  @id @db.VarChar(255)
+  name           String  @db.VarChar(255)
+  total_jobs     Int
+  pending_jobs   Int
+  failed_jobs    Int
+  failed_job_ids String  @db.LongText
+  options        String? @db.MediumText
+  cancelled_at   Int?
+  created_at     Int
+  finished_at    Int?
+}
+
+model jobs {
+  id           BigInt @id @default(autoincrement()) @db.UnsignedBigInt
+  queue        String @db.VarChar(255)
+  payload      String @db.LongText
+  attempts     Int    @db.UnsignedSmallInt
+  reserved_at  Int?   @db.UnsignedInt
+  available_at Int    @db.UnsignedInt
+  created_at   Int    @db.UnsignedInt
+
+  @@index([queue], map: "jobs_queue_index")
+}
+
+model ledger_entries {
+  id                 BigInt              @id @default(autoincrement()) @db.UnsignedBigInt
+  settlement_id      BigInt              @db.UnsignedBigInt
+  settlement_line_id BigInt?             @db.UnsignedBigInt
+  refund_line_id     BigInt?             @unique(map: "ledger_refund_line_unique") @db.UnsignedBigInt
+  type               ledger_entries_type
+  amount_cents       Int                 @db.UnsignedInt
+  currency           String              @default("EUR") @db.Char(3)
+  note               String?             @db.VarChar(200)
+  idempotency_key    String              @unique(map: "ledger_idempotency_key_unique") @db.VarChar(255)
+  created_at         DateTime?           @db.Timestamp(0)
+  updated_at         DateTime?           @db.Timestamp(0)
+  refund_lines       refund_lines?       @relation(fields: [refund_line_id], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "ledger_entries_refund_line_id_foreign")
+  settlements        settlements         @relation(fields: [settlement_id], references: [id], onUpdate: Restrict, map: "ledger_entries_settlement_id_foreign")
+  settlement_lines   settlement_lines?   @relation(fields: [settlement_line_id], references: [id], onUpdate: Restrict, map: "ledger_entries_settlement_line_id_foreign")
+
+  @@index([settlement_id], map: "ledger_entries_settlement_id_foreign")
+  @@index([settlement_line_id], map: "ledger_settlement_line_idx")
+}
+
+model max_bids {
+  id              BigInt          @id @default(autoincrement()) @db.UnsignedBigInt
+  auction_item_id BigInt          @db.UnsignedBigInt
+  user_id         BigInt          @db.UnsignedBigInt
+  ceiling_cents   BigInt          @db.UnsignedBigInt
+  currency        String          @default("EUR") @db.Char(3)
+  status          max_bids_status @default(active)
+  cancelled_at    DateTime?       @db.Timestamp(0)
+  created_at      DateTime?       @db.Timestamp(0)
+  updated_at      DateTime?       @db.Timestamp(0)
+  bids            Bid[]
+  auction_items   AuctionItem     @relation(fields: [auction_item_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "max_bids_auction_item_id_foreign")
+  users           User            @relation(fields: [user_id], references: [id], onUpdate: Restrict, map: "max_bids_user_id_foreign")
+
+  @@unique([auction_item_id, user_id, status], map: "max_bids_auction_item_id_user_id_status_unique")
+  @@index([auction_item_id, status], map: "max_bids_auction_item_id_status_index")
+  @@index([user_id], map: "max_bids_user_id_foreign")
+}
+
+model metro_lines {
+  id               BigInt             @id @default(autoincrement()) @db.UnsignedBigInt
+  code             String             @unique(map: "metro_lines_code_unique") @db.VarChar(5)
+  name             String             @db.VarChar(255)
+  color            String             @default("#000000") @db.VarChar(10)
+  created_at       DateTime?          @db.Timestamp(0)
+  updated_at       DateTime?          @db.Timestamp(0)
+  metro_stop_lines metro_stop_lines[]
+}
+
+model metro_stop_displays {
+  id            BigInt      @id @default(autoincrement()) @db.UnsignedBigInt
+  metro_stop_id BigInt      @db.UnsignedBigInt
+  exhibition_id BigInt      @db.UnsignedBigInt
+  is_active     Boolean     @default(true)
+  created_at    DateTime?   @db.Timestamp(0)
+  updated_at    DateTime?   @db.Timestamp(0)
+  exhibitions   exhibitions @relation(fields: [exhibition_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "metro_stop_displays_exhibition_id_foreign")
+  metro_stops   metro_stops @relation(fields: [metro_stop_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "metro_stop_displays_metro_stop_id_foreign")
+
+  @@unique([metro_stop_id, exhibition_id], map: "metro_stop_displays_metro_stop_id_exhibition_id_unique")
+  @@index([exhibition_id, is_active], map: "metro_stop_displays_exhibition_id_is_active_index")
+}
+
+model metro_stop_lines {
+  id            BigInt      @id @default(autoincrement()) @db.UnsignedBigInt
+  metro_stop_id BigInt      @db.UnsignedBigInt
+  metro_line_id BigInt      @db.UnsignedBigInt
+  sort_order    Int         @db.UnsignedSmallInt
+  metro_lines   metro_lines @relation(fields: [metro_line_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "metro_stop_lines_metro_line_id_foreign")
+  metro_stops   metro_stops @relation(fields: [metro_stop_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "metro_stop_lines_metro_stop_id_foreign")
+
+  @@unique([metro_stop_id, metro_line_id], map: "metro_stop_lines_metro_stop_id_metro_line_id_unique")
+  @@index([metro_line_id, sort_order], map: "metro_stop_lines_metro_line_id_sort_order_index")
+}
+
+model metro_stops {
+  id                  BigInt                @id @default(autoincrement()) @db.UnsignedBigInt
+  code                String                @unique(map: "metro_stops_code_unique") @db.VarChar(10)
+  name                String                @db.VarChar(255)
+  latitude            Decimal               @db.Decimal(10, 7)
+  longitude           Decimal               @db.Decimal(10, 7)
+  geo_locality_id     BigInt?               @db.UnsignedBigInt
+  created_at          DateTime?             @db.Timestamp(0)
+  updated_at          DateTime?             @db.Timestamp(0)
+  metro_stop_displays metro_stop_displays[]
+  metro_stop_lines    metro_stop_lines[]
+  geo_localities      geo_localities?       @relation(fields: [geo_locality_id], references: [id], onUpdate: Restrict, map: "metro_stops_geo_locality_id_foreign")
+  venues              venues[]
+
+  @@index([geo_locality_id], map: "metro_stops_geo_locality_id_foreign")
+  @@index([latitude, longitude], map: "metro_stops_lat_lng_index")
+}
+
+model migrations {
+  id        Int    @id @default(autoincrement()) @db.UnsignedInt
+  migration String @db.VarChar(255)
+  batch     Int
+}
+
+model notification_records {
+  id              BigInt                      @id @default(autoincrement()) @db.UnsignedBigInt
+  idempotency_key String                      @unique(map: "notification_records_idempotency_key_unique") @db.VarChar(128)
+  user_id         BigInt                      @db.UnsignedBigInt
+  type            String                      @db.VarChar(100)
+  channel         String                      @default("mail") @db.VarChar(20)
+  status          notification_records_status @default(queued)
+  error           String?                     @db.Text
+  created_at      DateTime?                   @db.Timestamp(0)
+  updated_at      DateTime?                   @db.Timestamp(0)
+  users           User                        @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "notification_records_user_id_foreign")
+
+  @@index([user_id, type], map: "notification_records_user_id_type_index")
+}
+
+model ownership_transfers {
+  id                                            BigInt                      @id @default(autoincrement()) @db.UnsignedBigInt
+  art_lot_id                                    BigInt                      @db.UnsignedBigInt
+  from_user_id                                  BigInt?                     @db.UnsignedBigInt
+  to_user_id                                    BigInt                      @db.UnsignedBigInt
+  auction_item_id                               BigInt?                     @db.UnsignedBigInt
+  sell_now_offer_id                             BigInt?                     @db.UnsignedBigInt
+  transfer_price_cents                          BigInt                      @db.UnsignedBigInt
+  currency                                      String                      @default("EUR") @db.Char(3)
+  channel                                       ownership_transfers_channel @default(auction)
+  transferred_at                                DateTime                    @db.Timestamp(0)
+  notes                                         String?                     @db.Text
+  created_at                                    DateTime?                   @db.Timestamp(0)
+  updated_at                                    DateTime?                   @db.Timestamp(0)
+  art_lots                                      art_lots                    @relation(fields: [art_lot_id], references: [id], onUpdate: Restrict, map: "ownership_transfers_art_lot_id_foreign")
+  auction_items                                 AuctionItem?                @relation(fields: [auction_item_id], references: [id], onUpdate: Restrict, map: "ownership_transfers_auction_item_id_foreign")
+  users_ownership_transfers_from_user_idTousers User?                       @relation("ownership_transfers_from_user_idTousers", fields: [from_user_id], references: [id], onUpdate: Restrict, map: "ownership_transfers_from_user_id_foreign")
+  sell_now_offers                               sell_now_offers?            @relation(fields: [sell_now_offer_id], references: [id], onUpdate: Restrict, map: "ownership_transfers_sell_now_offer_id_foreign")
+  users_ownership_transfers_to_user_idTousers   User                        @relation("ownership_transfers_to_user_idTousers", fields: [to_user_id], references: [id], onUpdate: Restrict, map: "ownership_transfers_to_user_id_foreign")
+
+  @@index([art_lot_id], map: "ownership_transfers_art_lot_id_index")
+  @@index([auction_item_id], map: "ownership_transfers_auction_item_id_foreign")
+  @@index([from_user_id], map: "ownership_transfers_from_user_id_foreign")
+  @@index([sell_now_offer_id], map: "ownership_transfers_sell_now_offer_id_foreign")
+  @@index([to_user_id], map: "ownership_transfers_to_user_id_index")
+  @@index([transferred_at], map: "ownership_transfers_transferred_at_index")
+}
+
+model password_reset_tokens {
+  email      String    @id @db.VarChar(255)
+  token      String    @db.VarChar(255)
+  created_at DateTime? @db.Timestamp(0)
+}
+
+model personal_access_tokens {
+  id             BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  tokenable_type String    @db.VarChar(255)
+  tokenable_id   BigInt    @db.UnsignedBigInt
+  name           String    @db.VarChar(255)
+  token          String    @unique(map: "personal_access_tokens_token_unique") @db.VarChar(64)
+  abilities      String?   @db.Text
+  last_used_at   DateTime? @db.Timestamp(0)
+  expires_at     DateTime? @db.Timestamp(0)
+  created_at     DateTime? @db.Timestamp(0)
+  updated_at     DateTime? @db.Timestamp(0)
+
+  @@index([tokenable_type, tokenable_id], map: "personal_access_tokens_tokenable_type_tokenable_id_index")
+}
+
+model pulse_aggregates {
+  id        BigInt  @id @default(autoincrement()) @db.UnsignedBigInt
+  bucket    Int     @db.UnsignedInt
+  period    Int     @db.UnsignedMediumInt
+  type      String  @db.VarChar(255)
+  key       String  @db.MediumText
+  key_hash  Bytes?  @db.Binary(16)
+  aggregate String  @db.VarChar(255)
+  value     Decimal @db.Decimal(20, 2)
+  count     Int?    @db.UnsignedInt
+
+  @@unique([bucket, period, type, aggregate, key_hash], map: "pulse_aggregates_bucket_period_type_aggregate_key_hash_unique")
+  @@index([period, bucket], map: "pulse_aggregates_period_bucket_index")
+  @@index([period, type, aggregate, bucket], map: "pulse_aggregates_period_type_aggregate_bucket_index")
+  @@index([type], map: "pulse_aggregates_type_index")
+}
+
+model pulse_entries {
+  id        BigInt  @id @default(autoincrement()) @db.UnsignedBigInt
+  timestamp Int     @db.UnsignedInt
+  type      String  @db.VarChar(255)
+  key       String  @db.MediumText
+  key_hash  Bytes?  @db.Binary(16)
+  value     BigInt?
+
+  @@index([key_hash], map: "pulse_entries_key_hash_index")
+  @@index([timestamp], map: "pulse_entries_timestamp_index")
+  @@index([timestamp, type, key_hash, value], map: "pulse_entries_timestamp_type_key_hash_value_index")
+  @@index([type], map: "pulse_entries_type_index")
+}
+
+model pulse_values {
+  id        BigInt @id @default(autoincrement()) @db.UnsignedBigInt
+  timestamp Int    @db.UnsignedInt
+  type      String @db.VarChar(255)
+  key       String @db.MediumText
+  key_hash  Bytes? @db.Binary(16)
+  value     String @db.MediumText
+
+  @@unique([type, key_hash], map: "pulse_values_type_key_hash_unique")
+  @@index([timestamp], map: "pulse_values_timestamp_index")
+  @@index([type], map: "pulse_values_type_index")
+}
+
+model reconciliation_mismatches {
+  id                    BigInt                                      @id @default(autoincrement()) @db.UnsignedBigInt
+  reconciliation_run_id BigInt                                      @db.UnsignedBigInt
+  check_type            reconciliation_mismatches_check_type
+  stripe_transaction_id String?                                     @db.VarChar(100)
+  internal_reference    String?                                     @db.VarChar(100)
+  stripe_amount_cents   BigInt?
+  internal_amount_cents BigInt?
+  delta_cents           BigInt
+  description           String?                                     @db.VarChar(500)
+  resolution_status     reconciliation_mismatches_resolution_status @default(open)
+  resolution_notes      String?                                     @db.Text
+  resolved_at           DateTime?                                   @db.Timestamp(0)
+  created_at            DateTime?                                   @db.Timestamp(0)
+  updated_at            DateTime?                                   @db.Timestamp(0)
+  reconciliation_runs   reconciliation_runs                         @relation(fields: [reconciliation_run_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "reconciliation_mismatches_reconciliation_run_id_foreign")
+
+  @@index([reconciliation_run_id, check_type], map: "reconciliation_mismatches_reconciliation_run_id_check_type_index")
+  @@index([resolution_status], map: "reconciliation_mismatches_resolution_status_index")
+  @@index([stripe_transaction_id], map: "reconciliation_mismatches_stripe_transaction_id_index")
+}
+
+model reconciliation_runs {
+  id                        BigInt                      @id @default(autoincrement()) @db.UnsignedBigInt
+  period_start              DateTime                    @db.Date
+  period_end                DateTime                    @db.Date
+  internal_gross_cents      BigInt                      @default(0) @db.UnsignedBigInt
+  internal_transfer_cents   BigInt                      @default(0) @db.UnsignedBigInt
+  internal_settlement_count Int                         @default(0) @db.UnsignedInt
+  stripe_received_cents     BigInt?                     @db.UnsignedBigInt
+  stripe_transferred_cents  BigInt?                     @db.UnsignedBigInt
+  delta_received_cents      BigInt?
+  delta_transferred_cents   BigInt?
+  mismatch_count            Int                         @default(0) @db.UnsignedInt
+  status                    String                      @default("running") @db.VarChar(20)
+  notes                     String?                     @db.Text
+  run_by                    BigInt?                     @db.UnsignedBigInt
+  completed_at              DateTime?                   @db.Timestamp(0)
+  created_at                DateTime?                   @db.Timestamp(0)
+  updated_at                DateTime?                   @db.Timestamp(0)
+  reconciliation_mismatches reconciliation_mismatches[]
+
+  @@index([period_start, period_end], map: "reconciliation_runs_period_start_period_end_index")
+  @@index([status], map: "reconciliation_runs_status_index")
+}
+
+model refund_lines {
+  id                       BigInt                      @id @default(autoincrement()) @db.UnsignedBigInt
+  refund_id                BigInt                      @db.UnsignedBigInt
+  settlement_line_id       BigInt                      @db.UnsignedBigInt
+  amount_cents             Int                         @db.UnsignedInt
+  currency                 String                      @default("EUR") @db.Char(3)
+  recipient_type           refund_lines_recipient_type
+  status                   refund_lines_status         @default(pending)
+  created_at               DateTime?                   @db.Timestamp(0)
+  updated_at               DateTime?                   @db.Timestamp(0)
+  ledger_entries           ledger_entries?
+  refunds                  refunds                     @relation(fields: [refund_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "refund_lines_refund_id_foreign")
+  settlement_lines         settlement_lines            @relation(fields: [settlement_line_id], references: [id], onUpdate: Restrict, map: "refund_lines_settlement_line_id_foreign")
+  transfer_reversal_orders transfer_reversal_orders?
+
+  @@unique([refund_id, settlement_line_id], map: "refund_lines_unique")
+  @@index([settlement_line_id], map: "refund_lines_settlement_line_id_foreign")
+}
+
+model refunds {
+  id                    BigInt                        @id @default(autoincrement()) @db.UnsignedBigInt
+  stripe_refund_id      String                        @unique(map: "refunds_stripe_refund_id_unique") @db.VarChar(255)
+  stripe_charge_id      String?                       @db.VarChar(255)
+  settlement_id         BigInt                        @db.UnsignedBigInt
+  amount_cents          Int                           @db.UnsignedInt
+  currency              String                        @default("EUR") @db.Char(3)
+  is_partial            Boolean                       @default(false)
+  refund_status         refunds_refund_status         @default(pending)
+  reconciliation_status refunds_reconciliation_status @default(pending)
+  reason                String?                       @db.VarChar(60)
+  created_at            DateTime?                     @db.Timestamp(0)
+  updated_at            DateTime?                     @db.Timestamp(0)
+  refund_lines          refund_lines[]
+  settlements           settlements                   @relation(fields: [settlement_id], references: [id], onUpdate: Restrict, map: "refunds_settlement_id_foreign")
+
+  @@index([settlement_id], map: "refunds_settlement_id_foreign")
+  @@index([stripe_charge_id], map: "refunds_stripe_charge_id_index")
+}
+
+model reserves {
+  id                       BigInt          @id @default(autoincrement()) @db.UnsignedBigInt
+  auction_item_id          BigInt          @unique(map: "reserves_auction_item_id_unique") @db.UnsignedBigInt
+  reserve_price_cents      BigInt          @db.UnsignedBigInt
+  highest_bid_cents        BigInt          @db.UnsignedBigInt
+  status                   reserves_status @default(not_reached)
+  decided_by               BigInt?         @db.UnsignedBigInt
+  decided_at               DateTime?       @db.Timestamp(0)
+  counter_offer_cents      BigInt?         @db.UnsignedBigInt
+  counter_offer_expires_at DateTime?       @db.Timestamp(0)
+  notes                    String?         @db.Text
+  created_at               DateTime?       @db.Timestamp(0)
+  updated_at               DateTime?       @db.Timestamp(0)
+  auction_items            AuctionItem     @relation(fields: [auction_item_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "reserves_auction_item_id_foreign")
+  users                    User?           @relation(fields: [decided_by], references: [id], onUpdate: Restrict, map: "reserves_decided_by_foreign")
+
+  @@index([decided_by], map: "reserves_decided_by_foreign")
+  @@index([status], map: "reserves_status_index")
+}
+
+model sell_now_offers {
+  id                         BigInt                 @id @default(autoincrement()) @db.UnsignedBigInt
+  art_lot_id                 BigInt                 @db.UnsignedBigInt
+  buyer_id                   BigInt                 @db.UnsignedBigInt
+  gallery_id                 BigInt?                @db.UnsignedBigInt
+  offered_price_cents        BigInt                 @db.UnsignedBigInt
+  counter_price_cents        BigInt?                @db.UnsignedBigInt
+  agreed_price_cents         BigInt?                @db.UnsignedBigInt
+  currency                   String                 @default("EUR") @db.Char(3)
+  status                     sell_now_offers_status @default(submitted)
+  expires_at                 DateTime?              @db.Timestamp(0)
+  notes                      String?                @db.Text
+  stripe_checkout_session_id String?                @unique(map: "sell_now_offers_stripe_checkout_session_id_unique") @db.VarChar(100)
+  stripe_payment_intent_id   String?                @unique(map: "sell_now_offers_stripe_payment_intent_id_unique") @db.VarChar(100)
+  created_at                 DateTime?              @db.Timestamp(0)
+  updated_at                 DateTime?              @db.Timestamp(0)
+  donations                  donations[]
+  impact_events              impact_events[]
+  ownership_transfers        ownership_transfers[]
+  art_lots                   art_lots               @relation(fields: [art_lot_id], references: [id], onUpdate: Restrict, map: "sell_now_offers_art_lot_id_foreign")
+  users                      User                   @relation(fields: [buyer_id], references: [id], onUpdate: Restrict, map: "sell_now_offers_buyer_id_foreign")
+  galleries                  galleries?             @relation(fields: [gallery_id], references: [id], onUpdate: Restrict, map: "sell_now_offers_gallery_id_foreign")
+
+  @@index([art_lot_id, status], map: "sell_now_offers_art_lot_id_status_index")
+  @@index([buyer_id, status], map: "sell_now_offers_buyer_id_status_index")
+  @@index([gallery_id], map: "sell_now_offers_gallery_id_foreign")
+}
+
+model sessions {
+  id            String  @id @db.VarChar(255)
+  user_id       BigInt? @db.UnsignedBigInt
+  ip_address    String? @db.VarChar(45)
+  user_agent    String? @db.Text
+  payload       String  @db.LongText
+  last_activity Int
+
+  @@index([last_activity], map: "sessions_last_activity_index")
+  @@index([user_id], map: "sessions_user_id_index")
+}
+
+model settlement_lines {
+  id                 BigInt                          @id @default(autoincrement()) @db.UnsignedBigInt
+  settlement_id      BigInt                          @db.UnsignedBigInt
+  recipient_type     settlement_lines_recipient_type
+  legal_entity_id    BigInt?                         @db.UnsignedBigInt
+  user_id            BigInt?                         @db.UnsignedBigInt
+  entity_name        String?                         @db.VarChar(200)
+  entity_eik         String?                         @db.VarChar(20)
+  entity_role        String?                         @db.VarChar(60)
+  stripe_account_id  String?                         @db.VarChar(255)
+  stripe_transfer_id String?                         @unique(map: "settlement_lines_stripe_transfer_id_unique") @db.VarChar(255)
+  amount_cents       Int                             @db.UnsignedInt
+  currency           String                          @default("EUR") @db.Char(3)
+  weight             Int                             @default(1) @db.UnsignedInt
+  status             settlement_lines_status         @default(pending)
+  created_at         DateTime?                       @db.Timestamp(0)
+  updated_at         DateTime?                       @db.Timestamp(0)
+  ledger_entries     ledger_entries[]
+  refund_lines       refund_lines[]
+  settlements        settlements                     @relation(fields: [settlement_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "settlement_lines_settlement_id_foreign")
+  users              User?                           @relation(fields: [user_id], references: [id], onUpdate: Restrict, map: "settlement_lines_user_id_foreign")
+  transfer_outbox    transfer_outbox[]
+
+  @@unique([settlement_id, recipient_type, legal_entity_id], map: "settlement_lines_unique_recipient")
+  @@index([legal_entity_id], map: "settlement_lines_legal_entity_id_index")
+  @@index([user_id, status], map: "settlement_lines_user_status_idx")
+}
+
+model settlements {
+  id                       BigInt             @id @default(autoincrement()) @db.UnsignedBigInt
+  stripe_payment_intent_id String             @unique(map: "settlements_stripe_payment_intent_id_unique") @db.VarChar(255)
+  stripe_event_id          String             @db.VarChar(255)
+  auction_id               BigInt?            @db.UnsignedBigInt
+  book_purchase_id         BigInt?            @db.UnsignedBigInt
+  gross_cents              Int                @db.UnsignedInt
+  currency                 String             @default("EUR") @db.Char(3)
+  profile_key              String             @db.VarChar(60)
+  profile_version          Int                @db.UnsignedSmallInt
+  artist_bps               Int                @db.UnsignedSmallInt
+  fund_bps                 Int                @db.UnsignedSmallInt
+  ops_bps                  Int                @db.UnsignedSmallInt
+  artist_cents             Int                @db.UnsignedInt
+  fund_cents               Int                @db.UnsignedInt
+  ops_cents                Int                @db.UnsignedInt
+  status                   settlements_status @default(pending)
+  created_at               DateTime?          @db.Timestamp(0)
+  updated_at               DateTime?          @db.Timestamp(0)
+  ledger_entries           ledger_entries[]
+  refunds                  refunds[]
+  settlement_lines         settlement_lines[]
+
+  @@index([auction_id], map: "settlements_auction_id_index")
+  @@index([book_purchase_id], map: "settlements_book_purchase_id_index")
+  @@index([status], map: "settlements_status_index")
+  @@index([stripe_event_id], map: "settlements_stripe_event_id_index")
+}
+
+model split_profiles {
+  id              BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  profile_key     String    @db.VarChar(60)
+  version         Int       @db.UnsignedSmallInt
+  artist_bps      Int       @db.UnsignedSmallInt
+  fund_bps        Int       @db.UnsignedSmallInt
+  ops_bps         Int       @db.UnsignedSmallInt
+  description     String?   @db.Text
+  status          String    @default("active") @db.VarChar(20)
+  effective_from  DateTime  @db.Timestamp(0)
+  effective_until DateTime? @db.Timestamp(0)
+  created_by      BigInt?   @db.UnsignedBigInt
+  created_at      DateTime? @db.Timestamp(0)
+  updated_at      DateTime? @db.Timestamp(0)
+
+  @@unique([profile_key, version], map: "split_profiles_key_version_unique")
+  @@index([profile_key], map: "split_profiles_profile_key_index")
+  @@index([status], map: "split_profiles_status_index")
+}
+
+model transfer_outbox {
+  id                     BigInt                 @id @default(autoincrement()) @db.UnsignedBigInt
+  settlement_line_id     BigInt                 @db.UnsignedBigInt
+  stripe_account_id      String                 @db.VarChar(255)
+  amount_cents           Int                    @db.UnsignedInt
+  currency               String                 @default("EUR") @db.Char(3)
+  stripe_idempotency_key String                 @unique(map: "transfer_outbox_stripe_idempotency_key_unique") @db.VarChar(255)
+  status                 transfer_outbox_status @default(pending)
+  attempt                Int                    @default(0) @db.UnsignedTinyInt
+  last_error             String?                @db.Text
+  next_attempt_at        DateTime?              @db.Timestamp(0)
+  processing_started_at  DateTime?              @db.Timestamp(0)
+  lease_expires_at       DateTime?              @db.DateTime
+  stripe_transfer_id     String?                @db.VarChar(255)
+  external_ref           String?                @unique(map: "to_external_ref_unique") @db.VarChar(64)
+  dispatched_at          DateTime?              @db.Timestamp(0)
+  created_at             DateTime?              @db.Timestamp(0)
+  updated_at             DateTime?              @db.Timestamp(0)
+  settlement_lines       settlement_lines       @relation(fields: [settlement_line_id], references: [id], onUpdate: Restrict, map: "transfer_outbox_settlement_line_id_foreign")
+
+  @@unique([settlement_line_id, attempt], map: "outbox_line_attempt_unique")
+  @@index([next_attempt_at], map: "transfer_outbox_next_attempt_at_index")
+  @@index([status, next_attempt_at], map: "to_dispatch_queue_idx")
+  @@index([status, lease_expires_at], map: "to_lease_recovery_idx")
+}
+
+model transfer_reversal_orders {
+  id                    BigInt                          @id @default(autoincrement()) @db.UnsignedBigInt
+  refund_line_id        BigInt                          @unique(map: "tro_refund_line_unique") @db.UnsignedBigInt
+  stripe_transfer_id    String                          @db.VarChar(255)
+  amount_cents          Int                             @db.UnsignedInt
+  currency              String                          @default("EUR") @db.Char(3)
+  idempotency_key       String                          @unique(map: "transfer_reversal_orders_idempotency_key_unique") @db.VarChar(255)
+  status                transfer_reversal_orders_status @default(pending)
+  attempt               Int                             @default(0) @db.UnsignedTinyInt
+  last_error            String?                         @db.Text
+  next_attempt_at       DateTime?                       @db.Timestamp(0)
+  processing_started_at DateTime?                       @db.Timestamp(0)
+  stripe_reversal_id    String?                         @db.VarChar(255)
+  reversed_at           DateTime?                       @db.Timestamp(0)
+  created_at            DateTime?                       @db.Timestamp(0)
+  updated_at            DateTime?                       @db.Timestamp(0)
+  refund_lines          refund_lines                    @relation(fields: [refund_line_id], references: [id], onUpdate: Restrict, map: "transfer_reversal_orders_refund_line_id_foreign")
+
+  @@index([next_attempt_at], map: "transfer_reversal_orders_next_attempt_at_index")
+}
+
+model user_consents {
+  id                   BigInt              @id @default(autoincrement()) @db.UnsignedBigInt
+  user_id              BigInt              @db.UnsignedBigInt
+  governance_policy_id BigInt              @db.UnsignedBigInt
+  consented_at         DateTime            @db.Timestamp(0)
+  ip_address           String?             @db.VarChar(45)
+  user_agent           String?             @db.VarChar(512)
+  withdrawn_at         DateTime?           @db.Timestamp(0)
+  created_at           DateTime?           @db.Timestamp(0)
+  updated_at           DateTime?           @db.Timestamp(0)
+  governance_policies  governance_policies @relation(fields: [governance_policy_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "user_consents_governance_policy_id_foreign")
+  users                User                @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "user_consents_user_id_foreign")
+
+  @@unique([user_id, governance_policy_id], map: "user_consents_user_id_governance_policy_id_unique")
+  @@index([governance_policy_id], map: "user_consents_governance_policy_id_foreign")
+  @@index([user_id, consented_at], map: "user_consents_user_id_consented_at_index")
+}
+
+model venues {
+  id                   BigInt                 @id @default(autoincrement()) @db.UnsignedBigInt
+  name                 String                 @db.VarChar(255)
+  slug                 String                 @unique(map: "venues_slug_unique") @db.VarChar(255)
+  type                 venues_type            @default(private)
+  geo_locality_id      BigInt                 @db.UnsignedBigInt
+  metro_stop_id        BigInt?                @db.UnsignedBigInt
+  address              String?                @db.VarChar(255)
+  latitude             Decimal?               @db.Decimal(10, 7)
+  longitude            Decimal?               @db.Decimal(10, 7)
+  phone                String?                @db.VarChar(30)
+  email                String?                @db.VarChar(120)
+  website              String?                @db.VarChar(255)
+  opening_hours        String?                @db.LongText
+  description          String?                @db.Text
+  is_active            Boolean                @default(true)
+  created_at           DateTime?              @db.Timestamp(0)
+  updated_at           DateTime?              @db.Timestamp(0)
+  artmetro_route_stops artmetro_route_stops[]
+  auctions             Auction[]
+  exhibitions          exhibitions[]
+  galleries            galleries[]
+  geo_localities       geo_localities         @relation(fields: [geo_locality_id], references: [id], onUpdate: Restrict, map: "venues_geo_locality_id_foreign")
+  metro_stops          metro_stops?           @relation(fields: [metro_stop_id], references: [id], onUpdate: Restrict, map: "venues_metro_stop_id_foreign")
+
+  @@index([geo_locality_id, is_active], map: "venues_geo_locality_id_is_active_index")
+  @@index([latitude, longitude], map: "venues_latitude_longitude_index")
+  @@index([metro_stop_id], map: "venues_metro_stop_id_foreign")
+}
+
+model watchlist {
+  id           BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  user_id      BigInt    @db.UnsignedBigInt
+  subject_type String    @db.VarChar(100)
+  subject_id   BigInt    @db.UnsignedBigInt
+  created_at   DateTime? @db.Timestamp(0)
+  updated_at   DateTime? @db.Timestamp(0)
+  users        User      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "watchlist_user_id_foreign")
+
+  @@unique([user_id, subject_type, subject_id], map: "watchlist_user_subject_unique")
+  @@index([subject_type, subject_id], map: "watchlist_subject_type_subject_id_index")
+}
+
+model webhook_events {
+  id              BigInt                @id @default(autoincrement()) @db.UnsignedBigInt
+  stripe_event_id String                @unique(map: "webhook_events_stripe_event_id_unique") @db.VarChar(255)
+  type            String                @db.VarChar(255)
+  payload         String                @db.LongText
+  status          webhook_events_status @default(received)
+  error           String?               @db.Text
+  created_at      DateTime?             @db.Timestamp(0)
+  updated_at      DateTime?             @db.Timestamp(0)
+}
+
+enum governance_policies_type {
+  terms_of_service
+  privacy_policy
+  cookie_policy
+  seller_agreement
+}
+
+enum artist_applications_status {
+  draft
+  submitted
+  under_review
+  approved
+  rejected
+}
+
+enum artwork_evidence_type {
+  authenticity
+  provenance
+  condition
+  ownership
+  certificate
+  exhibition_history
+  restoration
+}
+
+enum reconciliation_mismatches_check_type {
+  payment
+  refund
+  transfer
+  payout
+}
+
+enum settlement_lines_recipient_type {
+  artist
+  fund
+  ops
+  author
+  co_author
+}
+
+enum book_purchases_status {
+  pending
+  paid
+  partially_refunded
+  refunded
+  disputed
+  failed
+}
+
+enum donation_recipients_legal_type {
+  ngo
+  nhi
+  municipality
+  state
+  religious
+  other
+}
+
+enum galleries_type {
+  private
+  public
+  institutional
+  online
+}
+
+enum impact_events_metric {
+  sale_amount_eur
+  donation_amount_eur
+  audience_reach
+  artworks_exhibited
+  artworks_sold
+  books_sold
+  donors_count
+}
+
+enum impact_evidence_type {
+  report
+  photo
+  certification
+  url
+  other
+}
+
+enum institutions_type {
+  museum
+  gallery
+  university
+  foundation
+  other
+}
+
+enum institution_artworks_relationship {
+  loan
+  deposit
+  permanent_transfer
+  exhibition
+}
+
+enum users_role {
+  buyer
+  artist
+  admin
+  operator
+  curator
+}
+
+enum venues_type {
+  state
+  private
+  commercial
+  metro
+}
+
+enum artmetro_routes_difficulty {
+  easy
+  moderate
+  challenging
+}
+
+enum artworks_medium {
+  painting
+  sculpture
+  photography
+  digital
+  nft
+  mixed
+  other
+}
+
+enum bids_status {
+  pending
+  accepted
+  outbid
+  retracted
+  won
+}
+
+enum book_entitlements_source {
+  paid
+  free
+  promotional
+  admin
+}
+
+enum condition_reports_surface {
+  excellent
+  minor_wear
+  visible_wear
+  damage
+}
+
+enum donation_recipients_eligibility_basis {
+  ZKPO_ART31_1
+  ZKPO_ART31_3_PATRONAGE
+  ZKPO_ART31_2_NHI_CHILD_TREATMENT
+  ZKPO_ART31_2_ASSISTED_REPRODUCTION
+}
+
+enum ledger_entries_type {
+  credit
+  debit
+}
+
+enum reserves_status {
+  not_reached
+  waived
+  approved
+  counter_offered
+  declined
+}
+
+enum webhook_events_status {
+  received
+  processing
+  processed
+  failed
+}
+
+enum artwork_sdg_claims_status {
+  pending
+  approved
+  rejected
+}
+
+enum auction_items_status {
+  pending
+  open
+  reserve_not_met
+  sold
+  passed
+  canceled
+}
+
+enum condition_reports_frame {
+  original
+  replacement
+  none
+}
+
+enum max_bids_status {
+  active
+  cancelled
+  exhausted
+}
+
+enum notification_records_status {
+  queued
+  sent
+  failed
+}
+
+enum refund_lines_recipient_type {
+  artist
+  fund
+  ops
+}
+
+enum artwork_evidence_verification_status {
+  pending
+  verified
+  rejected
+}
+
+enum art_lots_sale_mode {
+  auction
+  sell_now
+  gallery
+  private
+  hybrid
+}
+
+enum condition_reports_signature_status {
+  verified
+  present
+  not_present
+}
+
+enum connected_account_payouts_status {
+  paid
+  failed
+  canceled
+}
+
+enum consignments_status {
+  draft
+  active
+  expired
+  terminated
+  completed
+}
+
+enum dispute_escalations_outcome {
+  pending
+  resolved
+  dismissed
+  referred_external
+}
+
+enum impact_events_type {
+  event
+  reversal
+}
+
+enum refund_lines_status {
+  pending
+  reversed
+  failed
+}
+
+enum transfer_outbox_status {
+  pending
+  processing
+  dispatched
+  canceled
+  failed
+}
+
+enum transfer_reversal_orders_status {
+  pending
+  processing
+  reversed
+  failed
+}
+
+enum artist_profiles_status {
+  pending
+  under_review
+  approved
+  rejected
+  suspended
+}
+
+enum artwork_evidence_visibility {
+  public
+  restricted
+  sensitive
+}
+
+enum art_lots_status {
+  draft
+  submitted
+  verification
+  approved
+  catalogued
+  scheduled
+  active
+  sold
+  unsold
+  archived
+}
+
+enum auctions_status {
+  draft
+  published
+  live
+  closed
+  canceled
+}
+
+enum bids_payment_status {
+  authorized
+  authorization_expired
+  captured
+  canceled
+  failed
+}
+
+enum domain_events_status {
+  pending
+  processing
+  dispatched
+  failed
+}
+
+enum donation_recipients_status {
+  active
+  inactive
+  suspended
+}
+
+enum refunds_refund_status {
+  pending
+  succeeded
+  failed
+  canceled
+}
+
+enum condition_reports_provenance_status {
+  complete
+  partial
+  unknown
+}
+
+enum ownership_transfers_channel {
+  auction
+  sell_now
+  private
+  gift
+  inheritance
+}
+
+enum refunds_reconciliation_status {
+  not_required
+  pending
+  completed
+  manual_intervention
+}
+
+enum sell_now_offers_status {
+  submitted
+  countered
+  accepted
+  rejected
+  expired
+  paid
+  delivered
+  closed
+}
+
+enum auction_items_fulfillment_status {
+  none
+  awaiting_payment
+  paid
+  preparing
+  shipped
+  delivered
+  payment_failed
+  returned
+}
+
+enum auction_rulesets_tie_policy {
+  first_wins
+  last_wins
+  admin_decides
+}
+
+enum bids_bid_type {
+  live
+  pre_bid
+  proxy
+  kiosk
+  mobile
+  admin_override
+}
+
+enum condition_reports_restoration {
+  none
+  documented
+  undocumented
+}
+
+enum reconciliation_mismatches_resolution_status {
+  open
+  investigating
+  resolved
+  suppressed
+}
+
+enum artwork_revisions_reason {
+  initial
+  correction
+  restoration_documented
+  attribution_updated
+  provenance_expanded
+  certificate_added
+}
+
+enum auction_rulesets_max_bid_policy {
+  disabled
+  enabled
+  required
+}
+
+enum book_files_type {
+  full
+  preview
+  audio_preview
+  cover
+}
+
+enum donor_fiscal_years_assessment_status {
+  pending
+  assessed
+  reviewed
+}
+
+enum galleries_status {
+  active
+  inactive
+  suspended
+}
+
+enum artwork_revisions_status {
+  draft
+  active
+  superseded
+}
+
+enum book_files_status {
+  processing
+  published
+  rejected
+}
+
+enum condition_reports_status {
+  draft
+  final
+}
+
+enum donations_type {
+  donation
+  reversal
+}
+
+enum donations_status {
+  pending
+  confirmed
+  reversed
+}
+
+enum settlement_lines_status {
+  pending
+  processing
+  transferred
+  reversal_pending
+  reversed
+  canceled
+}
+
+enum settlements_status {
+  pending
+  completed
+  refunded
+  partially_refunded
+}
+
+enum artworks_primary_image_status {
+  pending
+  confirmed
+  processing
+}
+
+enum books_status {
+  draft
+  pending_review
+  published
+  rejected
+  unpublished
+}
+
+enum artworks_status {
+  draft
+  listed
+  in_auction
+  sold
+  archived
+}
+
+model book_reviews {
+  id          BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  book_id     BigInt    @db.UnsignedBigInt
+  user_id     BigInt    @db.UnsignedBigInt
+  rating      Int       @db.UnsignedTinyInt
+  headline    String?   @db.VarChar(200)
+  body        String?   @db.Text
+  is_approved Boolean   @default(false)
+  approved_by BigInt?   @db.UnsignedBigInt
+  approved_at DateTime? @db.Timestamp(0)
+  created_at  DateTime? @db.Timestamp(0)
+  updated_at  DateTime? @db.Timestamp(0)
+  deleted_at  DateTime? @db.Timestamp(0)
+
+  @@unique([book_id, user_id])
+  @@index([book_id, is_approved])
+  @@map("book_reviews")
+}
+
+model refresh_tokens {
+  id         BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  user_id    BigInt    @db.UnsignedBigInt
+  token_hash String    @unique @db.VarChar(255)
+  expires_at DateTime  @db.Timestamp(0)
+  revoked_at DateTime? @db.Timestamp(0)
+  created_at DateTime? @db.Timestamp(0)
+
+  @@index([user_id])
+  @@index([expires_at])
+  @@map("refresh_tokens")
+}

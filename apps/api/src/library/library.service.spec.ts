@@ -1,0 +1,175 @@
+/**
+ * Phase 0.3V — LibraryService unit tests
+ *
+ * LS1  listBooks default — returns paged result with dto mapping
+ * LS2  listBooks with query filter
+ * LS3  getBook — found: returns book
+ * LS4  getBook — not found: returns null
+ * LS5  myBooks — returns paged entitlements
+ * LS6  getEntitlement — has_access true when entitlement found
+ * LS7  getEntitlement — has_access false when no entitlement
+ * LS8  purchaseBook — returns pending status
+ * LS9  getBookReviews — returns empty paged stub
+ * LS10 bookDownloadUrl — has entitlement: returns url
+ * LS11 bookDownloadUrl — no entitlement: throws
+ * LS12 createReview — returns pending stub
+ * LS13 checkoutSession — returns stub with null url
+ * LS14 grantAccess — returns {granted:true}
+ * LS15 unpublishBook — executes raw SQL, returns draft status
+ * LS16 publishBook — executes raw SQL, returns published status
+ * LS17 checkoutSession — book not found or not published: throws Error
+ */
+
+import { jest } from '@jest/globals';
+import { Test, TestingModule } from '@nestjs/testing';
+import { LibraryService } from './library.service';
+import { PrismaService } from '../prisma.service';
+import { S3Service } from '../s3/s3.service';
+import { StripeService } from '../stripe/stripe.service';
+
+const STUB_BOOK = {
+  id: BigInt(1), title: 'Art History', slug: 'art-history', description: null,
+  short_description: null, isbn: null, publisher: null, language: 'bg',
+  page_count: 200, publication_year: 2024, price_cents: BigInt(2000),
+  currency: 'BGN', is_free: false, is_featured: false, status: 'published',
+  created_at: new Date(), updated_at: new Date(),
+  authors: [],
+};
+
+const fn = () => jest.fn() as any;
+const mockPrisma = {
+  book: { findMany: fn(), findFirst: fn(), count: fn() },
+  book_entitlements: { findMany: fn(), findFirst: fn(), count: fn() },
+  $transaction: fn(),
+  $executeRaw: fn(),
+};
+
+const mockS3 = { enabled: false, presignDownload: jest.fn() as any, stubDownloadUrl: (key: string) => `https://stub-s3.local/download?key=${key}` };
+const mockStripe = { enabled: false, createCheckoutSession: jest.fn() as any };
+
+describe('Phase 0.3V — LibraryService', () => {
+  let svc: LibraryService;
+
+  beforeAll(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        LibraryService,
+        { provide: PrismaService, useValue: mockPrisma },
+        { provide: S3Service, useValue: mockS3 },
+        { provide: StripeService, useValue: mockStripe },
+      ],
+    }).compile();
+    svc = module.get(LibraryService);
+  });
+
+  beforeEach(() => { jest.resetAllMocks(); });
+
+  it('LS1: listBooks default — returns paged result', async () => {
+    mockPrisma.$transaction.mockResolvedValueOnce([[STUB_BOOK], 1]);
+    const result = await svc.listBooks();
+    expect(result.data).toHaveLength(1);
+    expect(result.meta.total).toBe(1);
+    expect(result.data[0].slug).toBe('art-history');
+  });
+
+  it('LS2: listBooks with query — carries filter', async () => {
+    mockPrisma.$transaction.mockResolvedValueOnce([[], 0]);
+    const result = await svc.listBooks({ q: 'sculpture' });
+    expect(result.meta.total).toBe(0);
+  });
+
+  it('LS3: getBook — found: returns book', async () => {
+    mockPrisma.book.findFirst.mockResolvedValueOnce(STUB_BOOK);
+    const result = await svc.getBook('art-history');
+    expect(result?.slug).toBe('art-history');
+  });
+
+  it('LS4: getBook — not found: returns null', async () => {
+    mockPrisma.book.findFirst.mockResolvedValueOnce(null);
+    const result = await svc.getBook('missing');
+    expect(result).toBeNull();
+  });
+
+  it('LS5: myBooks — returns paged entitlements', async () => {
+    const ENTITLEMENT = { id: BigInt(1), user_id: BigInt(10), revoked_at: null, granted_at: new Date(), books: STUB_BOOK };
+    mockPrisma.$transaction.mockResolvedValueOnce([[ENTITLEMENT], 1]);
+    const result = await svc.myBooks(10);
+    expect(result.data).toHaveLength(1);
+    expect(result.meta.total).toBe(1);
+  });
+
+  it('LS6: getEntitlement — has_access true when found', async () => {
+    mockPrisma.book_entitlements.findFirst.mockResolvedValueOnce({ id: BigInt(1), source: 'purchase', revoked_at: null });
+    const result = await svc.getEntitlement('art-history', 10);
+    expect(result.has_access).toBe(true);
+    expect(result.source).toBe('purchase');
+  });
+
+  it('LS7: getEntitlement — has_access false when not found', async () => {
+    mockPrisma.book_entitlements.findFirst.mockResolvedValueOnce(null);
+    const result = await svc.getEntitlement('missing', 10);
+    expect(result.has_access).toBe(false);
+    expect(result.source).toBeNull();
+  });
+
+  it('LS8: purchaseBook — returns pending status', async () => {
+    const result = await svc.purchaseBook('art-history', 10);
+    expect(result.status).toBe('pending');
+  });
+
+  it('LS9: getBookReviews — returns empty paged stub', async () => {
+    const result = await svc.getBookReviews('art-history');
+    expect(result.data).toEqual([]);
+    expect(result.meta.total).toBe(0);
+  });
+
+  it('LS10: bookDownloadUrl — has entitlement: returns download url', async () => {
+    mockPrisma.book_entitlements.findFirst.mockResolvedValueOnce({ id: BigInt(1), revoked_at: null });
+    const result = await svc.bookDownloadUrl('art-history', 10);
+    expect(result.download_url).toContain('art-history');
+    expect(result.expires_at).toBeDefined();
+  });
+
+  it('LS11: bookDownloadUrl — no entitlement: throws', async () => {
+    mockPrisma.book_entitlements.findFirst.mockResolvedValueOnce(null);
+    await expect(svc.bookDownloadUrl('art-history', 10)).rejects.toThrow('No entitlement');
+  });
+
+  it('LS12: createReview — returns pending stub', async () => {
+    const result = await svc.createReview('art-history', 10, { rating: 5, comment: 'Great' });
+    expect(result.status).toBe('pending');
+  });
+
+  it('LS13: checkoutSession — Stripe disabled: returns {checkout_url:null, session_id:null}', async () => {
+    mockPrisma.book.findFirst.mockResolvedValueOnce({ id: BigInt(1), title: 'Art History', price_cents: BigInt(2000), currency: 'EUR' });
+    mockStripe.createCheckoutSession.mockResolvedValueOnce({ checkout_url: null, session_id: null });
+    const result = await svc.checkoutSession('art-history', 10);
+    expect(result.checkout_url).toBeNull();
+    expect(result.session_id).toBeNull();
+  });
+
+  it('LS14: grantAccess — returns {granted:true}', async () => {
+    const result = await svc.grantAccess('art-history', 1, 20);
+    expect(result.granted).toBe(true);
+  });
+
+  it('LS15: unpublishBook — executes raw SQL, returns draft status', async () => {
+    mockPrisma.$executeRaw.mockResolvedValueOnce(1);
+    const result = await svc.unpublishBook('art-history');
+    expect(result.status).toBe('draft');
+    expect(result.slug).toBe('art-history');
+    expect(mockPrisma.$executeRaw).toHaveBeenCalled();
+  });
+
+  it('LS16: publishBook — executes raw SQL, returns published status', async () => {
+    mockPrisma.$executeRaw.mockResolvedValueOnce(1);
+    const result = await svc.publishBook('art-history');
+    expect(result.status).toBe('published');
+    expect(result.slug).toBe('art-history');
+  });
+
+  it('LS17: checkoutSession — book not found or not published: throws Error', async () => {
+    mockPrisma.book.findFirst.mockResolvedValueOnce(null);
+    await expect(svc.checkoutSession('missing-book', 1)).rejects.toThrow('not found or not published');
+  });
+});

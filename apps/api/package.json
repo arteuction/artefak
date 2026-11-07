@@ -1,0 +1,99 @@
+{
+  "name": "artefak-api",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "build": "nest build",
+    "start": "node dist/main",
+    "dev": "nest start --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --passWithNoTests",
+    "test:watch": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --watch",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:push": "prisma db push",
+    "generate:domain": "cross-env NODE_OPTIONS=--experimental-vm-modules npx ts-node --esm scripts/generate-domain.ts",
+    "parity:check": "cross-env NODE_OPTIONS=--experimental-vm-modules npx ts-node --esm scripts/parity-check.ts",
+    "export:openapi": "cross-env NODE_OPTIONS=--experimental-vm-modules npx ts-node --esm scripts/export-openapi.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1161.0",
+    "@aws-sdk/s3-request-presigner": "^3.1161.0",
+    "@fastify/cookie": "^11.1.5",
+    "@nestjs/common": "^12.0.0",
+    "@nestjs/core": "^12.0.0",
+    "@nestjs/jwt": "^12.0.3",
+    "@nestjs/passport": "^12.0.0",
+    "@nestjs/platform-fastify": "^12.0.0",
+    "@nestjs/platform-socket.io": "^12.3.2",
+    "@nestjs/schedule": "^12.0.2",
+    "@nestjs/swagger": "^11.0.0",
+    "@nestjs/throttler": "^6.7.1",
+    "@nestjs/websockets": "^12.3.2",
+    "@prisma/adapter-mariadb": "^7.10.1",
+    "@prisma/client": "^7.0.0",
+    "bcrypt": "^6.0.0",
+    "cookie-parser": "^1.4.7",
+    "meilisearch": "^0.62.0",
+    "mysql2": "^3.24.6",
+    "nodemailer": "^10.3.1",
+    "passport": "^0.7.0",
+    "passport-custom": "^1.2.1",
+    "passport-jwt": "^4.0.1",
+    "passport-local": "^1.0.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "socket.io": "^4.8.4",
+    "stripe": "^23.1.0"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^12.0.0",
+    "@nestjs/testing": "^12.0.0",
+    "@types/bcrypt": "^6.0.0",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^22.13.10",
+    "@types/nodemailer": "^8.0.2",
+    "@types/passport-jwt": "^4.0.1",
+    "@types/passport-local": "^1.0.38",
+    "cross-env": "^10.1.0",
+    "jest": "^29.7.0",
+    "prisma": "^7.0.0",
+    "ts-jest": "^29.2.6",
+    "typescript": "^5.8.2"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": "src",
+    "testRegex": ".*\\.spec\\.ts$",
+    "extensionsToTreatAsEsm": [
+      ".ts"
+    ],
+    "transform": {
+      "^.+\\.(t|j)s$": [
+        "ts-jest",
+        {
+          "useESM": true,
+          "tsconfig": {
+            "module": "ESNext",
+            "moduleResolution": "bundler"
+          }
+        }
+      ]
+    },
+    "testEnvironment": "node",
+    "maxWorkers": 1,
+    "transformIgnorePatterns": [
+      "node_modules/(?!(@nestjs|@prisma/adapter-mariadb|cookie|light-my-request)/)"
+    ],
+    "moduleNameMapper": {
+      "^@nestjs/swagger$": "<rootDir>/__mocks__/@nestjs/swagger.ts",
+      "^@nestjs/throttler$": "<rootDir>/__mocks__/@nestjs/throttler.ts",
+      "^cookie$": "<rootDir>/__mocks__/cookie.cjs"
+    }
+  }
+}

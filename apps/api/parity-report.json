@@ -1,0 +1,1537 @@
+{
+  "total": 258,
+  "coveredCount": 258,
+  "missing": 0,
+  "pct": 100,
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/auctions",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/auctions/:auction",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/auctions/:auction/items/:item",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/auctions/:auction/items/:item/bids",
+      "name": "bids.store.legacy",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/artifacts/:qrToken",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/artifacts/:qrToken/scans",
+      "covered": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/artifacts/:artifact/lot",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/artifacts/:artifact/visit",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/routes",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/routes/:route",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/health",
+      "name": "health",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/register",
+      "name": "register",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/login",
+      "name": "login",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/search/artworks",
+      "name": "search.artworks.index",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/search/artworks/:artwork",
+      "name": "search.artworks.show",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/artworks/:artwork/linked-art",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/artworks/:artwork/edm",
+      "name": "artworks.edm",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/artworks/:artwork/iiif/manifest2",
+      "name": "artworks.iiif.manifest2",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/artworks/:artwork/iiif/info.json",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/artworks/:artwork/iiif/manifest",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/artists",
+      "name": "artists.index",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/artists/:slug",
+      "name": "artists.show",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/artworks",
+      "name": "artworks.index",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/artworks/:artwork",
+      "name": "artworks.show",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/artworks/:artwork/evidence",
+      "name": "artworks.evidence.index",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/artworks/:artwork/rights",
+      "name": "artworks.rights.show",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/artworks/:artwork/sales-history",
+      "name": "artworks.sales-history",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/art-lots",
+      "name": "art-lots.index",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/art-lots/:artLot",
+      "name": "art-lots.show",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/art-lots/:artLot/bids",
+      "name": "art-lots.bids",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/art-lots/:artLot/provenance",
+      "name": "art-lots.provenance",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/galleries",
+      "name": "galleries.index",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/galleries/:gallery",
+      "name": "galleries.show",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/galleries/:gallery/profile",
+      "name": "galleries.profile",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/galleries/:gallery/staff",
+      "name": "galleries.staff.index",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/artworks/:artwork/sdg-claims",
+      "name": "artworks.sdg-claims.index",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/artworks/:artwork/sdg-claims/:claim",
+      "name": "artworks.sdg-claims.show",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/venues",
+      "name": "venues.index",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/venues/map",
+      "name": "venues.map",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/venues/:venue",
+      "name": "venues.show",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/artworks/:artwork/qr",
+      "name": "artworks.qr",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/lots/:artLot/qr",
+      "name": "lots.qr",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/exhibitions",
+      "name": "exhibitions.index",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/exhibitions/:exhibition",
+      "name": "exhibitions.show",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/books",
+      "name": "books.index",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/books/:book",
+      "name": "books.show",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/book-categories",
+      "name": "book-categories.index",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/book-categories/:category",
+      "name": "book-categories.show",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/book-categories/:category/books",
+      "name": "book-categories.books",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/books/:book/reviews",
+      "name": "books.reviews.index",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/impact-events",
+      "name": "impact-events.index",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/impact-events/:impactEvent",
+      "name": "impact-events.show",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/impact-events/:impactEvent/evidence",
+      "name": "impact-events.evidence.index",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/donation-recipients",
+      "name": "donation-recipients.index",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/donation-recipients/:donationRecipient",
+      "name": "donation-recipients.show",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/governance/policies",
+      "name": "governance.policies",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/institutions",
+      "name": "institutions.index",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/institutions/:institution",
+      "name": "institutions.show",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/impact-projects/stats",
+      "name": "impact-projects.stats",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/impact-projects",
+      "name": "impact-projects.index",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/impact-projects/:impactProject",
+      "name": "impact-projects.show",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/impact-projects/:impactProject/evidence",
+      "name": "impact-projects.evidence.index",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/collections/:collection",
+      "name": "collections.show",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/auctions",
+      "name": "auctions.index",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/auctions/:auction",
+      "name": "auctions.show",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/auctions/:auction/items/:item",
+      "name": "auctions.item",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/my/export",
+      "name": "my.export",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/my/consents",
+      "name": "governance.my-consents",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/governance/policies/:governancePolicy/consent",
+      "name": "governance.consent",
+      "covered": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/governance/policies/:governancePolicy/consent",
+      "name": "governance.consent.withdraw",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/my/erasure-request",
+      "name": "governance.erasure",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/my/artworks",
+      "name": "my.artworks",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/artworks",
+      "name": "artworks.store",
+      "covered": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/v1/artworks/:artwork",
+      "name": "artworks.update",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/artworks/:artwork/submit",
+      "name": "artworks.submit",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/artworks/:artwork/revisions",
+      "name": "artworks.revisions.store",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/artworks/:artwork/revisions/:revision/activate",
+      "name": "artworks.revisions.activate",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/artworks/:artwork/lots",
+      "name": "artworks.lots.index",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/artworks/:artwork/evidence",
+      "name": "artworks.evidence.store",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/artworks/:artwork/images/presign",
+      "name": "artworks.images.presign",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/artworks/:artwork/images/confirm",
+      "name": "artworks.images.confirm",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/artworks/:artwork/images/derivatives",
+      "name": "artworks.images.derivatives",
+      "covered": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/v1/artworks/:artwork/rights",
+      "name": "artworks.rights.update",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/venues",
+      "name": "venues.store",
+      "covered": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/v1/venues/:venue",
+      "name": "venues.update",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/exhibitions",
+      "name": "exhibitions.store",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/art-lots",
+      "name": "art-lots.store",
+      "covered": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/v1/art-lots/:artLot",
+      "name": "art-lots.update",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/art-lots/:artLot/purchase-now",
+      "name": "art-lots.purchase-now",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/art-lots/:artLot/transitions/:transition",
+      "name": "art-lots.transition",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/my/sell-now-offers",
+      "name": "my.sell-now-offers",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/my/gallery-offers",
+      "name": "my.gallery-offers",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/art-lots/:artLot/sell-now-offers",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/art-lots/:artLot/sell-now-offers",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/sell-now-offers/:offer/counter",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/sell-now-offers/:offer/accept",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/sell-now-offers/:offer/reject",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/sell-now-offers/:offer/checkout-session",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/consignments",
+      "name": "consignments.index",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/consignments/:consignment",
+      "name": "consignments.show",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/consignments",
+      "name": "consignments.store",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/consignments/:consignment/activate",
+      "name": "consignments.activate",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/consignments/:consignment/approve",
+      "name": "consignments.approve",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/consignments/:consignment/request-changes",
+      "name": "consignments.request-changes",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/consignments/:consignment/create-lot",
+      "name": "consignments.create-lot",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/galleries/:gallery/staff",
+      "name": "galleries.staff.store",
+      "covered": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/v1/galleries/:gallery/staff/:staffMember",
+      "name": "galleries.staff.update",
+      "covered": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/galleries/:gallery/staff/:user",
+      "name": "galleries.staff.destroy",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/collections",
+      "name": "collections.index",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/collections",
+      "name": "collections.store",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/collections/:collection/artworks",
+      "name": "collections.artworks.store",
+      "covered": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/collections/:collection/artworks/:artwork",
+      "name": "collections.artworks.destroy",
+      "covered": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/v1/collections/:collection",
+      "name": "collections.update",
+      "covered": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/collections/:collection",
+      "name": "collections.destroy",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/watchlist",
+      "name": "watchlist.index",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/watchlist",
+      "name": "watchlist.store",
+      "covered": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/watchlist/:type/:id",
+      "name": "watchlist.destroy",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/my/won-items",
+      "name": "buyer.won-items",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/my/bids",
+      "name": "buyer.bids",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/auction-items/:item/bid-history",
+      "name": "auction-items.bid-history",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/logout",
+      "name": "logout",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/me",
+      "name": "me",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/donations",
+      "name": "donations.index",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/donations/tax-receipt/:year",
+      "name": "donations.tax-receipt",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/donations/:donation",
+      "name": "donations.show",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/donations",
+      "name": "donations.store",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/impact-projects",
+      "name": "impact-projects.store",
+      "covered": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/v1/impact-projects/:impactProject",
+      "name": "impact-projects.update",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/impact-projects/:impactProject/evidence",
+      "name": "impact-projects.evidence.store",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/artworks/:artwork/sdg-claims",
+      "name": "artworks.sdg-claims.store",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/artworks/:artwork/sdg-claims/:claim/review",
+      "name": "artworks.sdg-claims.review",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/auction-items/:item/re-authorize",
+      "name": "auction-items.re-authorize",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/auction-items/:item/ship",
+      "name": "auction-items.ship",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/auction-items/:item/confirm-delivery",
+      "name": "auction-items.confirm-delivery",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/sell-now-offers/:offer/confirm-payment",
+      "name": "sell-now-offers.confirm-payment",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/sell-now-offers/:offer/confirm-delivery",
+      "name": "sell-now-offers.confirm-delivery",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/sell-now-offers/:offer/close",
+      "name": "sell-now-offers.close",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/disputes",
+      "name": "disputes.index",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/disputes/:dispute",
+      "name": "disputes.show",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/disputes",
+      "name": "disputes.store",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/disputes/:dispute/assign",
+      "name": "disputes.assign",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/disputes/:dispute/resolve",
+      "name": "disputes.resolve",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/disputes/:dispute/evidence",
+      "name": "disputes.evidence.store",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/ownership-transfers",
+      "name": "ownership-transfers.index",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/ownership-transfers/:ownershipTransfer",
+      "name": "ownership-transfers.show",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/artist-profile",
+      "name": "artist-profile.show",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/artist-profile",
+      "name": "artist-profile.store",
+      "covered": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/v1/artist-profile",
+      "name": "artist-profile.update",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/galleries",
+      "name": "galleries.store",
+      "covered": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/v1/galleries/:gallery",
+      "name": "galleries.update",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/evidence",
+      "name": "evidence.index",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/evidence/:evidence",
+      "name": "evidence.show",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/evidence/:evidence/verify",
+      "name": "evidence.verify",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/artist-applications",
+      "name": "artist-applications.index",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/artist-applications/:application",
+      "name": "artist-applications.show",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/artist-applications",
+      "name": "artist-applications.store",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/artist-applications/:application/approve",
+      "name": "artist-applications.approve",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/artist-applications/:application/reject",
+      "name": "artist-applications.reject",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/donation-recipients",
+      "name": "donation-recipients.store",
+      "covered": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/v1/donation-recipients/:donationRecipient",
+      "name": "donation-recipients.update",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/institutions",
+      "name": "institutions.store",
+      "covered": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/v1/institutions/:institution",
+      "name": "institutions.update",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/institutions/:institution/artworks",
+      "name": "institutions.artworks.attach",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/api-clients",
+      "name": "api-clients.index",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/api-clients",
+      "name": "api-clients.store",
+      "covered": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/api-clients/:apiClient",
+      "name": "api-clients.destroy",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/partners/onboard",
+      "name": "partners.onboard",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/admin/audit-log",
+      "name": "admin.audit-log.index",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/admin/audit-log/:adminAuditLog",
+      "name": "admin.audit-log.show",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/admin/settlements",
+      "name": "admin.settlements.index",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/admin/settlements/:id",
+      "name": "admin.settlements.show",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/admin/settlements/:id/statement",
+      "name": "admin.settlements.statement",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/admin/reconciliation-runs",
+      "name": "admin.reconciliation.index",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/admin/reconciliation-runs/:reconciliationRun",
+      "name": "admin.reconciliation.show",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/admin/reconciliation-runs",
+      "name": "admin.reconciliation.store",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/admin/reconciliation-mismatches",
+      "name": "admin.reconciliation-mismatches.index",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/admin/reconciliation-mismatches/:reconciliationMismatch",
+      "name": "admin.reconciliation-mismatches.show",
+      "covered": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/v1/admin/reconciliation-mismatches/:reconciliationMismatch",
+      "name": "admin.reconciliation-mismatches.update",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/admin/artmetro/routes",
+      "name": "admin.artmetro.routes.store",
+      "covered": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/v1/admin/artmetro/routes/:route",
+      "name": "admin.artmetro.routes.update",
+      "covered": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/v1/admin/artmetro/routes/:route/publish",
+      "name": "admin.artmetro.routes.publish",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/admin/artmetro/routes/:route/stops",
+      "name": "admin.artmetro.routes.stops.store",
+      "covered": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/admin/artmetro/routes/:route/stops/:stop",
+      "name": "admin.artmetro.routes.stops.destroy",
+      "covered": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/v1/books/:book/publish",
+      "name": "books.publish",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/books/:book/authors",
+      "name": "books.authors.index",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/books/:book/authors",
+      "name": "books.authors.store",
+      "covered": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/v1/books/:book/authors/:bookAuthor",
+      "name": "books.authors.update",
+      "covered": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/books/:book/authors/:bookAuthor",
+      "name": "books.authors.destroy",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/admin/users",
+      "name": "admin.users.index",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/admin/users/:user",
+      "name": "admin.users.show",
+      "covered": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/v1/admin/users/:user",
+      "name": "admin.users.update",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/admin/ledger",
+      "name": "admin.ledger.index",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/admin/refunds",
+      "name": "admin.refunds.index",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/admin/split-profiles",
+      "name": "admin.split-profiles.index",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/admin/split-profiles",
+      "name": "admin.split-profiles.store",
+      "covered": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/v1/admin/split-profiles/:id/deprecate",
+      "name": "admin.split-profiles.deprecate",
+      "covered": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/v1/books/:book/unpublish",
+      "name": "books.unpublish",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/books/:book/reviews",
+      "name": "books.reviews.store",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/my-books",
+      "name": "books.my",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/books/:book/entitlement",
+      "name": "books.entitlement",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/books/:book/purchase",
+      "name": "books.purchase",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/books/:book/checkout-session",
+      "name": "books.checkout-session",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/books/:book/grant",
+      "name": "books.grant",
+      "covered": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/book-entitlements/:bookEntitlement",
+      "name": "books.entitlements.revoke",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/reserves/:reserve",
+      "name": "reserves.show",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/reserves/:reserve/waive",
+      "name": "reserves.waive",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/reserves/:reserve/counter-offer",
+      "name": "reserves.counter-offer",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/auctions/:auction/items/:item/bids",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/auctions/:auction/items/:item/max-bid",
+      "name": "auctions.items.max-bid",
+      "covered": true
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/exhibitions/:exhibition/sdg-tags",
+      "name": "exhibitions.sdg-tags",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/sdg-claims/:claim/impact-events",
+      "name": "sdg-claims.impact-events.store",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/impact-events/:impactEvent/evidence",
+      "name": "impact-events.evidence.store",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/domain-events",
+      "name": "domain-events.index",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/payouts/artist",
+      "name": "payouts.artist",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/payouts/gallery/:gallery",
+      "name": "payouts.gallery",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/ops/summary",
+      "name": "summary",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/ops/pending-events",
+      "name": "pending-events",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/ops/failed-outbox",
+      "name": "failed-outbox",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/ops/open-reserves",
+      "name": "open-reserves",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/ops/active-consignments",
+      "name": "active-consignments",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/ops/fiscal-year/:year",
+      "name": "fiscal-year",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/ops/zkpo-report/:year",
+      "name": "zkpo-report",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/ops/consumer-lag",
+      "name": "consumer-lag",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/ops/transfer-outbox/:id/retry",
+      "name": "transfer-outbox.retry",
+      "covered": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/v1/exhibitions/:exhibition",
+      "name": "exhibitions.update",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/admin/settlement-lines",
+      "name": "admin.settlement-lines.index",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/admin/settlement-lines/:id/disburse",
+      "name": "admin.settlement-lines.disburse",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/admin/books",
+      "name": "admin.books.store",
+      "covered": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/v1/admin/books/:book",
+      "name": "admin.books.update",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/admin/book-categories",
+      "name": "admin.book-categories.store",
+      "covered": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/v1/admin/book-categories/:category",
+      "name": "admin.book-categories.update",
+      "covered": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/admin/book-categories/:category",
+      "name": "admin.book-categories.destroy",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/books/:book/reviews/pending",
+      "name": "books.reviews.pending",
+      "covered": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/v1/books/:book/reviews/:review/approve",
+      "name": "books.reviews.approve",
+      "covered": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/books/:book/reviews/:review",
+      "name": "books.reviews.destroy",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/consignments/:consignment/terminate",
+      "name": "consignments.terminate",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/admin/rulesets",
+      "name": "admin.rulesets.index",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/admin/rulesets/:ruleset",
+      "name": "admin.rulesets.show",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/admin/rulesets",
+      "name": "admin.rulesets.store",
+      "covered": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/v1/admin/rulesets/:ruleset",
+      "name": "admin.rulesets.update",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/admin/transfer-outbox",
+      "name": "admin.transfer-outbox.index",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/admin/transfer-outbox/:id",
+      "name": "admin.transfer-outbox.show",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/admin/connected-payouts",
+      "name": "admin.connected-payouts.index",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/admin/connected-payouts/:id",
+      "name": "admin.connected-payouts.show",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/admin/auctions",
+      "name": "admin.auctions.store",
+      "covered": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/v1/admin/auctions/:auction",
+      "name": "admin.auctions.update",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/admin/auctions/:auction/items",
+      "name": "admin.auctions.items.store",
+      "covered": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/admin/auctions/:auction/items/:item",
+      "name": "admin.auctions.items.destroy",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/admin/auctions/:auction/publish",
+      "name": "admin.auctions.publish",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/admin/auctions/:auction/open",
+      "name": "admin.auctions.open",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/admin/auctions/:auction/close",
+      "name": "admin.auctions.close",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/books/:book/files",
+      "name": "books.files.index",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/books/:book/files",
+      "name": "books.files.store",
+      "covered": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/v1/books/:book/files/:bookFile",
+      "name": "books.files.update",
+      "covered": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/books/:book/files/:bookFile",
+      "name": "books.files.destroy",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/books/:book/files/upload-intent",
+      "name": "books.files.upload-intent",
+      "covered": true
+    },
+    {
+      "method": "POST",
+      "path": "/v1/book-files/:bookFile/complete",
+      "name": "book-files.complete",
+      "covered": true
+    },
+    {
+      "method": "GET",
+      "path": "/v1/my-books/:book/download-url",
+      "name": "my-books.download-url",
+      "covered": true
+    }
+  ]
+}
