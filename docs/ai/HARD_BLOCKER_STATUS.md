@@ -13,7 +13,7 @@
 | P0.2 | Real MariaDB integration (83 tests) | BLOCKED — needs live DB | No |
 | P0.3 | Legacy bcrypt compatibility | **RESOLVED** (Phase 0.8) | Yes |
 | P0.4 | Stripe end-to-end rehearsal | BLOCKED — needs Stripe test mode + staging | No |
-| P0.5 | Traffic switch and rollback design | NOT STARTED | Yes (design only) |
+| P0.5 | Traffic switch and rollback design | **DONE** — `docs/ai/TRAFFIC_SWITCH_AND_ROLLBACK.md` | Yes (design only) |
 
 ---
 
@@ -162,16 +162,17 @@ stripe trigger checkout.session.completed
 
 ## P0.5 — Traffic switch and rollback design
 
-### Status: NOT STARTED
+### Status: DONE — `docs/ai/TRAFFIC_SWITCH_AND_ROLLBACK.md`
 
-See separate `TRAFFIC_SWITCH_AND_ROLLBACK.md` (to be written).
-
-Key decisions needed:
-- Route ownership matrix (which routes NestJS owns vs Laravel)
-- Single-writer guarantee per business operation
-- Scheduler and webhook handler ownership (must not run in both simultaneously)
-- In-flight request draining
-- Database compatibility during rollback (NestJS-written records must be readable by Laravel)
+The runbook covers:
+- **Route ownership matrix** — all prefixes, current vs target owner
+- **Pre-switch checklist** — P0.1 → P0.2 → P0.4 gates must all pass first
+- **Nginx per-prefix switch** with zero-downtime reload procedure
+- **In-flight draining** via NestJS shutdown hooks + PM2 reload
+- **Scheduler/queue ownership** — single-writer rule, never dual-run
+- **Instant rollback** (< 2 min) — revert Nginx, no DB changes needed
+- **Financial domain extra gate** — settlement domain switches last, requires second engineer sign-off
+- **Go/No-Go decision tree** for each prefix switch
 
 ---
 

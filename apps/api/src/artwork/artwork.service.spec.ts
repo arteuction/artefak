@@ -34,6 +34,13 @@
  * AW31 getSalesHistory — queries ownership_transfers via art_lots relation
  * AW32 confirmImage — returns confirmed true
  * AW33 listArtLots — returns art lots for artwork
+ * AW38 presignImage — non-owner: throws ForbiddenException
+ * AW39 presignImage — unsupported MIME type: throws BadRequestException
+ * AW40 presignImage — file exceeds 50 MB: throws BadRequestException
+ * AW41 confirmImage — non-owner: throws ForbiddenException
+ * AW42 confirmImage — key not in artwork quarantine prefix: throws BadRequestException
+ * AW43 approveImage — non-admin/operator: throws ForbiddenException
+ * AW44 approveImage — approved_key starts with quarantine/: throws BadRequestException
  */
 
 import { jest } from '@jest/globals';
@@ -382,5 +389,51 @@ describe('Phase 0.3V — ArtworkService', () => {
   it('AW37: getImageUrl — image active but key missing: throws NotFoundException', async () => {
     mockPrisma.artworks.findFirst.mockResolvedValueOnce({ ...STUB, primary_image_status: 'active', primary_image_key: null });
     await expect(svc.getImageUrl('test-artwork')).rejects.toThrow(NotFoundException);
+  });
+
+  it('AW38: presignImage — non-owner: throws ForbiddenException', async () => {
+    mockPrisma.artworks.findFirst.mockResolvedValueOnce(STUB); // user_id=10
+    await expect(svc.presignImage('test-artwork', 99, { filename: 'x.jpg', content_type: 'image/jpeg' }))
+      .rejects.toThrow(ForbiddenException);
+  });
+
+  it('AW39: presignImage — unsupported MIME type: throws BadRequestException', async () => {
+    mockPrisma.artworks.findFirst.mockResolvedValueOnce(STUB);
+    await expect(svc.presignImage('test-artwork', 10, { filename: 'x.gif', content_type: 'image/gif' }))
+      .rejects.toThrow(BadRequestException);
+  });
+
+  it('AW40: presignImage — file exceeds 50 MB: throws BadRequestException', async () => {
+    mockPrisma.artworks.findFirst.mockResolvedValueOnce(STUB);
+    await expect(svc.presignImage('test-artwork', 10, { filename: 'x.jpg', content_type: 'image/jpeg', size_bytes: 60 * 1024 * 1024 }))
+      .rejects.toThrow(BadRequestException);
+  });
+
+  it('AW41: confirmImage — non-owner: throws ForbiddenException', async () => {
+    mockPrisma.artworks.findFirst.mockResolvedValueOnce(STUB); // user_id=10
+    await expect(svc.confirmImage('test-artwork', 99, { key: 'quarantine/1/img.jpg' }))
+      .rejects.toThrow(ForbiddenException);
+  });
+
+  it('AW42: confirmImage — wrong quarantine key prefix: throws BadRequestException', async () => {
+    mockPrisma.artworks.findFirst.mockResolvedValueOnce(STUB);
+    await expect(svc.confirmImage('test-artwork', 10, { key: 'quarantine/999/img.jpg' }))
+      .rejects.toThrow(BadRequestException);
+  });
+
+  it('AW43: approveImage — non-admin/operator: throws ForbiddenException', async () => {
+    await expect(svc.approveImage('test-artwork', 'artist', { approved_key: 'artworks/1/final.jpg' }))
+      .rejects.toThrow(ForbiddenException);
+  });
+
+  it('AW44: approveImage — approved_key starts with quarantine/: throws BadRequestException', async () => {
+    mockPrisma.artworks.findFirst.mockResolvedValueOnce(STUB);
+    await expect(svc.approveImage('test-artwork', 'admin', { approved_key: 'quarantine/1/img.jpg' }))
+      .rejects.toThrow(BadRequestException);
+  });
+
+  it('AW45: getImageUrl — image not yet active: throws ForbiddenException', async () => {
+    mockPrisma.artworks.findFirst.mockResolvedValueOnce({ ...STUB, primary_image_status: 'processing', primary_image_key: 'quarantine/1/img.jpg' });
+    await expect(svc.getImageUrl('test-artwork')).rejects.toThrow(ForbiddenException);
   });
 });
