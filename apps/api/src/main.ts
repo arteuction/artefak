@@ -18,6 +18,8 @@ async function bootstrap() {
     new FastifyAdapter({ logger: true }),
   );
 
+  app.enableShutdownHooks();
+
   // Register cookie plugin so auth controller can set/clear HTTP-only cookies
   await app.register(fastifyCookie);
 
