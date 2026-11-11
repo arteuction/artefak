@@ -11,7 +11,7 @@ _The 2026-11-03 version listed Stripe, webhooks, S3, scheduler, Meilisearch, rea
 
 | Responsibility | Laravel implementation | Risk if missing |
 |---|---|---|
-| Stripe refund creation / reversal dispatch | `DispatchStripeReversal` | Refunds cannot be initiated by NestJS (it only *records* `charge.refunded` webhooks) |
+| Stripe `payout.paid/failed/canceled` webhooks | `HandleStripeWebhook` → `HandleConnectedAccountPayout` | Connected-account payout status never recorded; NestJS ignores these events |
 | Stripe bid re-authorization flow | `BidReAuthorizationController` | Scheduler flags winners who must re-authorize, but no endpoint lets them do it |
 | Artwork image derivatives | `GenerateArtworkDerivativesJob`, `intervention/image` | No `sharp`/image dependency; only originals |
 | PDF generation | `barryvdh/laravel-dompdf` | Tax receipts, settlement statements |
@@ -37,8 +37,8 @@ _The 2026-11-03 version listed Stripe, webhooks, S3, scheduler, Meilisearch, rea
 | Integration | What exists | What is still unproven |
 |---|---|---|
 | Stripe checkout | `createCheckoutSession` (stub session when key unset) | Test-mode E2E (P0.4) |
-| Stripe webhooks | `WebhookHandlerService`: `checkout.session.completed`, `payment_intent.succeeded/.amount_capturable_updated/.payment_failed`, `charge.refunded`; dedup by `stripe_event_id` | 30-day shadow comparison; event types Laravel handles that NestJS does not (needs an audit) |
-| Stripe transfers | `createTransfer` + `dispatch-transfer-outbox` cron with lease claims | Idempotency under real Stripe; payout reconciliation |
+| Stripe webhooks | `WebhookHandlerService`: `checkout.session.completed`, `payment_intent.succeeded/.amount_capturable_updated/.payment_failed`, `charge.refunded` (delegates to `RefundService`, 2026-11-11); dedup by `stripe_event_id` | 30-day shadow comparison; event types Laravel handles that NestJS does not (needs an audit) |
+| Stripe transfers / refunds / reversals | `createTransfer` + `dispatch-transfer-outbox` cron with lease claims; `RefundService` (port of `ProcessRefund`); `createTransferReversal` + `dispatch-transfer-reversals` cron (port of `DispatchStripeReversal`) — last two added 2026-11-11, mocked-Prisma tests only | Idempotency under real Stripe; payout reconciliation |
 | Settlement | `settle`, `preview`, `SplitProfile` | Cent-for-cent parity vs Laravel vectors; three-ledger separation on a real DB |
 | Payout | `artistPayouts`, `galleryPayouts`, `pendingTransfers` real Prisma queries | Parity of totals vs Laravel |
 | Scheduler | 5 `@nestjs/schedule` crons (close lots, expire bid auth, dispatch domain events, dispatch transfer outbox, recover stale claims) | Behaviour under multi-instance + load; **no BullMQ** — design is DB outbox + cron, a deliberate difference from Laravel queues that needs an ADR |
@@ -62,7 +62,7 @@ _The 2026-11-03 version listed Stripe, webhooks, S3, scheduler, Meilisearch, rea
 | Stripe checkout parity + E2E | 2–3 | Exists |
 | Stripe webhook event-coverage audit + shadow tooling | 3–5 | Exists |
 | Stripe transfer dispatch E2E | 2–3 | Exists |
-| **Stripe refund/reversal dispatch** | 5–8 | Absent |
+| Stripe refund/reversal real-DB + Stripe test-mode verification, plus `payout.*` webhook handler | 3–5 | Refund/reversal ported 2026-11-11 (unit-tested only); payout events absent |
 | **Stripe bid re-authorization** | 3–5 | Absent |
 | S3 artwork presign/confirm vs real bucket | 1–2 | Exists |
 | **Image derivatives (Sharp)** | 5–8 | Absent |
@@ -84,7 +84,7 @@ _The 2026-11-03 version listed Stripe, webhooks, S3, scheduler, Meilisearch, rea
 | **Activity log** | 5–8 | Absent |
 | Prisma migration baseline (needs staging DB) | 2–3 | Partial |
 | 50-concurrent-bid load test | 3–5 | Spec exists, never run on real DB |
-| **Stage 2 total** | **≈114–185 SP** | was 154–236 |
+| **Stage 2 total** | **≈112–182 SP** | was 154–236 |
 
 ### Stage 3 — production cutover
 
@@ -101,9 +101,9 @@ _The 2026-11-03 version listed Stripe, webhooks, S3, scheduler, Meilisearch, rea
 
 | | SP |
 |---|---|
-| Stage 2 + Stage 3 | 163–264 |
-| 20% buffer | 33–53 |
-| **Grand total** | **≈196–317 SP** (was 244–378) |
+| Stage 2 + Stage 3 | 161–261 |
+| 20% buffer | 32–52 |
+| **Grand total** | **≈193–313 SP** (was 244–378) |
 
 ### Calendar floor (independent of headcount)
 
@@ -113,10 +113,37 @@ Stripe shadow comparison (30 days) + post-cutover webhook monitoring (30 days) +
 
 ## Section E: Recommended next work (no staging needed)
 
-1. **Stripe refund/reversal dispatch** — the largest absent financial capability; webhooks record refunds but nothing initiates them.
+1. ~~Stripe refund/reversal dispatch~~ — ported 2026-11-11 (`RefundService`, reversal cron). Next in the same area: `payout.*` webhook handling and the `reversal_pending` race (Section F).
 2. **Settlement parity vectors** — port Laravel test vectors into `financial-integrity`-style unit tests that need no DB.
-3. **Webhook event-coverage audit** — list every event type Laravel's `HandleStripeWebhook` handles and diff against the five NestJS handles.
+3. ~~Webhook event-coverage audit~~ — done 2026-11-11: Laravel routes 8 event types, NestJS handles 5. The only missing ones are `payout.paid/failed/canceled` (O1).
 4. **Admin panel decision** (React admin vs keep Filament vs port) — blocks Stage 3 entry; needs a product decision, not code.
 5. **Prove the stub fallbacks cannot activate in production.** `config-validation.service.ts` already throws at startup when `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` or `AWS_*` are missing in production, which mitigates this. Add a test that `S3Service.enabled`/`StripeService.enabled` are true whenever production validation passes, so the `stub-s3.local` URL and stub checkout session stay dev-only.
 
 Needs staging DB: P0.1 (Prisma baseline), P0.2 (83 HAS_DB tests), P0.4 (Stripe E2E), load test.
+
+---
+
+## Section F: Defects found by this audit (2026-11-11)
+
+Found by comparing NestJS against Laravel `ProcessRefund`, `DispatchStripeTransfer` and `DispatchStripeReversal`. Unit tests with mocked Prisma had not caught them; they would surface only on a real database.
+
+**Fixed (mocked-Prisma tests only — still need real-DB and Stripe test-mode verification):**
+
+| # | Defect | Fix |
+|---|---|---|
+| F1 | Successful transfers wrote `transfer_outbox.status = 'completed'`, which is not in the DB enum (`pending|processing|dispatched|canceled|failed`). Under strict SQL mode every successful transfer would fail after Stripe had already paid, then retry forever | Writes `dispatched`; test SC22 asserts only enum-valid statuses |
+| F2 | Transfer dispatch never updated `settlement_lines` (`processing` lease, `transferred`, `stripe_transfer_id`). Refunds and reversals depend on those fields | Atomic outbox + line update in one transaction; lease released on failure |
+| F3 | `charge.refunded` wrote one settlement-level debit with no refund lines, ignored refund status (a failed/pending refund was booked as a debit), had no over-refund or currency guard, never changed settlement status, never cancelled pending transfers (a refunded sale could still pay out), and never created reversal orders | `RefundService` ports `ProcessRefund`: row lock, status/currency/cumulative guards, per-line delta allocation, per-line debits (key `refund:{refundLineId}:debit`, same as Laravel so both stacks cannot double-book), cancel/`reversal_pending`/reversal order per line, settlement status |
+| F4 | Nothing executed reversal orders | `dispatch-transfer-reversals` cron with claim, stable idempotency key, retry backoff, `failed` after 5 attempts, stale-claim recovery |
+| F5 | Unknown settlement on `charge.refunded` was silently skipped and the webhook marked processed, losing the refund on out-of-order delivery | Now throws; the webhook is reset to `received` and retried (matches Laravel) |
+
+**Open (not fixed):**
+
+| # | Gap | Note |
+|---|---|---|
+| O1 | `payout.paid/failed/canceled` not handled | Laravel `HandleConnectedAccountPayout` |
+| O2 | NestJS transfers never reach `failed` (Laravel stops after 5 attempts); backoff is capped, so a permanently rejected transfer retries forever | Needs a max-attempt rule |
+| O3 | Race: a refund arriving while a line is `processing` sets `reversal_pending`, but if the transfer then succeeds no reversal order is created — in **both** stacks (Laravel comment says the worker creates it, but `DispatchStripeTransfer` does not) | Money transferred but not reversed; needs a design decision |
+| O4 | `refund.created/updated` events not routed; a refund first seen as `pending` is never re-evaluated when it succeeds (idempotency returns early) — same in Laravel | Parity gap to decide on |
+| O5 | `charge.refunded` handler reads `charge.refunds.data`. Newer Stripe API versions omit `refunds` from the event unless expanded | Unverified; check the webhook endpoint API version and test in Stripe test mode |
+| O6 | `refund_lines.recipient_type` allows only `artist|fund|ops`; refunding a settlement with `author`/`co_author` lines throws (same DB constraint in Laravel) | Library book refunds may hit this |

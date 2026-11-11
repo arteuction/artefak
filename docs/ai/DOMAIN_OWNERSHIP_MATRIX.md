@@ -38,7 +38,7 @@ _Generated: 2026-11-03. **Statuses rebased 2026-11-11** against `apps/api/src` (
 | **Reconciliation (runs, mismatches)** | Laravel (primary) | NestJS | NOT STARTED | RunNightlyReconciliationCommand ported | All stubs |
 | **Stripe Webhooks** | Laravel | NestJS | IN PROGRESS | Shadow mode + 30-day comparison with zero discrepancies; event-type coverage audit vs Laravel | `WebhookHandlerService` handles 5 event types with `stripe_event_id` dedup; shadow comparison not started |
 | **Stripe Transfers** | Laravel | NestJS | IN PROGRESS | Settlement parity; real Stripe idempotency test | `createTransfer` + `dispatch-transfer-outbox` cron with lease claims |
-| **Stripe Refunds** | Laravel | NestJS | MISSING | Refund/reversal dispatch implemented | NestJS only *records* `charge.refunded`; nothing creates refunds. `DispatchStripeReversal` is Laravel-only |
+| **Stripe Refunds** | Laravel | NestJS | IN PROGRESS | Real-DB + Stripe test-mode refund/reversal rehearsal; `payout.*` events; open gaps O1–O6 in `REMAINING_LARAVEL_DEPENDENCIES.md` §F | `RefundService` (port of `ProcessRefund`) and `dispatch-transfer-reversals` cron added 2026-11-11, mocked-Prisma tests only |
 | **Collection** | Laravel (primary) | NestJS | IN PROGRESS | Full CRUD parity | Core CRUD done |
 | **Consignment** | Laravel (primary) | NestJS | IN PROGRESS | Activate/approve/create-lot flows complete | Core done; lifecycle actions partial |
 | **Dispute** | Laravel (primary) | NestJS | IN PROGRESS | Evidence attachment tested end-to-end | Core done |

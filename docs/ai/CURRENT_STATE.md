@@ -31,10 +31,10 @@ PRs #1–#17 are itemised in Git history (phase 158 deploy infra, optimization f
 | Capability | State in `apps/api/src` |
 |---|---|
 | Auth, 12 policies, `$2y$`→`$2b$` bcrypt shim | Implemented; real-DB auth tests not yet run |
-| Stripe | `createCheckoutSession`, `constructEvent`, `retrieveSession`, `retrieveTransfer`, `createTransfer`; returns a stub session when `STRIPE_SECRET_KEY` is unset. **No refund-creation/reversal dispatch.** |
+| Stripe | `createCheckoutSession`, `constructEvent`, `retrieveSession`, `retrieveTransfer`, `createTransfer`, `createTransferReversal`; returns a stub session when `STRIPE_SECRET_KEY` is unset. `RefundService` (port of Laravel `ProcessRefund`) and a reversal cron were added 2026-11-11 — mocked-Prisma tests only. `payout.*` events not handled |
 | Webhook handler | Handles `checkout.session.completed`, `payment_intent.succeeded`, `.amount_capturable_updated`, `.payment_failed`, `charge.refunded` |
 | Settlement / payout | `SettlementService.settle/preview` and payout list queries exist; cent-for-cent parity vs Laravel vectors **not demonstrated** |
-| Scheduler (`@nestjs/schedule`) | 5 crons: close-expired-lots, expire-bid-authorizations, dispatch-domain-events, dispatch-transfer-outbox, recover-stale-claims. No BullMQ. No nightly reconciliation, governance health or ops alerts |
+| Scheduler (`@nestjs/schedule`) | 6 crons: close-expired-lots, expire-bid-authorizations, dispatch-domain-events, dispatch-transfer-outbox, dispatch-transfer-reversals, recover-stale-claims. No BullMQ. No nightly reconciliation, governance health or ops alerts |
 | S3 | Presign upload/download implemented; falls back to `stub-s3.local` URLs when disabled. Image derivatives (no `sharp`) not implemented |
 | Search | Meilisearch service present (search/index/delete) |
 | Realtime | Socket.io `BidGateway` present |

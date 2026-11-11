@@ -110,7 +110,7 @@ ARTeuCtion currently runs on a Laravel 13 monolith that owns all production resp
 | Authorization | 12 Policies | AuthorizationService (12 methods) | COMPLETE |
 | Stripe Payments / transfers | stripe/stripe-php, DispatchStripeTransfer | `StripeService.createTransfer` + transfer-outbox cron | IMPLEMENTED, unverified |
 | Stripe Webhooks | HandleStripeWebhook job | `WebhookHandlerService` (5 event types, dedup) | IMPLEMENTED, shadow comparison not started |
-| Stripe Refunds | DispatchStripeReversal | Records `charge.refunded` only; no refund creation | MISSING |
+| Stripe Refunds | ProcessRefund + DispatchStripeReversal | `RefundService` + `dispatch-transfer-reversals` cron (2026-11-11) | IMPLEMENTED, unit-tested only |
 | Stripe Checkout Sessions | SellNowCheckoutController, LibraryController | `createCheckoutSession` | IMPLEMENTED, E2E not run |
 | WebSocket/Realtime | laravel/reverb | Socket.io `BidGateway` | IMPLEMENTED, frontend parity unverified |
 | File Storage (S3) | AWS SDK via Laravel Storage | Presign + quarantine→approve; stub fallback in dev | IMPLEMENTED, real-bucket run pending |

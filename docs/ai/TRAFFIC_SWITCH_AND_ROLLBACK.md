@@ -47,10 +47,11 @@ Never run Laravel and NestJS consumers for the same job type against the same pr
 | Bid-authorization expiry | scheduler | `expire-bid-authorizations` cron | Same |
 | Domain-event dispatch | `DispatchDomainEventsCommand` | `dispatch-domain-events` cron (lease claims) | One consumer per environment |
 | Transfer outbox | Laravel job | `dispatch-transfer-outbox` cron | Switch only with settlement/payout |
+| Transfer reversals | `DispatchStripeReversal` job | `dispatch-transfer-reversals` cron | Switch with refunds/settlement; never both consumers on one DB |
 | Stale-claim recovery | — | `recover-stale-claims` cron | NestJS-only; leases are the multi-instance guard |
 | Stripe webhooks | `/stripe/webhook` (primary) | `/api/v1/stripe/webhook` | Shadow mode: Stripe delivers to both, only Laravel writes, ≥30 clean days before switching (`PRODUCTION_CUTOVER_PLAN.md`) |
 
-NestJS crons register at app start. A NestJS instance pointed at a shared DB while Laravel still owns those domains **would run its crons and write**. Start every such instance with `SCHEDULER_ENABLED=false` (supported since 2026-11-11; default is enabled, so the safe value must be set explicitly). Finer per-domain flags do not exist yet — the switch is all-or-nothing for the five crons.
+NestJS crons register at app start. A NestJS instance pointed at a shared DB while Laravel still owns those domains **would run its crons and write**. Start every such instance with `SCHEDULER_ENABLED=false` (supported since 2026-11-11; default is enabled, so the safe value must be set explicitly). Finer per-domain flags do not exist yet — the switch is all-or-nothing for the six crons.
 
 ## 6. Rollback
 
@@ -63,4 +64,4 @@ Targets (from `PRODUCTION_CUTOVER_PLAN.md` / `LARAVEL_EXIT_PLAN.md`): rollback c
 
 ## 7. Financial-domain extra gate
 
-Settlement, payout, ledger, reconciliation, transfers and refunds additionally require: three-ledger invariant tests green (`ledger_entries` ≠ `donations` ≠ `impact_events`); cent-for-cent parity on sampled historical transactions; second-engineer review of the settlement diff; verified restore from backup (not just a taken backup); and, for refunds, the refund-dispatch capability, which does not exist in NestJS yet.
+Settlement, payout, ledger, reconciliation, transfers and refunds additionally require: three-ledger invariant tests green (`ledger_entries` ≠ `donations` ≠ `impact_events`); cent-for-cent parity on sampled historical transactions; second-engineer review of the settlement diff; verified restore from backup (not just a taken backup); and, for refunds, a rehearsal of `RefundService` + the reversal cron against a real DB and Stripe test mode (implemented 2026-11-11, never run outside mocked unit tests).
