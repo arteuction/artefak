@@ -3,11 +3,12 @@ import { PrismaService } from '../prisma.service';
 import { CreateSettlement } from './create-settlement';
 import { SettlementService } from './settlement.service';
 import { WebhookHandlerService } from './webhook-handler.service';
+import { RefundService } from './refund.service';
 import { StripeWebhookController } from './stripe-webhook.controller';
 
 @Module({
   controllers: [StripeWebhookController],
-  providers:   [PrismaService, CreateSettlement, SettlementService, WebhookHandlerService],
-  exports:     [SettlementService, CreateSettlement, WebhookHandlerService],
+  providers:   [PrismaService, CreateSettlement, SettlementService, WebhookHandlerService, RefundService],
+  exports:     [SettlementService, CreateSettlement, WebhookHandlerService, RefundService],
 })
 export class SettlementModule {}

@@ -8,13 +8,14 @@
  * WH5  payment_intent.succeeded — non-book: marks settlement completed
  * WH6  payment_intent.amount_capturable_updated — settles closed auction
  * WH7  payment_intent.amount_capturable_updated — skips if auction not closed
- * WH8  charge.refunded — writes refund + ledger debit (idempotent)
- * WH9  charge.refunded — skips if no matching settlement
+ * WH8  charge.refunded — delegates each refund to RefundService with mapped fields
+ * WH9  charge.refunded — RefundService error (no settlement / over-refund): rethrown, webhook reset to received
  * WH10 unknown event type — no error thrown
  * WH11 processWebhookEvent — resets status to received on error
  * WH12 checkout.session.completed — auction item path: settles + marks paid
  * WH13 checkout.session.completed — auction item not found or wrong status: no-op
- * WH14 charge.refunded — skips already-recorded refund (per-refund idempotency)
+ * WH14 charge.refunded — several refunds on one charge: each processed in order
+ * WH17 charge.refunded — no payment_intent: RefundService not called
  * WH15 checkout.session.completed — sell-now offer not found: no-op
  * WH16 payment_intent.payment_failed — logs and returns without DB writes
  */
@@ -25,11 +26,13 @@ import { WebhookHandlerService } from './webhook-handler.service';
 import { SettlementService } from './settlement.service';
 import { PrismaService } from '../prisma.service';
 import { EmailService } from '../email/email.service';
+import { RefundService } from './refund.service';
 
 const fn = () => jest.fn() as any;
 
 const mockSettlementService = { settle: fn(), preview: fn() };
 const mockEmailService = { sendPaymentConfirmation: fn() };
+const mockRefundService = { process: fn() };
 
 const mockPrisma = {
   webhook_events:    { findUnique: fn(), update: fn() },
@@ -62,6 +65,7 @@ describe('Phase 0.5 — WebhookHandlerService', () => {
         { provide: SettlementService, useValue: mockSettlementService },
         { provide: PrismaService,     useValue: mockPrisma },
         { provide: EmailService,      useValue: mockEmailService },
+        { provide: RefundService,     useValue: mockRefundService },
       ],
     }).compile();
     svc = module.get(WebhookHandlerService);
@@ -225,33 +229,30 @@ describe('Phase 0.5 — WebhookHandlerService', () => {
     expect(mockSettlementService.settle).not.toHaveBeenCalled();
   });
 
-  it('WH8: charge.refunded — writes refund + ledger debit', async () => {
+  it('WH8: charge.refunded — delegates each refund to RefundService with mapped fields', async () => {
     const payload = {
       type: 'charge.refunded', id: 'evt_8',
       data: { object: {
         id: 'ch_1', payment_intent: 'pi_settled', amount_captured: 10000,
-        refunds: { data: [{ id: 're_1', amount: 1000, currency: 'eur', status: 'succeeded', reason: null }] },
+        refunds: { data: [{ id: 're_1', amount: 1000, currency: 'eur', status: 'succeeded', reason: 'duplicate' }] },
       }},
     };
-    mockPrisma.webhook_events.findUnique.mockResolvedValueOnce({
-      ...RECV_EVENT, payload: JSON.stringify(payload),
-    });
+    mockPrisma.webhook_events.findUnique.mockResolvedValueOnce({ ...RECV_EVENT, payload: JSON.stringify(payload) });
     mockPrisma.webhook_events.update.mockResolvedValue(undefined);
-    mockPrisma.settlements.findUnique.mockResolvedValueOnce({ id: BigInt(1) });
-    mockPrisma.refunds.findUnique.mockResolvedValueOnce(null);
-    mockPrisma.$transaction.mockImplementationOnce(async (fn: any) => fn(mockPrisma));
-    mockPrisma.refunds.create.mockResolvedValueOnce({ id: BigInt(1) });
-    mockPrisma.ledger_entries.create.mockResolvedValueOnce(undefined);
+    mockRefundService.process.mockResolvedValueOnce({ refundId: BigInt(1), reversalOrderIds: [] });
 
     await svc.processWebhookEvent(1);
 
-    expect(mockPrisma.refunds.create).toHaveBeenCalled();
-    expect(mockPrisma.ledger_entries.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ type: 'debit' }) })
-    );
+    expect(mockRefundService.process).toHaveBeenCalledTimes(1);
+    expect(mockRefundService.process).toHaveBeenCalledWith({
+      stripeRefundId: 're_1', paymentIntentId: 'pi_settled', amountCents: 1000, currency: 'EUR',
+      refundStatus: 'succeeded', chargeId: 'ch_1', reason: 'duplicate',
+    });
+    // The handler itself never writes ledger rows; RefundService owns that.
+    expect(mockPrisma.ledger_entries.create).not.toHaveBeenCalled();
   });
 
-  it('WH9: charge.refunded — skips if no matching settlement', async () => {
+  it('WH9: charge.refunded — RefundService error: rethrown and webhook reset to received', async () => {
     const payload = {
       type: 'charge.refunded', id: 'evt_9',
       data: { object: {
@@ -259,15 +260,14 @@ describe('Phase 0.5 — WebhookHandlerService', () => {
         refunds: { data: [{ id: 're_2', amount: 500, currency: 'eur', status: 'succeeded' }] },
       }},
     };
-    mockPrisma.webhook_events.findUnique.mockResolvedValueOnce({
-      ...RECV_EVENT, payload: JSON.stringify(payload),
-    });
+    mockPrisma.webhook_events.findUnique.mockResolvedValueOnce({ ...RECV_EVENT, payload: JSON.stringify(payload) });
     mockPrisma.webhook_events.update.mockResolvedValue(undefined);
-    mockPrisma.settlements.findUnique.mockResolvedValueOnce(null);
+    mockRefundService.process.mockRejectedValueOnce(new Error('No settlement found for payment_intent pi_unknown.'));
 
-    await svc.processWebhookEvent(1);
+    await expect(svc.processWebhookEvent(1)).rejects.toThrow('No settlement found');
 
-    expect(mockPrisma.refunds.create).not.toHaveBeenCalled();
+    const resetCall = mockPrisma.webhook_events.update.mock.calls[1];
+    expect((resetCall as any)[0].data.status).toBe('received');
   });
 
   it('WH10: unknown event type — no error', async () => {
@@ -334,25 +334,39 @@ describe('Phase 0.5 — WebhookHandlerService', () => {
     expect(mockPrisma.auctionItem.update).not.toHaveBeenCalled();
   });
 
-  it('WH14: charge.refunded — skips already-recorded refund (idempotency)', async () => {
+  it('WH14: charge.refunded — several refunds on one charge: each processed in order', async () => {
     const payload = {
       type: 'charge.refunded', id: 'evt_14',
       data: { object: {
         id: 'ch_3', payment_intent: 'pi_settled2', amount_captured: 10000,
-        refunds: { data: [{ id: 're_dupe', amount: 500, currency: 'eur', status: 'succeeded', reason: null }] },
+        refunds: { data: [
+          { id: 're_a', amount: 3333, currency: 'eur', status: 'succeeded' },
+          { id: 're_b', amount: 6666, currency: 'eur', status: 'succeeded' },
+        ] },
       }},
     };
-    mockPrisma.webhook_events.findUnique.mockResolvedValueOnce({
-      ...RECV_EVENT, payload: JSON.stringify(payload),
-    });
+    mockPrisma.webhook_events.findUnique.mockResolvedValueOnce({ ...RECV_EVENT, payload: JSON.stringify(payload) });
     mockPrisma.webhook_events.update.mockResolvedValue(undefined);
-    mockPrisma.settlements.findUnique.mockResolvedValueOnce({ id: BigInt(2) });
-    mockPrisma.refunds.findUnique.mockResolvedValueOnce({ id: BigInt(99) }); // already exists
+    mockRefundService.process.mockResolvedValue({ refundId: BigInt(1), reversalOrderIds: [] });
 
     await svc.processWebhookEvent(1);
 
-    expect(mockPrisma.refunds.create).not.toHaveBeenCalled();
-    expect(mockPrisma.ledger_entries.create).not.toHaveBeenCalled();
+    expect(mockRefundService.process).toHaveBeenCalledTimes(2);
+    expect((mockRefundService.process.mock.calls[0] as any)[0].stripeRefundId).toBe('re_a');
+    expect((mockRefundService.process.mock.calls[1] as any)[0].stripeRefundId).toBe('re_b');
+  });
+
+  it('WH17: charge.refunded — no payment_intent: RefundService not called', async () => {
+    const payload = {
+      type: 'charge.refunded', id: 'evt_17',
+      data: { object: { id: 'ch_9', refunds: { data: [{ id: 're_x', amount: 100, currency: 'eur', status: 'succeeded' }] } } },
+    };
+    mockPrisma.webhook_events.findUnique.mockResolvedValueOnce({ ...RECV_EVENT, payload: JSON.stringify(payload) });
+    mockPrisma.webhook_events.update.mockResolvedValue(undefined);
+
+    await svc.processWebhookEvent(1);
+
+    expect(mockRefundService.process).not.toHaveBeenCalled();
   });
 
   it('WH15: checkout.session.completed — sell-now offer not found: no-op', async () => {

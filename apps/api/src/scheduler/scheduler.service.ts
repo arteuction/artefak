@@ -276,6 +276,12 @@ export class SchedulerService {
         const stripeAccount = (entry.settlement_lines as any)?.stripe_account_id ?? null;
 
         if (stripeAccount) {
+          // Mirror the lease on the line so a concurrent refund takes the reversal_pending path.
+          await this.prisma.$executeRaw`
+            UPDATE settlement_lines SET status = 'processing', updated_at = ${new Date()}
+            WHERE id = ${entry.settlement_line_id} AND status = 'pending'
+          `;
+
           // Reconciliation strategy (handles crash-after-Stripe-before-DB scenarios):
           //
           // 1. stripe_transfer_id already persisted → retrieve directly (covers delayed
@@ -289,9 +295,7 @@ export class SchedulerService {
             const reconciled = await this.stripe.retrieveTransfer(existingTransferId);
             if (reconciled) {
               this.logger.log(`transfer_outbox ${entry.id}: reconciled existing Stripe transfer ${existingTransferId}`);
-              await this.prisma.$executeRaw`
-                UPDATE transfer_outbox SET status = 'completed', lease_expires_at = NULL, dispatched_at = ${new Date()}, updated_at = ${new Date()} WHERE id = ${entry.id}
-              `;
+              await this.markTransferDispatched(entry.id, entry.settlement_line_id, existingTransferId);
               dispatched++;
               continue;
             }
@@ -323,12 +327,7 @@ export class SchedulerService {
             });
             if (found) {
               this.logger.log(`transfer_outbox ${entry.id}: found orphaned Stripe transfer ${found.transfer_id} via transfer_group`);
-              await this.prisma.$executeRaw`
-                UPDATE transfer_outbox
-                SET stripe_transfer_id = ${found.transfer_id}, status = 'completed',
-                    lease_expires_at = NULL, dispatched_at = ${new Date()}, updated_at = ${new Date()}
-                WHERE id = ${entry.id}
-              `;
+              await this.markTransferDispatched(entry.id, entry.settlement_line_id, found.transfer_id);
               dispatched++;
               continue;
             }
@@ -351,14 +350,21 @@ export class SchedulerService {
           `;
 
           this.logger.log(`transfer_outbox ${entry.id}: EUR ${Number(entry.amount_cents) / 100} dispatched to ${stripeAccount} (${result?.transfer_id ?? 'no-id'})`);
+          if (result?.transfer_id) {
+            await this.markTransferDispatched(entry.id, entry.settlement_line_id, result.transfer_id);
+            dispatched++;
+          } else {
+            // Stripe returned no transfer id: leave the row pending for retry rather than claim success.
+            throw new Error('Stripe returned no transfer id');
+          }
         } else {
-          this.logger.warn(`transfer_outbox ${entry.id}: no stripe_account_id — skipping transfer`);
+          this.logger.warn(`transfer_outbox ${entry.id}: no stripe_account_id — nothing to transfer`);
+          await this.prisma.$executeRaw`
+            UPDATE transfer_outbox
+            SET status = 'canceled', lease_expires_at = NULL, last_error = 'no stripe_account_id', updated_at = ${new Date()}
+            WHERE id = ${entry.id}
+          `;
         }
-
-        await this.prisma.$executeRaw`
-          UPDATE transfer_outbox SET status = 'completed', lease_expires_at = NULL, updated_at = ${new Date()} WHERE id = ${entry.id}
-        `;
-        dispatched++;
       } catch (err: any) {
         const backoffSecs = Math.min(300, 60 * Math.pow(2, entry.attempt));
         const nextAttempt = new Date(Date.now() + backoffSecs * 1000);
@@ -369,11 +375,111 @@ export class SchedulerService {
               next_attempt_at = ${nextAttempt}, updated_at = ${new Date()}
           WHERE id = ${entry.id}
         `;
+        await this.prisma.$executeRaw`
+          UPDATE settlement_lines SET status = 'pending', updated_at = ${new Date()}
+          WHERE id = ${entry.settlement_line_id} AND status = 'processing'
+        `;
         this.logger.error(`transfer_outbox ${entry.id} failed: ${err?.message}`);
       }
     }
 
     if (dispatched > 0) this.logger.log(`Dispatched ${dispatched} transfer outbox entry/entries`);
+  }
+
+  /**
+   * Every minute: execute pending transfer_reversal_orders (port of Laravel DispatchStripeReversal).
+   * Claim → Stripe reversal outside any transaction → one transaction marking the order, refund line
+   * and settlement line 'reversed'. Failures back off 2^attempt minutes and go 'failed' after 5.
+   * The reversal idempotency key is stable per order, so a crash after Stripe succeeds is safe to retry.
+   * If Stripe reports insufficient connected-account balance the order ends 'failed' and needs an operator.
+   */
+  private static readonly REVERSAL_MAX_ATTEMPTS = 5;
+  private static readonly REVERSAL_LEASE_MS = 5 * 60 * 1000;
+
+  @Cron(CronExpression.EVERY_MINUTE, { name: 'dispatch-transfer-reversals' })
+  async dispatchTransferReversals(): Promise<void> {
+    if (!this.stripe.enabled) return;
+
+    const now = new Date();
+    const orders = await this.prisma.transfer_reversal_orders.findMany({
+      where: { status: 'pending' as any, OR: [{ next_attempt_at: null }, { next_attempt_at: { lte: now } }] },
+      include: { refund_lines: { select: { settlement_line_id: true } } },
+      orderBy: { id: 'asc' },
+      take: 20,
+    });
+    if (orders.length === 0) return;
+
+    for (const order of orders) {
+      const claimed = await this.prisma.$executeRaw`
+        UPDATE transfer_reversal_orders
+        SET status = 'processing', processing_started_at = ${new Date()}, updated_at = ${new Date()}
+        WHERE id = ${order.id} AND status = 'pending'
+      `;
+      if (claimed === 0) continue;
+
+      try {
+        const result = await this.stripe.createTransferReversal({
+          transfer_id: order.stripe_transfer_id,
+          amount_cents: Number(order.amount_cents),
+          idempotency_key: order.idempotency_key,
+        });
+        if (!result) throw new Error('Stripe returned no reversal');
+
+        const done = new Date();
+        const settlementLineId = (order.refund_lines as any).settlement_line_id;
+        await this.prisma.$transaction([
+          this.prisma.$executeRaw`
+            UPDATE transfer_reversal_orders
+            SET status = 'reversed', stripe_reversal_id = ${result.reversal_id}, reversed_at = ${done},
+                processing_started_at = NULL, updated_at = ${done}
+            WHERE id = ${order.id}
+          `,
+          this.prisma.$executeRaw`
+            UPDATE refund_lines SET status = 'reversed', updated_at = ${done} WHERE id = ${order.refund_line_id}
+          `,
+          this.prisma.$executeRaw`
+            UPDATE settlement_lines SET status = 'reversed', updated_at = ${done} WHERE id = ${settlementLineId}
+          `,
+        ]);
+        this.logger.log(`transfer_reversal_order ${order.id}: reversed ${result.reversal_id}`);
+      } catch (err: any) {
+        const attempt = Number(order.attempt) + 1;
+        const isFinal = attempt >= SchedulerService.REVERSAL_MAX_ATTEMPTS;
+        const nextAt = isFinal ? null : new Date(Date.now() + 2 ** attempt * 60 * 1000);
+        await this.prisma.$executeRaw`
+          UPDATE transfer_reversal_orders
+          SET status = ${isFinal ? 'failed' : 'pending'}, attempt = ${attempt},
+              last_error = ${String(err?.message ?? err).slice(0, 500)},
+              next_attempt_at = ${nextAt}, processing_started_at = NULL, updated_at = ${new Date()}
+          WHERE id = ${order.id}
+        `;
+        this.logger.error(`transfer_reversal_order ${order.id} attempt ${attempt}${isFinal ? ' (FINAL)' : ''} failed: ${err?.message}`);
+      }
+    }
+  }
+
+  /**
+   * Success state, mirroring Laravel DispatchStripeTransfer step 3a: outbox → dispatched and the
+   * line records the transfer id (reversals need it). The line advances to 'transferred' only if
+   * it is still in our 'processing' lease; a refund that already set it to 'reversal_pending' wins.
+   */
+  private async markTransferDispatched(outboxId: bigint, lineId: bigint, transferId: string): Promise<void> {
+    const now = new Date();
+    await this.prisma.$transaction([
+      this.prisma.$executeRaw`
+        UPDATE transfer_outbox
+        SET status = 'dispatched', stripe_transfer_id = ${transferId}, lease_expires_at = NULL,
+            dispatched_at = ${now}, updated_at = ${now}
+        WHERE id = ${outboxId}
+      `,
+      this.prisma.$executeRaw`
+        UPDATE settlement_lines
+        SET stripe_transfer_id = ${transferId},
+            status = CASE WHEN status = 'processing' THEN 'transferred' ELSE status END,
+            updated_at = ${now}
+        WHERE id = ${lineId}
+      `,
+    ]);
   }
 
   /**
@@ -384,7 +490,7 @@ export class SchedulerService {
   async recoverStaleClaims(): Promise<void> {
     const now = new Date();
 
-    const [domainRecovered, transferRecovered] = await Promise.all([
+    const [domainRecovered, transferRecovered, reversalRecovered] = await Promise.all([
       this.prisma.$executeRaw`
         UPDATE domain_events
         SET    status = 'pending', lease_expires_at = NULL, updated_at = ${now}
@@ -399,11 +505,20 @@ export class SchedulerService {
           AND  lease_expires_at IS NOT NULL
           AND  lease_expires_at < ${now}
       `,
+      this.prisma.$executeRaw`
+        UPDATE transfer_reversal_orders
+        SET    status = 'pending', processing_started_at = NULL, updated_at = ${now}
+        WHERE  status = 'processing'
+          AND  processing_started_at IS NOT NULL
+          AND  processing_started_at < ${new Date(now.getTime() - SchedulerService.REVERSAL_LEASE_MS)}
+      `,
     ]);
 
     if (Number(domainRecovered) > 0)
       this.logger.warn(`Recovered ${Number(domainRecovered)} stale domain_event claim(s)`);
     if (Number(transferRecovered) > 0)
       this.logger.warn(`Recovered ${Number(transferRecovered)} stale transfer_outbox claim(s)`);
+    if (Number(reversalRecovered) > 0)
+      this.logger.warn(`Recovered ${Number(reversalRecovered)} stale transfer_reversal_order claim(s)`);
   }
 }

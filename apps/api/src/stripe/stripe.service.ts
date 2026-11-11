@@ -136,6 +136,24 @@ export class StripeService {
     }
   }
 
+  /** Reverses (part of) a prior transfer to a connected account. Idempotent on the supplied key. */
+  async createTransferReversal(params: {
+    transfer_id: string;
+    amount_cents: number;
+    idempotency_key: string;
+  }): Promise<{ reversal_id: string } | null> {
+    if (!this.stripe) {
+      this.logger.warn('Stripe not configured — skipping transfer reversal');
+      return null;
+    }
+    const reversal = await this.stripe.transfers.createReversal(
+      params.transfer_id,
+      { amount: params.amount_cents },
+      { idempotencyKey: params.idempotency_key },
+    );
+    return { reversal_id: reversal.id };
+  }
+
   async createTransfer(params: {
     amount_cents: number;
     currency: string;

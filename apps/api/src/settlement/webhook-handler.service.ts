@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { SettlementService } from './settlement.service';
 import { EmailService } from '../email/email.service';
+import { RefundService } from './refund.service';
 import { RecipientLine } from './recipient-line';
 import { Money } from './money';
 import { SplitProfile } from './split-profile';
@@ -28,6 +29,7 @@ export class WebhookHandlerService {
     private readonly prisma:      PrismaService,
     private readonly settlements: SettlementService,
     private readonly email:       EmailService,
+    private readonly refunds:     RefundService,
   ) {}
 
   async processWebhookEvent(webhookEventId: number): Promise<void> {
@@ -408,63 +410,28 @@ export class WebhookHandlerService {
 
   // ── charge.refunded ────────────────────────────────────────────────────
 
+  // Delegates to RefundService (port of Laravel ProcessRefund). Errors propagate so the webhook
+  // is reset to 'received' and retried — an out-of-order refund (settlement not created yet) must
+  // not be dropped, and a refund that exceeds gross or mismatches currency must not be booked.
   private async handleChargeRefunded(event: any): Promise<void> {
     const charge  = event.data?.object ?? {};
     const refunds = charge.refunds?.data ?? [];
     const piId    = charge.payment_intent;
 
-    if (!piId) return;
-
-    const settlement = await this.prisma.settlements.findUnique({
-      where: { stripe_payment_intent_id: piId },
-      select: { id: true },
-    });
-    if (!settlement) return;
-
-    const now = new Date();
+    if (!piId) {
+      this.logger.warn(`charge.refunded ${event.id} has no payment_intent — ignored`);
+      return;
+    }
 
     for (const refund of refunds) {
-      const amountCents = Number(refund.amount);
-      const currency    = (refund.currency ?? 'EUR').toUpperCase();
-
-      // Idempotent: skip if already recorded
-      const existing = await this.prisma.refunds.findUnique({
-        where: { stripe_refund_id: refund.id },
-        select: { id: true },
-      });
-      if (existing) continue;
-
-      await this.prisma.$transaction(async (tx) => {
-        const refundRow = await tx.refunds.create({
-          data: {
-            stripe_refund_id:      refund.id,
-            stripe_charge_id:      charge.id ?? null,
-            settlement_id:         settlement.id,
-            amount_cents:          amountCents,
-            currency,
-            is_partial:            amountCents < Number(charge.amount_captured ?? charge.amount),
-            refund_status:         (refund.status ?? 'pending') as any,
-            reconciliation_status: 'pending' as any,
-            reason:                refund.reason ?? null,
-            created_at:            now,
-            updated_at:            now,
-          },
-          select: { id: true },
-        });
-
-        // Ledger debit entry — THREE-LEDGER INVARIANT: ledger_entries only
-        await tx.ledger_entries.create({
-          data: {
-            settlement_id:   settlement.id,
-            type:            'debit' as any,
-            amount_cents:    amountCents,
-            currency,
-            idempotency_key: `refund:${refund.id}:debit`,
-            note:            `Stripe refund ${refund.id}`,
-            created_at:      now,
-            updated_at:      now,
-          },
-        });
+      await this.refunds.process({
+        stripeRefundId:  refund.id,
+        paymentIntentId: piId,
+        amountCents:     Number(refund.amount),
+        currency:        String(refund.currency ?? 'EUR').toUpperCase(),
+        refundStatus:    refund.status ?? 'succeeded',
+        chargeId:        charge.id ?? null,
+        reason:          refund.reason ?? null,
       });
     }
   }

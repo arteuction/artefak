@@ -11,6 +11,8 @@
  * ST8  enabled (mock): createTransfer calls stripe.transfers.create with idempotency_key
  * ST9  enabled (mock): findTransferByGroup returns match when single verified transfer
  * ST10 enabled (mock): findTransferByGroup returns null when multiple verified matches
+ * ST11 disabled: createTransferReversal returns null
+ * ST12 enabled (mock): createTransferReversal passes amount and idempotency_key to stripe.transfers.createReversal
  */
 
 import { jest } from '@jest/globals';
@@ -60,6 +62,11 @@ describe('Phase 0.6A — StripeService', () => {
       const result = await svc.createTransfer({ amount_cents: 100, currency: 'eur', destination: 'acct_1' });
       expect(result).toBeNull();
     });
+
+    it('ST11: createTransferReversal returns null', async () => {
+      const result = await svc.createTransferReversal({ transfer_id: 'tr_1', amount_cents: 100, idempotency_key: 'k' });
+      expect(result).toBeNull();
+    });
   });
 
   describe('enabled (mocked stripe client)', () => {
@@ -74,6 +81,7 @@ describe('Phase 0.6A — StripeService', () => {
         create: jest.fn(async () => mockTransfer) as any,
         retrieve: jest.fn(async () => ({ ...mockTransfer, destination: 'acct_1', currency: 'eur', metadata: {} })) as any,
         list: jest.fn(async () => ({ data: [] })) as any,
+        createReversal: jest.fn(async () => ({ id: 'trr_mock' })) as any,
       },
     };
 
@@ -138,6 +146,17 @@ describe('Phase 0.6A — StripeService', () => {
         transferGroup: 'grp_1', externalRef: 'ref_1', amountCents: 1000, currency: 'EUR', destination: 'acct_dest',
       });
       expect(result?.transfer_id).toBe('tr_verified');
+    });
+
+    it('ST12: createTransferReversal passes amount and idempotency_key to Stripe', async () => {
+      mockStripeClient.transfers.createReversal.mockResolvedValueOnce({ id: 'trr_1' });
+      const result = await svc.createTransferReversal({
+        transfer_id: 'tr_artist', amount_cents: 4500, idempotency_key: 'rev_re_1_line_101',
+      });
+      expect(result?.reversal_id).toBe('trr_1');
+      expect(mockStripeClient.transfers.createReversal).toHaveBeenCalledWith(
+        'tr_artist', { amount: 4500 }, { idempotencyKey: 'rev_re_1_line_101' },
+      );
     });
 
     it('ST10: findTransferByGroup returns null when multiple verified matches (ambiguous)', async () => {
