@@ -1,6 +1,8 @@
 # Domain Ownership Matrix — ARTeuCtion
 
-_Generated: 2026-11-03. Reflects current state; update after each cutover._
+_Generated: 2026-11-03. **Statuses rebased 2026-11-11** against `apps/api/src` (`origin/main` `00d9505e`). Reflects current state; update after each cutover._
+
+**Status caveat:** IN PROGRESS means code + unit tests exist. No domain is READY FOR CUTOVER until the 83 `HAS_DB` tests, staging parity diff and per-domain acceptance tests in `PRODUCTION_CUTOVER_PLAN.md` pass. **Current Owner is Laravel for every row** — NestJS serves no production traffic.
 
 **Ownership legend:**
 - **Laravel** — Laravel is the sole authoritative writer. NestJS has no live implementation.
@@ -29,14 +31,14 @@ _Generated: 2026-11-03. Reflects current state; update after each cutover._
 | **Auction (admin: create/publish/open/close)** | Laravel (primary) | NestJS | NOT STARTED | Admin panel decision; settlement engine | Admin routes are stubs |
 | **Bidding (place bid, max-bid, re-authorize)** | Laravel (primary) | NestJS | IN PROGRESS | Load test (50 concurrent, P95<200ms); BidConcurrencyService SELECT FOR UPDATE | Core bid placement done; max-bid/re-auth stubs |
 | **Sell Now (offers, counter, accept, reject)** | Laravel (primary) | NestJS | IN PROGRESS | Checkout-session Stripe integration | Offer CRUD done; Stripe checkout stub |
-| **Fulfillment (ship, confirm-delivery, close)** | Laravel (primary) | NestJS | NOT STARTED | Settlement engine; Stripe payout integration | All handlers are stubs |
-| **Settlement (calculate, disburse, statement)** | Laravel (primary) | NestJS | NOT STARTED | Port SettlementCalculator + CoAuthorSplit + FundSplit; parity test vs historical transactions | Empty stub — highest financial risk |
-| **Payout (artist, gallery)** | Laravel (primary) | NestJS | NOT STARTED | Settlement engine complete; Stripe connected account integration | Empty paged stub only |
+| **Fulfillment (ship, confirm-delivery, close)** | Laravel (primary) | NestJS | IN PROGRESS | Close step + settlement trigger; settlement engine parity | Ship/deliver status flips exist in `auction.service.ts`; no close/settlement trigger |
+| **Settlement (calculate, disburse, statement)** | Laravel (primary) | NestJS | IN PROGRESS | Cent-for-cent parity vs Laravel vectors; statement PDF | `SettlementService.settle/preview` + `SplitProfile` exist; parity not demonstrated; statement missing — highest financial risk |
+| **Payout (artist, gallery)** | Laravel (primary) | NestJS | IN PROGRESS | Settlement parity; Stripe connected-account E2E | `artistPayouts`/`galleryPayouts`/`pendingTransfers` are real Prisma queries |
 | **Ledger (admin view, refunds)** | Laravel (primary) | NestJS | NOT STARTED | Settlement engine; three-ledger invariant tests | Admin read routes are stubs |
 | **Reconciliation (runs, mismatches)** | Laravel (primary) | NestJS | NOT STARTED | RunNightlyReconciliationCommand ported | All stubs |
-| **Stripe Webhooks** | Laravel | NestJS | MISSING | Shadow mode + 30-day comparison with zero discrepancies | Zero NestJS implementation; HandleStripeWebhook job in Laravel only |
-| **Stripe Transfers** | Laravel | NestJS | MISSING | Settlement engine complete | DispatchStripeTransfer job in Laravel only |
-| **Stripe Refunds** | Laravel | NestJS | MISSING | Settlement engine complete | DispatchStripeReversal job in Laravel only |
+| **Stripe Webhooks** | Laravel | NestJS | IN PROGRESS | Shadow mode + 30-day comparison with zero discrepancies; event-type coverage audit vs Laravel | `WebhookHandlerService` handles 5 event types with `stripe_event_id` dedup; shadow comparison not started |
+| **Stripe Transfers** | Laravel | NestJS | IN PROGRESS | Settlement parity; real Stripe idempotency test | `createTransfer` + `dispatch-transfer-outbox` cron with lease claims |
+| **Stripe Refunds** | Laravel | NestJS | MISSING | Refund/reversal dispatch implemented | NestJS only *records* `charge.refunded`; nothing creates refunds. `DispatchStripeReversal` is Laravel-only |
 | **Collection** | Laravel (primary) | NestJS | IN PROGRESS | Full CRUD parity | Core CRUD done |
 | **Consignment** | Laravel (primary) | NestJS | IN PROGRESS | Activate/approve/create-lot flows complete | Core done; lifecycle actions partial |
 | **Dispute** | Laravel (primary) | NestJS | IN PROGRESS | Evidence attachment tested end-to-end | Core done |
@@ -55,19 +57,19 @@ _Generated: 2026-11-03. Reflects current state; update after each cutover._
 | **Book Reviews** | Laravel (primary) | NestJS | IN PROGRESS | Moderation workflow tested | Partial |
 | **Ownership Transfer** | Laravel (primary) | NestJS | IN PROGRESS | Settlement engine dependency | Partial |
 | **Reserve (waive, counter-offer)** | Laravel (primary) | NestJS | IN PROGRESS | Auction state machine integration | Partial |
-| **Search (artworks)** | Laravel (primary) | NestJS | IN PROGRESS | Meilisearch connected; relevance parity | Currently SQL LIKE only — no Meilisearch |
+| **Search (artworks)** | Laravel (primary) | NestJS | IN PROGRESS | Meilisearch connected; relevance parity | `MeilisearchService` exists (search/index/delete); index sync on write and relevance parity unverified |
 | **Venue** | Laravel (primary) | NestJS | IN PROGRESS | Map endpoint tested | Partial |
 | **Evidence (admin)** | Laravel (primary) | NestJS | IN PROGRESS | Verify flow tested | Partial |
 | **Artist Applications** | Laravel (primary) | NestJS | IN PROGRESS | Approve/reject workflow tested | Partial |
-| **Watchlist** | Laravel (primary) | NestJS | NOT STARTED | Full CRUD | Stub |
+| **Watchlist** | Laravel (primary) | NestJS | IN PROGRESS | Full CRUD parity | `GET watchlist` exists in `profile.controller.ts`; write routes unverified |
 | **ArtMetro (artifacts, routes, QR)** | Laravel (primary) | NestJS | NOT STARTED | ArtMetro product decisions | Stubs only |
 | **Admin Panel** | Laravel (Filament) | TBD | MISSING | Product decision: React admin, keep Filament, or new tool | 7 Filament resources; no replacement built |
-| **Queue Workers** | Laravel | NestJS | MISSING | BullMQ or equivalent; dead-letter queues; idempotency keys | 5 jobs with no NestJS equivalent |
-| **Scheduled Tasks** | Laravel | NestJS | MISSING | NestJS scheduler; monitoring alerts | 7 critical commands; none ported |
-| **File Storage (S3)** | Laravel | NestJS | NOT STARTED | AWS SDK integration; presign + confirm flow | All S3 calls are stubs returning placeholder URLs |
+| **Queue Workers** | Laravel | NestJS | IN PROGRESS | Retry/dead-letter/monitoring design (DB outbox + cron vs BullMQ — needs ADR); no double-processing guard vs Laravel workers | No BullMQ. Outbox + `@nestjs/schedule` crons with lease claims cover transfers and domain events; derivatives and reversal jobs absent |
+| **Scheduled Tasks** | Laravel | NestJS | IN PROGRESS | Remaining commands ported; 14-day parallel run | 5 crons exist (close lots, expire bid auth, domain events, transfer outbox, stale-claim recovery). Reconciliation, governance health, ops alerts, settlement-create absent |
+| **File Storage (S3)** | Laravel | NestJS | IN PROGRESS | Real-bucket run; book upload/complete flow | Presign upload/download + quarantine→approve implemented; book-files upload-intent still a stub |
 | **Image Processing** | Laravel | NestJS | MISSING | Sharp or equivalent; GenerateArtworkDerivativesJob ported | Stub — no real image processing |
-| **Realtime / WebSocket** | Laravel (Reverb) | NestJS | MISSING | NestJS Gateway or Ably/Pusher; live bidding depends on this | Zero NestJS implementation |
-| **Email / Notifications** | Laravel (Postmark/Resend) | NestJS | MISSING | Nodemailer or SDK; registration + bid + payment emails | Zero NestJS implementation |
+| **Realtime / WebSocket** | Laravel (Reverb) | NestJS | IN PROGRESS | Reconnect + API reconciliation (INVARIANT 14); frontend protocol compatibility with Reverb | Socket.io `BidGateway` exists |
+| **Email / Notifications** | Laravel (Postmark/Resend) | NestJS | IN PROGRESS | Trigger wiring (outbid, payment) + deliverability | `EmailService` (nodemailer) with 5 templates |
 | **PDF Generation** | Laravel (DomPDF) | NestJS | MISSING | Tax receipts, settlement statements | Zero NestJS implementation |
 | **Activity Log** | Laravel (Spatie) | NestJS | MISSING | Audit trail for financial operations | Zero NestJS implementation |
 | **Domain Events (outbox)** | Laravel | NestJS | NOT STARTED | DispatchDomainEventsCommand ported; outbox table | Stub |

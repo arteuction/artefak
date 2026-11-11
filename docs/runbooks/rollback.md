@@ -114,3 +114,9 @@ Document every rollback in `docs/incidents/` with:
 - Steps taken
 - Financial rows affected (count, amount range)
 - Resolution
+
+---
+
+## NestJS per-domain traffic rollback
+
+This runbook covers the Laravel stack. For rolling back a domain that was switched to NestJS (Nginx revert, cron ownership via `SCHEDULER_ENABLED`, post-rollback reconciliation) see `docs/ai/TRAFFIC_SWITCH_AND_ROLLBACK.md` and `docs/ai/PRODUCTION_CUTOVER_PLAN.md`. Not yet rehearsed.

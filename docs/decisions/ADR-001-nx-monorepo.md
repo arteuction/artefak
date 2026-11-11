@@ -3,6 +3,7 @@
 **Статус:** Прието  
 **Дата:** 2026-11-11  
 **Автор:** metacosmicactus  
+**Заменя частично:** `docs/ai/GITHUB_REPOSITORY_CONSOLIDATION.md` — инструментът за workspace (там: pnpm workspaces + опционален Turborepo) става **Nx**. Останалото в него остава в сила: archive-not-delete, без пренаписване на история, Laravel → `legacy/laravel/` при Stage 4 (не `archive/`), "не обединявай други репозитории преди да са ясни границите".  
 
 ---
 
@@ -132,4 +133,6 @@ npm install --save-dev @nx/gradle
 - Всеки нов frontend проект трябва да се регистрира в Nx преди merge в main
 - `api-contracts` package въвежда breaking change политика — semver за публични API промени
 - Android интеграцията изисква верификация на Java/Gradle версии преди Фаза 4
-- Laravel директорията остава извън Nx project graph докато е migration authority
+- Laravel директорията остава извън Nx project graph докато е migration authority; при Stage 4 се мести с обикновен `git mv` в `legacy/laravel/` (вж. `LARAVEL_EXIT_PLAN.md`)
+- Съществуващият фронтенд е в `resources/frontend/`. Фаза 3 го **регистрира на място**; преместването в `apps/web-*` е отделно решение, не част от тази ADR. Целевата структура по-горе е ориентир, не задължение
+- Android (ArtMetro) и artefak.eu не са открити в това repository — тяхното местоположение трябва да се установи във Фаза 1, преди да се обещава `apps/android` или `apps/web-artefak`

@@ -1,223 +1,66 @@
-# P0.5 — Traffic Switch & Rollback Runbook
+# Traffic Switch and Rollback — NestJS Addendum (P0.5)
 
-> **Status:** NOT STARTED (live staging/VPS required to execute)  
-> **Prerequisite gates:** P0.1 (migrations deployed), P0.2 (integration tests green), P0.4 (Stripe E2E rehearsal)  
-> **Owner:** Staff Engineer / DevOps lead  
-> **Estimated execution time:** 30-45 min per phase
+_Rewritten 2026-11-11. This file is an **addendum**. The authoritative procedure is `PRODUCTION_CUTOVER_PLAN.md` (backup, per-domain steps, Stripe shadow mode, acceptance tests); generic recovery is `docs/runbooks/rollback.md`. Where this file disagrees with those, they win._
 
----
-
-## 1. Route Ownership Matrix
-
-The transition moves route ownership from **Laravel (PHP)** to **NestJS (Node)** incrementally.
-The two stacks run on the same domain during transition; Nginx decides which upstream handles each prefix.
-
-| Route prefix | Current owner | Target owner | Notes |
-|---|---|---|---|
-| `/api/auth/*` | Laravel | Laravel | **NEVER switch until auth parity proven** (see INVARIANTS.md) |
-| `/api/artworks/*` | Laravel | NestJS | Switch only after AW spec + HAS_DB green |
-| `/api/art-lots/*` | Laravel | NestJS | Depends on ArtLot domain parity |
-| `/api/auctions/*` | Laravel | NestJS | Auction state machine must match |
-| `/api/admin/*` | Laravel | NestJS | Admin routes last — most blast radius |
-| `/api/library/*` | Laravel | NestJS | LS spec must be 100% green |
-| `/api/disputes/*` | Laravel | NestJS | DS spec must be 100% green |
-| `/api/donations/*` | Laravel | Laravel | Donation ledger — do NOT mix with `ledger_entries` |
-| `/*` (web UI) | Shared hosting / CDN | CDN / Vercel | Outside NestJS scope |
-
-**Single-writer rule:** At any moment, exactly one stack owns each route prefix.
-Dual-write is explicitly forbidden (see INVARIANTS.md). There is no dual-write phase.
+**Status:** design only. Nothing here has been executed. No production host, Nginx config or deployed commit has been verified.
 
 ---
 
-## 2. Pre-Switch Checklist
+## 1. Facts that shape the switch
 
-Run before switching ANY prefix to NestJS:
+- NestJS uses the global prefix **`/api/v1`**. Nginx `location` blocks must match `/api/v1/<domain>`, not `/api/<domain>`.
+- Laravel owns the schema; NestJS and Laravel share one database during transition. Rollback is therefore **routing only** — no schema change is reverted.
+- Single-writer rule (`PRODUCTION_CUTOVER_PLAN.md`): per domain, exactly one authoritative writer. Enforce with a feature flag, not convention.
+- Nothing below starts before the Staging Evidence Gates SG1–SG4 in `LARAVEL_EXIT_PLAN.md` are green.
 
-- [ ] `prisma migrate deploy` exits 0 on staging DB (P0.1)
-- [ ] `prisma migrate diff --from-config-datasource --to-schema=prisma/schema.prisma --exit-code` exits 0 (no drift)
-- [ ] All 83 HAS_DB integration tests green on `arteuction_test` MariaDB (P0.2)
-- [ ] Stripe webhook test received and processed correctly (P0.4)
-- [ ] NestJS health endpoint `GET /api/health` returns `{"status":"ok"}` on staging
-- [ ] Laravel still responding on its own port (staging)
-- [ ] Nginx config reviewed and reload tested in dry-run
+## 2. Switch order
 
----
+Follow the cutover sequence in `DOMAIN_OWNERSHIP_MATRIX.md` (public read-only → auth → profile → artwork → … → queues/schedulers → search → admin → settlement/payout/reconciliation → Stripe webhooks last). Auth moves only after SG3. Financial domains move last and need the extra gate in §5.
 
-## 3. Nginx Switch Procedure
-
-### 3a. Current (Laravel-only) config skeleton
+## 3. Nginx per-domain block (pattern)
 
 ```nginx
-upstream laravel {
-    server 127.0.0.1:9000;  # PHP-FPM
-}
-
-location /api/ {
-    proxy_pass http://laravel;
-}
-```
-
-### 3b. Per-prefix switch (NestJS takes one domain)
-
-For each prefix being switched, add a `location` block **above** the catch-all:
-
-```nginx
-upstream nestjs {
-    server 127.0.0.1:3000;  # NestJS
-    keepalive 32;
-}
-
-# Switch /api/artworks to NestJS
-location /api/artworks {
-    proxy_pass http://nestjs;
+# More specific block above the Laravel catch-all; one domain per change.
+location /api/v1/artworks {
+    proxy_pass http://nestjs-upstream;
     proxy_http_version 1.1;
     proxy_set_header Connection "";
     proxy_set_header Host $host;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 }
-
-# All other /api/* routes remain on Laravel
-location /api/ {
-    proxy_pass http://laravel;
-}
+location /api { proxy_pass http://laravel-upstream; }
 ```
 
-### 3c. Reload Nginx (zero-downtime)
+Validate with `nginx -t`, apply with `nginx -s reload` (graceful). Confirm which backend answered by a **response header you add per upstream** (e.g. `add_header X-Backend nestjs always;`). Do not infer the backend from `X-Powered-By`.
 
-```bash
-nginx -t                  # validate — must print "syntax is ok"
-systemctl reload nginx    # graceful reload, no dropped connections
-```
+## 4. Draining and restarts
 
-### 3d. Verify after reload
+`main.ts` calls `app.enableShutdownHooks()` (added 2026-11-11; it was missing before), so `SIGTERM` triggers a graceful close. Draining behaviour under load is not yet tested. Reload NestJS through whatever process manager the target host actually uses (container restart or process manager reload); that choice is not yet decided or documented.
 
-```bash
-curl -I https://staging.arteuction.com/api/artworks | grep x-powered-by
-# Should return nothing (NestJS does not send X-Powered-By)
-# Laravel returns: X-Powered-By: PHP/8.x
-```
+## 5. Scheduler, queue and webhook ownership
 
----
+Never run Laravel and NestJS consumers for the same job type against the same production queue (double-processing of financial events).
 
-## 4. In-Flight Request Draining
-
-NestJS handles draining automatically via `app.enableShutdownHooks()`.
-Before reloading Nginx or stopping NestJS:
-
-1. Send `SIGTERM` to the NestJS process — it stops accepting new connections
-2. Wait for `onApplicationShutdown` hook to fire (up to 10 s by default)
-3. All in-flight requests complete before process exits
-4. Reload Nginx after NestJS confirms listening on port 3000 again
-
-For PM2-managed NestJS:
-```bash
-pm2 reload nestjs-api --update-env  # zero-downtime reload
-pm2 logs nestjs-api --lines 50      # verify no errors
-```
-
----
-
-## 5. Scheduler / Queue Worker Ownership
-
-| Worker | Stack | Table written | Notes |
+| Concern | Laravel today | NestJS (exists in code) | Rule |
 |---|---|---|---|
-| Auction auto-close cron | Laravel | `auction` | Do NOT run NestJS cron concurrently |
-| Settlement calculation | Laravel | `settlements`, `settlement_lines` | Financial — single writer mandatory |
-| Transfer outbox processor | Laravel | `transfer_outbox` | Migrate only after full settlement parity |
-| Email queue | Laravel | `jobs` | NestJS uses separate Bull/Redis queues |
-| NestJS health-check cron | NestJS | — | Read-only, safe to run in parallel |
+| Close expired lots | scheduler | `close-expired-lots` cron | Run NestJS in 14-day parallel on **staging**; switch production atomically with the auction domain |
+| Bid-authorization expiry | scheduler | `expire-bid-authorizations` cron | Same |
+| Domain-event dispatch | `DispatchDomainEventsCommand` | `dispatch-domain-events` cron (lease claims) | One consumer per environment |
+| Transfer outbox | Laravel job | `dispatch-transfer-outbox` cron | Switch only with settlement/payout |
+| Stale-claim recovery | — | `recover-stale-claims` cron | NestJS-only; leases are the multi-instance guard |
+| Stripe webhooks | `/stripe/webhook` (primary) | `/api/v1/stripe/webhook` | Shadow mode: Stripe delivers to both, only Laravel writes, ≥30 clean days before switching (`PRODUCTION_CUTOVER_PLAN.md`) |
 
-**Rule:** Scheduler ownership switches atomically with the route that owns that domain.
-Never run both stacks' schedulers for the same domain simultaneously.
+NestJS crons register at app start. A NestJS instance pointed at a shared DB while Laravel still owns those domains **would run its crons and write**. Start every such instance with `SCHEDULER_ENABLED=false` (supported since 2026-11-11; default is enabled, so the safe value must be set explicitly). Finer per-domain flags do not exist yet — the switch is all-or-nothing for the five crons.
 
----
+## 6. Rollback
 
-## 6. Rollback Procedure
+1. Remove/comment the NestJS `location` block for the domain; `nginx -t && nginx -s reload`.
+2. Confirm the `X-Backend` header now reports Laravel.
+3. If NestJS wrote during the window: run reconciliation (`ledger_entries` idempotency keys, settlement conservation) before declaring recovery; follow `docs/runbooks/rollback.md` financial checks.
+4. Record the incident in `docs/incidents/`; mark the domain back in `DOMAIN_OWNERSHIP_MATRIX.md`.
 
-### 6a. Instant rollback (< 2 minutes)
+Targets (from `PRODUCTION_CUTOVER_PLAN.md` / `LARAVEL_EXIT_PLAN.md`): rollback completes in **< 5 minutes**; roll back immediately if 5xx > **1%** in the 15-minute watch window; 24-hour post-cutover thresholds are 5xx < **0.1%**, P95 within 20% of Laravel baseline, queue depth stable, zero reconciliation mismatches, zero Stripe webhook failures.
 
-If NestJS is misbehaving after a prefix switch:
+## 7. Financial-domain extra gate
 
-```bash
-# Remove the NestJS location block from nginx config (comment it out)
-vi /etc/nginx/sites-available/arteuction
-
-# Reload Nginx — traffic returns to Laravel immediately
-nginx -t && systemctl reload nginx
-```
-
-No database changes needed: Laravel owns the schema throughout transition.
-
-### 6b. Rollback verification
-
-```bash
-curl https://staging.arteuction.com/api/artworks | grep -i "X-Powered-By"
-# Should return PHP/8.x header confirming Laravel is responding
-```
-
-### 6c. Post-rollback actions
-
-1. File incident report with exact timestamps and error signatures
-2. Update `HARD_BLOCKER_STATUS.md` — mark the failed phase as BLOCKED
-3. Do NOT re-attempt switch until root cause is identified and a new test covers it
-
----
-
-## 7. Go/No-Go Decision Tree
-
-```
-Is prisma migrate diff exit code 0?
-  NO  → STOP. Run migrations first (P0.1).
-  YES ↓
-
-Are all HAS_DB tests green?
-  NO  → STOP. Fix integration test failures (P0.2).
-  YES ↓
-
-Is NestJS /api/health returning 200 on staging?
-  NO  → STOP. Fix application startup.
-  YES ↓
-
-Does the target domain have 100% unit + integration coverage?
-  NO  → STOP. Add missing tests first.
-  YES ↓
-
-Proceed with nginx switch for that prefix only.
-Monitor error rates for 15 minutes before switching next prefix.
-```
-
----
-
-## 8. Monitoring During Switch
-
-Watch these signals for 15 minutes after each prefix switch:
-
-```bash
-# NestJS application errors
-pm2 logs nestjs-api --lines 100 --err
-
-# Laravel error log (should be quiet for switched routes)
-tail -f /var/log/nginx/error.log
-
-# HTTP 5xx rate — should stay at 0
-grep " 5[0-9][0-9] " /var/log/nginx/access.log | tail -20
-```
-
-**Automatic rollback trigger:** Any HTTP 5xx rate > 1% over 5 minutes → roll back immediately.
-
----
-
-## 9. Financial Domain — Extra Gate
-
-Routes touching `ledger_entries`, `settlements`, or `settlement_lines` require an **additional sign-off** before switch:
-
-- [ ] Three-ledger invariant test suite green (`ledger_entries` ≠ `donations` ≠ `impact_events`)
-- [ ] Settlement calculation produces identical output vs. Laravel for last 30 days of test data
-- [ ] Stripe payout rehearsal successful (P0.4)
-- [ ] A second engineer has reviewed the settlement service diff
-
-The financial domain switch is the **last** switch, not the first.
-
----
-
-*Last updated: 2026-11-07 | Branch: test/phase-180-preservation-provenance*
+Settlement, payout, ledger, reconciliation, transfers and refunds additionally require: three-ledger invariant tests green (`ledger_entries` ≠ `donations` ≠ `impact_events`); cent-for-cent parity on sampled historical transactions; second-engineer review of the settlement diff; verified restore from backup (not just a taken backup); and, for refunds, the refund-dispatch capability, which does not exist in NestJS yet.

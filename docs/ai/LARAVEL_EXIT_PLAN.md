@@ -2,6 +2,9 @@
 
 _Generated: 2026-11-03. Planning document only. No code changes, no production modifications._
 
+> **Rebase note (2026-11-11):** The infrastructure table below was corrected against `apps/api/src`. The route/controller table and the "NestJS Completion Gaps" list still describe the 2026-11-03 picture; for current per-item status and the revised estimate (≈196–317 SP; calendar floor ≈3 months after Stage 2) use `REMAINING_LARAVEL_DEPENDENCIES.md` and `DOMAIN_OWNERSHIP_MATRIX.md`.
+> The staging-evidence gates (SG1–SG4) at the end of this file replace the standalone `LARAVEL-RETIREMENT-CRITERIA.md`, which has been removed.
+
 ---
 
 ## Executive Summary
@@ -105,17 +108,17 @@ ARTeuCtion currently runs on a Laravel 13 monolith that owns all production resp
 |---------------|------------------|-------------------|--------|
 | Authentication | Sanctum + custom token rotation | Passport JWT + opaque refresh | COMPLETE |
 | Authorization | 12 Policies | AuthorizationService (12 methods) | COMPLETE |
-| Stripe Payments | stripe/stripe-php, DispatchStripeTransfer | Not implemented | MISSING |
-| Stripe Webhooks | HandleStripeWebhook job | Not implemented | MISSING |
-| Stripe Refunds | DispatchStripeReversal | Not implemented | MISSING |
-| Stripe Checkout Sessions | SellNowCheckoutController, LibraryController | Stub only | STUB |
-| WebSocket/Realtime | laravel/reverb | Not implemented | MISSING |
-| File Storage (S3) | AWS SDK via Laravel Storage | Stub (presign returns placeholder) | STUB |
-| Image Processing | intervention/image + GenerateArtworkDerivativesJob | Stub | STUB |
-| Full-text Search | laravel/scout + Meilisearch | SQL LIKE fallback only | PARTIAL |
-| Queue Workers | Laravel Horizon / artisan queue:listen | Not implemented | MISSING |
-| Scheduled Tasks | app/Console/Kernel.php | Not implemented | MISSING |
-| Email/Notifications | Postmark/Resend via Laravel Mail | Not implemented | MISSING |
+| Stripe Payments / transfers | stripe/stripe-php, DispatchStripeTransfer | `StripeService.createTransfer` + transfer-outbox cron | IMPLEMENTED, unverified |
+| Stripe Webhooks | HandleStripeWebhook job | `WebhookHandlerService` (5 event types, dedup) | IMPLEMENTED, shadow comparison not started |
+| Stripe Refunds | DispatchStripeReversal | Records `charge.refunded` only; no refund creation | MISSING |
+| Stripe Checkout Sessions | SellNowCheckoutController, LibraryController | `createCheckoutSession` | IMPLEMENTED, E2E not run |
+| WebSocket/Realtime | laravel/reverb | Socket.io `BidGateway` | IMPLEMENTED, frontend parity unverified |
+| File Storage (S3) | AWS SDK via Laravel Storage | Presign + quarantine→approve; stub fallback in dev | IMPLEMENTED, real-bucket run pending |
+| Image Processing | intervention/image + GenerateArtworkDerivativesJob | None (no image dependency) | MISSING |
+| Full-text Search | laravel/scout + Meilisearch | `MeilisearchService` | IMPLEMENTED, relevance parity unverified |
+| Queue Workers | Laravel Horizon / artisan queue:listen | DB outbox + lease claims + cron (no BullMQ) | PARTIAL — design decision pending |
+| Scheduled Tasks | app/Console/Kernel.php | 5 `@nestjs/schedule` crons | PARTIAL |
+| Email/Notifications | Postmark/Resend via Laravel Mail | `EmailService` (nodemailer, 5 templates) | IMPLEMENTED, triggers unverified |
 | Admin Panel | Filament 4.0 (5 resources) | Not implemented | MISSING |
 | Activity Log | spatie/laravel-activitylog | Not implemented | MISSING |
 | PDF Generation | barryvdh/laravel-dompdf | Not implemented | MISSING |
@@ -217,3 +220,33 @@ Laravel may be retired only when ALL of the following are true:
 12. Load test: 50 concurrent bids, P95 < 200ms, P99 < 500ms, zero lost bids.
 13. GDPR data portability and erasure endpoints verified against GDPR requirements.
 14. Laravel repo tagged `v1-final`, archived on GitHub, and all CI/CD pipelines disabled.
+
+---
+
+## Staging Evidence Gates (SG1–SG4) — prerequisites for Stage 3 entry
+
+These are the concrete, runnable proofs behind Stage 1/2 exit criteria. None can be satisfied without a real `arteuction_test` MariaDB. Status is tracked in `HARD_BLOCKER_STATUS.md`.
+
+**SG1 — Schema and migration parity (P0.1)**
+- [ ] Laravel migrations applied to the target DB **first** (Laravel owns the 116-migration schema).
+- [ ] `prisma migrate deploy` exits 0 (applies `add_outbox_lease_columns`, which needs the Laravel `domain_events` table).
+- [ ] `prisma migrate diff --from-config-datasource --to-schema=prisma/schema.prisma --exit-code` exits 0.
+- [ ] Non-Prisma features checked by hand: FULLTEXT index on `artworks`, MariaDB ENUMs, triggers/views (none expected).
+- [ ] Post-cutover migration authority decided and recorded (Prisma Migrate vs Laravel).
+
+**SG2 — Real-database integration (P0.2)**
+- [ ] All 83 `HAS_DB` tests green on a DB named exactly `arteuction_test` (never SQLite, never another name).
+- [ ] `financial-integrity` (I1–I10), `auth` (A1–A14, P1–P12 incl. `$2y$` hash A10), `schema-baseline`, `bid-load` (50 concurrent, `SELECT … FOR UPDATE NOWAIT`), `timezone-roundtrip` green.
+
+**SG3 — Auth parity (must precede any traffic switch)**
+- [ ] Laravel-created user with `$2y$` hash logs in via NestJS; wrong password → 401 with no account-existence leak.
+- [ ] Refresh rotation and reuse detection work; logout invalidates refresh token.
+- [ ] Password reset and email verification work end-to-end.
+- Laravel authentication code is retained until SG3 has run in production traffic for at least two weeks.
+
+**SG4 — Stripe rehearsal (P0.4, test mode only)**
+- [ ] Checkout session → `checkout.session.completed` → signature verified → deduped by `stripe_event_id` → settlement + `ledger_entries` written (never `donations`/`impact_events`).
+- [ ] Duplicate event rejected by the UNIQUE constraint; out-of-order delivery tolerated.
+- [ ] Transfer outbox → `createTransfer` with idempotency key; refund/reversal path (requires the missing refund-dispatch work).
+
+**Retirement mechanics (Stage 4):** tag `v1-final`; move Laravel to `legacy/laravel/` with a plain `git mv` commit (no history rewrite, per `GITHUB_REPOSITORY_CONSOLIDATION.md`); archive, never delete; record in `REPOSITORY_ARCHIVE_LOG.md`.

@@ -4,6 +4,7 @@
 1. `docs/ai/CURRENT_STATE.md` — current branch/release facts and unverified items.
 2. `docs/ai/INVARIANTS.md` — rules that must not be violated.
 3. `docs/ai/DOMAIN_MAP.md` — subsystem entry points.
+4. For Laravel→NestJS migration work: `docs/ai/DOMAIN_OWNERSHIP_MATRIX.md` (per-domain status), `docs/ai/LARAVEL_EXIT_PLAN.md` (gates), `docs/ai/REMAINING_LARAVEL_DEPENDENCIES.md` (what is absent vs stub).
 Read only the subsystem-specific rules and source files needed for the task.
 
 ## Working rules

@@ -1,7 +1,7 @@
 # ARTeuCtion — Phase 0.8 Hard Blocker Status
 
 **Branch:** `test/phase-180-preservation-provenance`
-**Last updated:** 2026-11-05
+**Last updated:** 2026-11-11
 
 ---
 
@@ -13,7 +13,7 @@
 | P0.2 | Real MariaDB integration (83 tests) | BLOCKED — needs live DB | No |
 | P0.3 | Legacy bcrypt compatibility | **RESOLVED** (Phase 0.8) | Yes |
 | P0.4 | Stripe end-to-end rehearsal | BLOCKED — needs Stripe test mode + staging | No |
-| P0.5 | Traffic switch and rollback design | **DONE** — `docs/ai/TRAFFIC_SWITCH_AND_ROLLBACK.md` | Yes (design only) |
+| P0.5 | Traffic switch and rollback design | **DESIGNED, not executed** — `PRODUCTION_CUTOVER_PLAN.md` + `TRAFFIC_SWITCH_AND_ROLLBACK.md` (NestJS addendum) | Yes (design only) |
 
 ---
 
@@ -41,6 +41,13 @@ One NestJS-originated migration exists: `20261103000001_add_outbox_lease_columns
 - The one NestJS migration (`add_outbox_lease_columns`) must be applied to the Laravel-managed DB **before** NestJS starts, then tracked in both systems
 
 ### What must be done before staging
+
+0. **Create the Laravel schema in `arteuction_test` first.** The only Prisma migration `ALTER`s `domain_events`, which exists only after Laravel migrations run, so `prisma migrate deploy` on an empty database fails. With the local Docker stack (`docker-compose.yml`, throwaway credentials) the app user `arteuction` is granted only on the `arteuction` database, so create and grant `arteuction_test` as root:
+   ```bash
+   docker compose exec mariadb mariadb -uroot -psecret -e "CREATE DATABASE IF NOT EXISTS arteuction_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; GRANT ALL ON arteuction_test.* TO 'arteuction'@'%'; FLUSH PRIVILEGES;"
+   docker compose run --rm -e DB_DATABASE=arteuction_test app php artisan migrate --force
+   ```
+   Not yet run. Whether the `HAS_DB` suites need seed data beyond what they create themselves is unverified; do not use `migrate:fresh --seed` against any database that is not a throwaway local one.
 
 1. Apply the NestJS outbox migration to `arteuction_test`:
    ```bash
@@ -162,19 +169,15 @@ stripe trigger checkout.session.completed
 
 ## P0.5 — Traffic switch and rollback design
 
-### Status: DONE — `docs/ai/TRAFFIC_SWITCH_AND_ROLLBACK.md`
+### Status: DESIGNED, not executed
 
-The runbook covers:
-- **Route ownership matrix** — all prefixes, current vs target owner
-- **Pre-switch checklist** — P0.1 → P0.2 → P0.4 gates must all pass first
-- **Nginx per-prefix switch** with zero-downtime reload procedure
-- **In-flight draining** via NestJS shutdown hooks + PM2 reload
-- **Scheduler/queue ownership** — single-writer rule, never dual-run
-- **Instant rollback** (< 2 min) — revert Nginx, no DB changes needed
-- **Financial domain extra gate** — settlement domain switches last, requires second engineer sign-off
-- **Go/No-Go decision tree** for each prefix switch
+Authoritative procedure: `PRODUCTION_CUTOVER_PLAN.md` (backup, per-domain cutover, Stripe shadow mode, acceptance tests). `TRAFFIC_SWITCH_AND_ROLLBACK.md` is the NestJS addendum: `/api/v1` Nginx pattern, cron/queue/webhook ownership, rollback targets.
 
----
+Code-level gaps found while writing it (2026-11-11):
+- `app.enableShutdownHooks()` was missing from `main.ts` — **fixed**.
+- NestJS crons ran on any instance with no ownership switch — **mitigated** with `SCHEDULER_ENABLED=false` (default still enabled; set it explicitly on any instance sharing a DB with a Laravel-owned domain).
+- No process manager / hosting target is decided or documented, so the reload step is not yet concrete.
+- Refund creation does not exist in NestJS, so the financial rollback path cannot be rehearsed end to end.
 
 ## Other fixes in Phase 0.8
 

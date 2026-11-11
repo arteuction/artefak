@@ -1,60 +1,76 @@
 # ARTeuCtion — Current State and Release Truth
 
-**Last verified:** 2026-10-15 from local git + GitHub remote fetch.
+**Last verified:** 2026-11-11 from local git (after `git fetch`) and direct inspection of `apps/api/src`.
+Items not re-verified on this date are marked **carried over**; do not treat them as current.
 
-## Release candidate
+## Two stacks, one repository
+
+| Stack | Role today | Detail |
+|---|---|---|
+| Laravel monolith (repo root) | **Production writer** for every domain | PHP 8.4 + 8.5 (CI matrix), MariaDB 11, Scramble OpenAPI 3.1.2 — *carried over from 2026-10-15* |
+| NestJS 12 + Prisma 7 (`apps/api`) | Migration target, **not serving production traffic** | 95 spec files; route parity 258/258 reported by `route-inventory.spec.ts` |
+
+Laravel owns the schema (116 migrations). The only Prisma migration is `20261103000001_add_outbox_lease_columns` and it requires the Laravel schema to exist first.
+Domain-by-domain ownership: `DOMAIN_OWNERSHIP_MATRIX.md`. Migration scope and gates: `LARAVEL_EXIT_PLAN.md`. Remaining work: `REMAINING_LARAVEL_DEPENDENCIES.md`.
+
+## Git facts (verified 2026-11-11)
 
 | Field | Value |
 |---|---|
-| `main` SHA | `7f6c60d` (merge of PR #17) |
-| Last merged PR | #17 `test/phase-166-auction-room-coverage` — reconnect, reserve_not_met, double-submit, multi-lot isolation Vitest tests + CURRENT_STATE update |
-| PHP versions tested | 8.4 + 8.5 (CI matrix) |
-| MariaDB | 11 |
-| OpenAPI spec version | `3.1.2` (Scramble, verified by `ScrambleApiSpecTest`) |
+| `origin/main` | `00d9505e` — merge of PR #31 (`test/phase-180-preservation-provenance`) |
+| Working branch | `test/phase-180-preservation-provenance`, merged with `origin/main`; PRs #29–#31 came from this branch name |
+| Workflows | `ci.yml`, `deploy.yml`, `security.yml`, `staging.yml` |
+| Remote branches | ~20 (`git branch -r`); merge state of each is **not** recorded here — check Git, not this file |
 
-## Branch map (verified 2026-10-15)
+PRs #1–#17 are itemised in Git history (phase 158 deploy infra, optimization fixes, Stripe outbox fault-injection tests, cursor pagination, design system 161–164, auction-room tests). PRs #18–#28 were merged after the previous version of this file and are not itemised here: use `git log --merges origin/main`.
 
-| Branch | HEAD | Status |
-|---|---|---|
-| `main` | `7f6c60d` | Clean; PRs #1–17 merged |
-| `test/phase-166-auction-room-coverage` | `e10b6c2` | Merged as PR #17 |
-| `docs/phase-165-ai-context-engineering` | `1196115` | Merged as PR #15 |
-| `design/phase-161-design-system-foundation` | `cfca6b7` | Merged as PR #16 |
-| `ops/queue-backpressure-and-deploy-recovery` | `4a33fd8` | Merged as PR #14 |
-| `fix/phase-168-eur-golden-path-buyer-journey` | active | Fix BGN→EUR in GoldenPathTest; add buyer-journey.spec.ts Playwright suite |
+## NestJS implementation snapshot (verified by code inspection, 2026-11-11)
+
+"Exists" means code and unit tests are present. It does **not** mean parity with Laravel or that it has run against a real database, Stripe or S3.
+
+| Capability | State in `apps/api/src` |
+|---|---|
+| Auth, 12 policies, `$2y$`→`$2b$` bcrypt shim | Implemented; real-DB auth tests not yet run |
+| Stripe | `createCheckoutSession`, `constructEvent`, `retrieveSession`, `retrieveTransfer`, `createTransfer`; returns a stub session when `STRIPE_SECRET_KEY` is unset. **No refund-creation/reversal dispatch.** |
+| Webhook handler | Handles `checkout.session.completed`, `payment_intent.succeeded`, `.amount_capturable_updated`, `.payment_failed`, `charge.refunded` |
+| Settlement / payout | `SettlementService.settle/preview` and payout list queries exist; cent-for-cent parity vs Laravel vectors **not demonstrated** |
+| Scheduler (`@nestjs/schedule`) | 5 crons: close-expired-lots, expire-bid-authorizations, dispatch-domain-events, dispatch-transfer-outbox, recover-stale-claims. No BullMQ. No nightly reconciliation, governance health or ops alerts |
+| S3 | Presign upload/download implemented; falls back to `stub-s3.local` URLs when disabled. Image derivatives (no `sharp`) not implemented |
+| Search | Meilisearch service present (search/index/delete) |
+| Realtime | Socket.io `BidGateway` present |
+| Email | `nodemailer` service with 5 templates |
+| Still stubs | Most of `admin.controller.ts` (reconciliation, split profiles, rulesets, books, connected payouts, ArtMetro), `artmetro-legacy`, `misc.controller` (api-clients, partners), book-files upload-intent, GDPR erasure (records intent only) |
+| Not present at all | PDF generation, activity log, Filament/admin UI replacement, Slack alerts |
 
 ## Key unverified items
 
-- [ ] CI results for `main` SHA `0f53810` — link to GitHub Actions run not recorded here; verify via trusted CI interface.
-- [ ] Staging environment deployed commit — not verified from this machine.
-- [ ] Production VPS deployed commit — not verified.
-- [ ] Stripe test-mode end-to-end rehearsal — not recorded.
+- [ ] CI result for `00d9505e` — not recorded; verify in GitHub Actions.
+- [ ] 83 `HAS_DB` NestJS integration tests have never run against a real `arteuction_test` (see `HARD_BLOCKER_STATUS.md` P0.2).
+- [ ] Staging/production deployed commit — not verified from this machine.
+- [ ] Stripe test-mode end-to-end rehearsal (P0.4) — not recorded.
 - [ ] Backup restoration and rollback — not rehearsed and recorded.
-- [ ] Playwright buyer-journey.spec.ts run against a live stack — API contract tests pass without a server; UI journey tests need SPA + Laravel running.
-- [ ] Memory benchmark on 1 GB VPS profile — reported in Phase 158 docs; not independently re-verified against current code.
+- [ ] Playwright buyer-journey against a live stack — needs SPA + backend running.
+- [ ] 1 GB VPS memory benchmark (Phase 158) — reported, not independently re-verified.
+- [ ] Laravel-side PHP/MariaDB/OpenAPI facts in the table above — carried over.
 
-## Merged PRs and their scope
+## Local verification done on 2026-11-11
 
-| PR | Branch | Key change |
-|---|---|---|
-| #1–3 | fix/full-suite-green | Initial green suite, security fixes (OSV, handlebars, openapi-ts), PHP 8.4 CI |
-| #4 | feat/phase-158-deploy-infrastructure | Production VPS deploy, FrankenPHP, PHP-FPM profiles, memory benchmarks |
-| #5 | fix/optimization-critical-high | Critical/high perf fixes, FULLTEXT async |
-| #6 | fix/recipient-type-enum-guard | Schema guard for settlement/refund_lines enum downgrade |
-| #7–9 | docs/architecture-* | Architecture docs, tech research, optimization roadmap |
-| #10 | ops/queue-retry-contracts-and-versioned-derivatives | `$tries`/`$backoff` on DispatchStripeTransfer/Reversal; versioned derivative keys |
-| #11 | test/stripe-outbox-failure-modes | Fault-injection tests for webhook processing; removed `final` from ProcessRefund |
-| #12 | perf/public-catalog-n1-and-etag | N+1 fix, ETag + Cache-Control on artwork detail |
-| #13 | perf/cursor-pagination-public-catalog | Cursor/keyset pagination for public catalog (newest sort) |
-| #14 | ops/queue-backpressure-and-deploy-recovery | Queue backpressure + deploy recovery checks in CheckOperationalAlerts |
-| #15 | docs/phase-165-ai-context-engineering | AI context engineering: AGENTS.md, CLAUDE.md, docs/ai/, .claude/rules/, Repomix profiles |
-| #16 | design/phase-161-design-system-foundation | Phases 161–164: design tokens, ArtworkCard, AuctionTimer, BidControl, AuctionRoomPage + Vitest suite |
-| #17 | test/phase-166-auction-room-coverage | Reconnect, reserve_not_met, double-submit, multi-lot isolation Vitest tests |
+- `artwork.service.spec.ts`: 52/52 passing locally.
+- `npm audit` at repo root: 0 vulnerabilities after `follow-redirects` 1.16.1 → 1.16.2 (GHSA-mrwp-f3q8-3g9p). CI Security workflow result not yet observed.
 
 ## Active security suppressions
 
-- GHSA-hhx9-57xq-r5rw (`@hey-api/openapi-ts`) — dev-only, suppressed in OSV scanner; upgraded to 0.67.6 but suppression retained pending a patched 0.67.x. Review before next security audit.
+- GHSA-hhx9-57xq-r5rw (`@hey-api/openapi-ts`) — dev-only, suppressed in the OSV scanner pending a patched 0.67.x. Carried over; review before the next security audit.
+
+## Documentation map
+
+| Kind | Documents |
+|---|---|
+| Rules (stable) | `INVARIANTS.md`, `RELEASE_GATES.md`, `.claude/rules/*` |
+| Status (must stay current) | this file, `HARD_BLOCKER_STATUS.md`, `DOMAIN_OWNERSHIP_MATRIX.md` |
+| Plans | `LARAVEL_EXIT_PLAN.md`, `PRODUCTION_CUTOVER_PLAN.md`, `TRAFFIC_SWITCH_AND_ROLLBACK.md`, `docs/decisions/ADR-*` |
+| Historical snapshots | `NESTJS_MIGRATION_MAP.md`, `PHASE_0_2_REPORT.md`, `docs/architecture/*` |
 
 ## Update policy
 
-Update this file in the same PR that changes branch/release readiness. Every statement about merge state, passing CI, deployment or rehearsal must link to a commit, workflow run, test report or runbook entry. Separate *reported*, *verified*, *blocked* and *not tested* status.
+Update this file in the same PR that changes branch/release readiness. Every statement about merge state, passing CI, deployment or rehearsal must link to a commit, workflow run, test report or runbook entry. Separate *reported*, *verified*, *blocked* and *not tested* status. If "Last verified" is older than the newest merged PR, treat the file as stale.
